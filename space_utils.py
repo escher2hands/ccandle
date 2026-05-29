@@ -37,6 +37,10 @@ def list_configured_spaces():
         for v in space_data.values()
     ]
 
+def list_configured_space_ids():
+    space_data = _load_config_spaces()
+    return [v['id'] for v in space_data.values()]
+
 def add_space(space_id, alias):
     # load config file or start with an empty dict if file doesn't exist
     data = _load_config_spaces()
