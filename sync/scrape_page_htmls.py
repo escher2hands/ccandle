@@ -1,5 +1,5 @@
 # fetch the html contents (+ some metadata) of pages in page id list given
-from config.config_db import PAGES_TABLE, DB_PATH
+from config.config_db import TABLE_PAGES, PATH_DB
 from network.network_utils import request_page_contents
 import sqlite3
 
@@ -28,7 +28,7 @@ def scrape_page_contents_from_server(page_id_list, chunk_size=100):
 def _store_page_contents(pages_data):
     print(f"storing...")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
     params = [(
         page["id"],
@@ -38,7 +38,7 @@ def _store_page_contents(pages_data):
         for page in pages_data
     ]
     sql = f"""
-        INSERT INTO {PAGES_TABLE}
+        INSERT INTO {TABLE_PAGES}
             (id, title, last_modified, html)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET

@@ -1,7 +1,4 @@
-import sqlite3
-from config.config_db import DB_PATH, PAGES_TABLE
-
-PAGES_SCHEMA = """
+SCHEMA_PAGES = """
     id TEXT PRIMARY KEY,
 
     title TEXT,
@@ -43,20 +40,3 @@ PAGES_SCHEMA = """
 
     processed_version INTEGER
 """
-
-
-def create_pages_table_if_not_existing():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(f"""CREATE TABLE IF NOT EXISTS {PAGES_TABLE} ({PAGES_SCHEMA})""")
-    conn.commit()
-    conn.close()
-
-
-def drop_pages_table():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    print(f"dropping table pages...")
-    cur.execute(f"""DROP TABLE IF EXISTS {PAGES_TABLE}""")
-    conn.commit()
-    conn.close()

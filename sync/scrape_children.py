@@ -1,4 +1,4 @@
-from config.config_db import PAGES_TABLE, DB_PATH
+from config.config_db import TABLE_PAGES, PATH_DB
 from config.config_network import ENDPOINT_PAGES, ENDPOINT_CHILDREN
 from db.db_utils import get_all_ids_in_db
 from network.network_utils import chunked, request_paginated_results
@@ -31,7 +31,7 @@ def _store_child_list_for_pages(child_list_dict, quiet=False):
     import sqlite3, json
     if not quiet: print(f"Storing child history for {len(child_list_dict)} pages...")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
     params = [(
         page["id"],
@@ -40,7 +40,7 @@ def _store_child_list_for_pages(child_list_dict, quiet=False):
         for page in child_list_dict
     ]
     sql = f"""
-        INSERT INTO {PAGES_TABLE}
+        INSERT INTO {TABLE_PAGES}
             (id, child_list)
         VALUES (?, ?)
         ON CONFLICT(id) DO UPDATE SET
