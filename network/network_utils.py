@@ -101,7 +101,7 @@ def chunked(iterable, size):
     for i in range(0, len(iterable), size):
         yield iterable[i:i+size]
 
-def fetch_pages_for_label(label_id):
+def request_pages_for_label(label_id):
     results = request_paginated_results(f"/labels/{label_id}/pages", 30)
     active_ids = [
         page["id"] for page in results
@@ -109,7 +109,7 @@ def fetch_pages_for_label(label_id):
     ]
     return [str(pid) for pid in sorted(active_ids)]
 
-def fetch_labels_for_space(space_id):
+def request_labels_for_space(space_id):
     results = request_paginated_results(f"/spaces/{space_id}/content/labels", 30)
     return [{"id": r.get("id"), "label": r.get("name")} for r in results]
 
