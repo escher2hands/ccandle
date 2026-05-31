@@ -1,6 +1,6 @@
 import requests
 from requests.auth import HTTPBasicAuth
-from config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE
+from config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE, CONFLUENCE_BASE_URL_V1
 from config.confluence_auth import fetch_conf_details
 import subprocess, platform, re, time
 from collections.abc import Iterable
@@ -101,7 +101,35 @@ def chunked(iterable, size):
     for i in range(0, len(iterable), size):
         yield iterable[i:i+size]
 
+def request_pages_for_label(label_id):
+    results = request_paginated_results(f"/labels/{label_id}/pages", 30)
+    active_ids = [
+        page["id"] for page in results
+        if page.get("status") == "current"
+    ]
+    return [str(pid) for pid in sorted(active_ids)]
+
+def request_labels_for_space(space_id):
+    results = request_paginated_results(f"/spaces/{space_id}/content/labels", 30)
+    return [{"id": r.get("id"), "label": r.get("name")} for r in results]
+
+def add_label_via_rest(page_id, label):
+    url = f"{CONFLUENCE_BASE_URL_V1}content/{page_id}/label"
+    response = SESSION.post(url, json=[{"prefix": "global", "name": label}], timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+def delete_label_via_rest(page_id, label):
+    url = f"{CONFLUENCE_BASE_URL_V1}content/{page_id}/label"
+    response = SESSION.delete(url, params={"name": label}, timeout=30)
+    if response.status_code == 404:
+        return {"status": "absent", "label": label, "body": response.json()}
+    if response.text:
+        return {"status": "error", "label": label, "body": response.json()}
+    return {"status": "success", "label": label, "body": None}
+
 def check_network_connection(host="8.8.8.8", timeout=3):
+    from presentation.theme import RED, RESET
     param = "-n" if platform.system().lower() == "windows" else "-c"
     command = ["ping", param, "1", "-W", str(timeout), host]
     try:
@@ -109,8 +137,6 @@ def check_network_connection(host="8.8.8.8", timeout=3):
         if result.returncode == 0:
             return True
         else:
-            RED = "\033[1;31m"
-            RESET = "\033[0m"
             print(f"{RED}"
                   "\n   (\\ "
                   "\n   .'.       You are not connected to the internet."

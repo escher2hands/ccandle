@@ -1,5 +1,5 @@
-from config.config_db import DB_PATH, PAGES_TABLE
-from db.db_utils import get_all_ids_in_db
+from config.config_db import PATH_DB, TABLE_PAGES
+from db.db_utils import get_all_ids_in_pages
 from network.network_utils import request_paginated_results, chunked
 from config.config_network import ENDPOINT_AUTHORS, ENDPOINT_PAGES
 
@@ -8,7 +8,7 @@ BATCH_SIZE = 250        # max this out, so we can have fewer API calls
 # fetch the author history from the Confluence Cloud.
 # Squash 'streak' edits and store in bulk
 def scrape_authors():
-    pids = get_all_ids_in_db()
+    pids = get_all_ids_in_pages()
     batches = chunked(pids, BATCH_SIZE)    # we chunk so a timeout won't lose all our progress1
     for batch_pids in batches:
         id_to_auth_dict = []
@@ -47,7 +47,7 @@ def _store_author_history_for_pages(author_history_dict, quiet=False):
     import sqlite3, json
     if not quiet: print(f"Storing author history for {len(author_history_dict)} pages...")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
     params = [(
         page["id"],
@@ -56,7 +56,7 @@ def _store_author_history_for_pages(author_history_dict, quiet=False):
         for page in author_history_dict
     ]
     sql = f"""
-        INSERT INTO {PAGES_TABLE}
+        INSERT INTO {TABLE_PAGES}
             (id, authors)
         VALUES (?, ?)
         ON CONFLICT(id) DO UPDATE SET

@@ -1,7 +1,4 @@
-import sqlite3
-from config.config_db import DB_PATH, PAGES_TABLE
-
-PAGES_SCHEMA = """
+SCHEMA_PAGES = """
     id TEXT PRIMARY KEY,
 
     title TEXT,
@@ -34,6 +31,7 @@ PAGES_SCHEMA = """
     links_list TEXT,
     child_list TEXT,
     mentions_list TEXT,
+    labels TEXT,
 
     llama_summary TEXT,
     vector_embedding BLOB,
@@ -44,19 +42,9 @@ PAGES_SCHEMA = """
     processed_version INTEGER
 """
 
+VALID_FIELDS = ["title", "version", "last_modified", "authors", "space_id", "html", "retrieved_at",
+    "plain_text", "lead_para", "eval_smell", "eval_summary", "word_count", "link_count", "image_count", "has_link_tree", "metrics_json",
+    "page_type", "mm_smell", "rn_smell", "pt_smell", "ws_smell", "sd_smell", "ci_smell", "lp_smell",
+    "links_list","child_list", "mentions_list", "labels",
+    "llama_summary", "vector_embedding", "vector_reduced", "kw_fingerprint","similarity_cluster",]
 
-def create_pages_table_if_not_existing():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(f"""CREATE TABLE IF NOT EXISTS {PAGES_TABLE} ({PAGES_SCHEMA})""")
-    conn.commit()
-    conn.close()
-
-
-def drop_pages_table():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    print(f"dropping table pages...")
-    cur.execute(f"""DROP TABLE IF EXISTS {PAGES_TABLE}""")
-    conn.commit()
-    conn.close()

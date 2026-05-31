@@ -1,4 +1,4 @@
-from config.config_db import DB_PATH, PAGES_TABLE
+from config.config_db import PATH_DB, TABLE_PAGES
 from config.config_network import ENDPOINT_SPACES, ENDPOINT_PAGES
 from network.network_utils import request_paginated_results
 import datetime, sqlite3
@@ -24,7 +24,7 @@ def scrape_page_metadata_in_space(space_id):
 def _store_page_metadata_to_db(pages_data):
     print(f"storing...")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
 
     params = [(
@@ -35,7 +35,7 @@ def _store_page_metadata_to_db(pages_data):
         for page in pages_data
     ]
     sql = f"""
-    INSERT OR REPLACE INTO {PAGES_TABLE}
+    INSERT OR REPLACE INTO {TABLE_PAGES}
         (id, version, space_id, retrieved_at)
     VALUES (?, ?, ?, ?)
     """
