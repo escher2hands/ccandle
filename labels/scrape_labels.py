@@ -1,6 +1,6 @@
 from tqdm import tqdm
-from space_utils import list_configured_space_ids
-from db.schema_table_labels import get_all_labels_with_ids
+from spaces.space_utils import list_configured_space_ids
+from labels.schema_table_labels import get_all_labels_with_ids
 from db.table_utils import create_table_hard
 from network.network_utils import request_labels_for_space, request_pages_for_label
 import datetime
@@ -29,7 +29,7 @@ def sync_label_names_from_confluence():
 def store_synced_labels(freshly_synced_label_records):
     import sqlite3
     from config.config_db import TABLE_LABELS, PATH_DB
-    from db.schema_table_labels import SCHEMA_LABELS
+    from labels.schema_table_labels import SCHEMA_LABELS
 
     create_table_hard(TABLE_LABELS, SCHEMA_LABELS)        # kill whatever table already existed, and build a new one.
 
@@ -73,11 +73,11 @@ def store_page_label_mapping(page_to_labels):
 
     with sqlite3.connect(PATH_DB) as conn:
         cur = conn.cursor()
-        cur.execute(f"""UPDATE {TABLE_PAGES} SET labels = ''""") # clear all existing labels
+        cur.execute(f"""UPDATE {TABLE_PAGES} SET labels = '[]'""") # clear all existing labels
 
         records_to_update = [
-            (json.dumps(sorted(labels)), page_id)                # do we actually need to sort here? Or is it already sorted?
-            for page_id, labels in page_to_labels.items()
+            (json.dumps(sorted(labels)), pid)                # do we actually need to sort here? Or is it already sorted?
+            for pid, labels in page_to_labels.items()
         ]
-        cur.executemany( f"""UPDATE {TABLE_PAGES} SET labels = ? WHERE page_id = ?""", records_to_update)
+        cur.executemany( f"""UPDATE {TABLE_PAGES} SET labels = ? WHERE id = ?""", records_to_update)
         conn.commit()

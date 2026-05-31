@@ -1,6 +1,6 @@
 from config.config_db import TABLE_PAGES, PATH_DB
 from config.config_network import ENDPOINT_PAGES, ENDPOINT_CHILDREN
-from db.db_utils import get_all_ids_in_db
+from db.db_utils import get_all_ids_in_pages
 from network.network_utils import chunked, request_paginated_results
 
 BATCH_SIZE = 100         # we batch to not lose all progress when there's a connection timeout.
@@ -10,7 +10,7 @@ CHILD_LIMIT = 250        # we shoot for the max results per response, to reduce 
 # this is important for guessing which pages might make good landing page candidates.
 # and also for guessing future topical relationships.
 def scrape_children():
-    pids = get_all_ids_in_db()
+    pids = get_all_ids_in_pages()
     batches = chunked(pids, BATCH_SIZE)    # we chunk so a timeout won't lose all our progress
     for batch_pids in batches:
         id_to_children_dicts = []
