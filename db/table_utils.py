@@ -4,7 +4,7 @@ import sqlite3
 def create_table(table_name, table_schema):
     conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
-    cur.execute(f"""CREATE TABLE IF NOT EXISTS ? (?)""", (table_name, table_schema))
+    cur.execute(f"""CREATE TABLE IF NOT EXISTS {table_name} ({table_schema})""")
     conn.commit()
     conn.close()
 
