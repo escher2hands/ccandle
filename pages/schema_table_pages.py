@@ -31,6 +31,7 @@ SCHEMA_PAGES = """
     links_list TEXT,
     child_list TEXT,
     mentions_list TEXT,
+    labels TEXT,
 
     llama_summary TEXT,
     vector_embedding BLOB,
@@ -40,3 +41,10 @@ SCHEMA_PAGES = """
 
     processed_version INTEGER
 """
+
+VALID_FIELDS = ["title", "version", "last_modified", "authors", "space_id", "html", "retrieved_at",
+    "plain_text", "lead_para", "eval_smell", "eval_summary", "word_count", "link_count", "image_count", "has_link_tree", "metrics_json",
+    "page_type", "mm_smell", "rn_smell", "pt_smell", "ws_smell", "sd_smell", "ci_smell", "lp_smell",
+    "links_list","child_list", "mentions_list", "labels",
+    "llama_summary", "vector_embedding", "vector_reduced", "kw_fingerprint","similarity_cluster",]
+
