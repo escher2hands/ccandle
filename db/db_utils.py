@@ -1,28 +1,22 @@
 # a collection of helper functions for accessing the pages db
 import sqlite3
-
 from config.config_db import PATH_DB, TABLE_PAGES
+from db.db_query_utils import query_db_results
+from pages.schema_table_pages import VALID_FIELDS
 
-VALID_FIELDS = ["title", "version", "last_modified", "authors", "space_id", "html", "retrieved_at",
-    "plain_text", "lead_para", "eval_smell", "eval_summary", "word_count", "link_count", "image_count", "has_link_tree", "metrics_json",
-    "page_type", "mm_smell", "rn_smell", "pt_smell", "ws_smell", "sd_smell", "ci_smell", "lp_smell",
-    "links_list","child_list", "mentions_list",
-    "llama_summary", "vector_embedding", "vector_reduced", "kw_fingerprint","similarity_cluster",]
+def get_all_ids_in_pages(path_to_db=PATH_DB):
+    return query_db_results(select_query="id", table=TABLE_PAGES, path_to_db=path_to_db)
 
-def get_all_ids_in_db():
-    conn = sqlite3.connect(PATH_DB)
-    cursor = conn.cursor()
-    cursor.execute(f'''SELECT id FROM {TABLE_PAGES}''')
-    rows = cursor.fetchall()
+def get_field_in_pages(pid, field):
+    if field not in VALID_FIELDS:
+        raise ValueError(f"Invalid field name: '{field}'. Must be one of {VALID_FIELDS}")
+    rows = query_db_results(select_query=field, table=TABLE_PAGES, where_clause=f"id = {pid}")
+    return rows[0] if rows else None
+
+def update_field(pid, field, field_value, path_to_db=PATH_DB):
+    conn = sqlite3.connect(path_to_db)
+    cur = conn.cursor()
+    query = f"UPDATE {TABLE_PAGES} SET {field} = ? WHERE id = ?"
+    cur.execute(query, (field_value, pid))
+    conn.commit()
     conn.close()
-    return [row[0] for row in rows]
-
-def get_field_in_db(pid, field_name):
-    if field_name not in VALID_FIELDS:
-        raise ValueError(f"Invalid field name: '{field_name}'. Must be one of {VALID_FIELDS}")
-    conn = sqlite3.connect(PATH_DB)
-    cursor = conn.cursor()
-    cursor.execute(f'''SELECT {field_name} FROM {TABLE_PAGES} WHERE id = {pid}''')
-    row = cursor.fetchone()
-    conn.close()
-    return row[0]
