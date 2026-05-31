@@ -5,7 +5,7 @@ SCHEMA_LABELS = """
     id TEXT PRIMARY KEY,
     label TEXT,
     space_id TEXT,
-    retrieved_at TEXT,
+    retrieved_at TEXT
 """
 
 def get_labels_cache():
