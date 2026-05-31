@@ -129,6 +129,7 @@ def delete_label_via_rest(page_id, label):
     return {"status": "success", "label": label, "body": None}
 
 def check_network_connection(host="8.8.8.8", timeout=3):
+    from presentation.theme import RED, RESET
     param = "-n" if platform.system().lower() == "windows" else "-c"
     command = ["ping", param, "1", "-W", str(timeout), host]
     try:
@@ -136,8 +137,6 @@ def check_network_connection(host="8.8.8.8", timeout=3):
         if result.returncode == 0:
             return True
         else:
-            RED = "\033[1;31m"
-            RESET = "\033[0m"
             print(f"{RED}"
                   "\n   (\\ "
                   "\n   .'.       You are not connected to the internet."
