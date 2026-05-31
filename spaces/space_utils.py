@@ -128,12 +128,12 @@ def _load_config_spaces():
         return {}   # empty config
 
 def print_formatted_space_list(space_results):
-    from parsing.parsing_utils import truncate_with_elipses
+    from presentation.formatting_utils import cut
 
     print(f" ID " + "-" * 9 + " KEY " + "-" * 11 + " NAME " + "-" * 15)
     for res in space_results:
         sid = res.get('id')
         key = res.get('key')
         name = res.get('name')
-        print(f" {sid:<10}   {truncate_with_elipses(key, 14)}  {name}")
+        print(f" {sid:<10}   {cut(key, 14)}  {name}")
 
