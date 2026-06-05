@@ -9,8 +9,8 @@ CHILD_LIMIT = 250        # we shoot for the max results per response, to reduce 
 # call Confluence Cloud's APIs to get the list of which pages belong to which.
 # this is important for guessing which pages might make good landing page candidates.
 # and also for guessing future topical relationships.
-def scrape_children():
-    pids = get_all_ids_in_pages()
+def scrape_children(pid_list=None):
+    pids = pid_list or get_all_ids_in_pages()
     batches = chunked(pids, BATCH_SIZE)    # we chunk so a timeout won't lose all our progress
     for batch_pids in batches:
         id_to_children_dicts = []
