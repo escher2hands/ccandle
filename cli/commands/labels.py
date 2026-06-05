@@ -18,7 +18,7 @@ def register(subparsers):
 
 def run(args):
     from labels.label_bulk_actions import (add_label_to_pages, delete_label_from_pages, check_and_clean_label)
-    from labels.scrape_labels import sync_labels
+    from labels.scrape_labels import scrape_labels
     from network.network_utils import check_network_connection
     from presentation.formatting_utils import parse_pids_from_terminal
     from presentation.page_previews import get_pages_preview
@@ -66,6 +66,6 @@ def run(args):
         return 0
 
     elif args.labels_cmd == "sync":
-        sync_labels()
+        scrape_labels()
         return 0
     return 1
