@@ -5,7 +5,12 @@ from db.db_query_utils import query_db_results
 from pages.schema_table_pages import VALID_FIELDS
 
 def get_all_ids_in_pages(path_to_db=PATH_DB):
-    return query_db_results(select_query="id", table=TABLE_PAGES, path_to_db=path_to_db)
+    return [res[0] for res in query_db_results(select_query="id", table=TABLE_PAGES, path_to_db=path_to_db)]
+
+def random_pid_in_pages(count=1):
+    import random
+    all_ids = get_all_ids_in_pages()
+    return random.choices(all_ids, k=count)
 
 def get_field_in_pages(pid, field):
     if field not in VALID_FIELDS:
