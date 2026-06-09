@@ -4,35 +4,126 @@
 # - links in line
 # - bullet points should be respected
 from bs4 import BeautifulSoup
-import re
+from tqdm import tqdm
 
-def extract_plain_text_from_html(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    plain_text = soup.get_text()
-    return plain_text
+from db.db_query_utils import query_db_results
+from db.db_utils import get_all_ids_in_pages
+from spaces.space_utils import get_space_attribute
 
-def get_link_count_from_html(html):
-    LINK_RE = re.compile(r'<a[^>]*href=\"([^"]+)\"[^>]*>')
-    links = re.findall(LINK_RE, html)
-    return len(links)
+# --- Confluence-specific HTML element identifiers ---
+MACRO_FALLBACK_TAG = "ac:adf-fallback"
+STRUCTURED_MACRO_TAG = "ac:structured-macro"
+EXCERPT_INCLUDE_MACRO = "excerpt-include"
+PAGE_LINK_TAG = "ri:page"
+CONTENT_TITLE_ATTR = "ri:content-title"
+MACRO_NAME_ATTR = "ac:name"
 
-# count the num images inside a given html snippet (usually a whole page)
-def get_image_count_from_html(html):
-    IMAGE_TAG = "</ac:image>"
-    return html.count(IMAGE_TAG)
+BLOCK_ELEMENTS = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "table", "pre"]
+HEADING_ELEMENTS = {"h1", "h2"}
+LIST_ITEM_ELEMENT = "li"
 
-# count num paragraphs in an html snippet
-def get_paragraph_count_from_html(html):
-    soup = BeautifulSoup(html, "html.parser")
-    # <p> should be our paragraph tag, but we want to skip those inside of tables and image captions
-    valid_paragraphs = [
-        para_tag for para_tag in soup.find_all("p")
-        if not para_tag.find_parent(["table", "ac:caption"])
-    ]
-    return len(valid_paragraphs)
+# Full pipeline: cleans Confluence HTML and extracts plain text.
+# space_key is reserved for future link formatting (see insert_internal_link_flags).
+def extract_plain_text_from_html(html_body: str, space_key: str) -> str:
+    if not html_body:
+        return ""
+    soup = clean_confluence_html(html_body)
+    return extract_text_from_soup(soup)
 
-# finds if there is a link tree macro in the html snippet
-def has_link_tree_in_html(html):
-    children_macro = re.escape('<ac:structured-macro ac:name=\"children\"')
-    children_link_list = re.findall(children_macro, html)
-    return len(children_link_list) > 0
+def extract_plain_texts_in_bulk(pid_list=None):
+    pids = pid_list or get_all_ids_in_pages()
+    all_pids_to_htmls = [
+        {
+            'id': result[0],
+            'html': result[1],
+            'space_key': get_space_attribute(result[2], "id", "short_id"),
+        } for result in query_db_results(select_query="id, html, space_id")]
+    pids_to_htmls = [record for record in all_pids_to_htmls if record['id'] in pids]
+
+    texts = []
+    for record in tqdm(pids_to_htmls, desc="Extracting plain text from bulk", unit="page"):
+        texts.append({
+            'id': record['id'],
+            'text': extract_plain_text_from_html(html_body=record['html'], space_key=record['space_key']),
+        })
+
+    _store_plain_texts_in_bulk(texts)
+    return texts
+
+def _store_plain_texts_in_bulk(text_records):
+    return
+
+#     Parses and cleans Confluence HTML:
+#       - Removes ADF fallback tags (duplicated macro content)
+#       - Replaces excerpt-include macros with readable placeholders
+#       - Strips tags that contribute no text content
+#     Returns a cleaned BeautifulSoup object.
+def clean_confluence_html(html_body: str) -> BeautifulSoup:
+    soup = BeautifulSoup(html_body or "", "html.parser")
+
+    _remove_adf_fallbacks(soup)
+    _replace_excerpt_include_macros(soup)
+    _strip_empty_tags(soup)
+
+    return soup
+
+# Drops ac:adf-fallback tags, which duplicate macro content as HTML fallbacks.
+def _remove_adf_fallbacks(soup: BeautifulSoup) -> None:
+    for fallback in soup.find_all(MACRO_FALLBACK_TAG):
+        fallback.decompose()
+
+# Replaces excerpt-include macros with a plain text placeholder.
+# These macros transclude content from other pages, which we can't
+# inline — so we leave a readable marker instead.
+def _replace_excerpt_include_macros(soup: BeautifulSoup) -> None:
+    macros = soup.find_all(STRUCTURED_MACRO_TAG, {MACRO_NAME_ATTR: EXCERPT_INCLUDE_MACRO})
+    for macro in macros:
+        page_link = macro.find(PAGE_LINK_TAG)
+        page_title = (
+            page_link.get(CONTENT_TITLE_ATTR, "Unknown page")
+            if page_link
+            else "Unknown page"
+        )
+        placeholder = soup.new_tag("p")
+        placeholder.string = f"[[Excerpt from: {page_title}]]"
+        macro.replace_with(placeholder)
+
+# Removes tags that contain no visible text (e.g. empty formatting spans).
+def _strip_empty_tags(soup: BeautifulSoup) -> None:
+    for tag in soup.find_all():
+        if not tag.get_text(strip=True):
+            tag.decompose()
+
+#    Walks block-level elements in document order and converts them to plain text:
+#      - Headings become [[Heading: ...]]
+#      - List items get a dash prefix
+#      - All other blocks are extracted as-is
+#    Skips nested blocks to avoid double-processing, and deduplicates across the doc.
+def extract_text_from_soup(soup: BeautifulSoup) -> str:
+    output = []
+    seen = set()
+
+    def add_if_new(text: str) -> None:
+        text = text.strip()
+        if text and text not in seen:
+            seen.add(text)
+            output.append(text)
+
+    for el in soup.find_all(BLOCK_ELEMENTS, recursive=True):
+        if _is_nested_block(el):
+            continue
+
+        text = el.get_text(" ", strip=True)
+
+        if el.name in HEADING_ELEMENTS:
+            add_if_new(f"[[Heading: {text}]]")
+        elif el.name == LIST_ITEM_ELEMENT:
+            add_if_new(f"- {text}")
+        else:
+            add_if_new(text)
+
+    return "\n".join(output).strip()
+
+# Returns True if this element is already inside another block-level element.
+def _is_nested_block(el) -> bool:
+    return bool(el.find_parent(BLOCK_ELEMENTS))

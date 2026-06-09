@@ -8,26 +8,21 @@ import sqlite3
 # as some people might config a dozen Confluence spaces for scraping,
 # we could have 10K pages scraped, and if the network gets disconnected near the end,
 # that could be painful.
-def scrape_page_contents_from_server(page_id_list, chunk_size=100):
-    print(f"scraping page htmls...")
-
-    page_id_chunks = _chunked(page_id_list, chunk_size)
-    for page_ids in page_id_chunks: # supposed to somehow chunk page_ids and iterate through fetching and storage
-        results = request_page_contents(page_ids, strip_to_html=False)
-        pages = []
-        for result in results:
-            pages.append({
+def scrape_page_contents_from_server(pid_list, chunk_size=100):
+    for pids in _chunked(pid_list, chunk_size):
+        results = request_page_contents(pids, strip_to_html=False)
+        pages = [
+            {
                 "id": result.get("id"),
-                "title": result.get('title'),
-                "last_modified": result.get('version', {}).get('createdAt'),
-                "html": result.get('body', {}).get('storage', {}).get('value', ''),
-            })
-
+                "title": result.get("title"),
+                "last_modified": result.get("version", {}).get("createdAt"),
+                "html": result.get("body", {}).get("storage", {}).get("value", ""),
+            }
+            for result in results
+        ]
         _store_page_contents(pages)
 
 def _store_page_contents(pages_data):
-    print(f"storing...")
-
     conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
     params = [(
@@ -46,13 +41,9 @@ def _store_page_contents(pages_data):
             last_modified = excluded.last_modified,
             html = excluded.html
         """
-
     cur.executemany(sql, params)
     conn.commit()
     conn.close()
-
-    print(f"successfully stored data for {len(pages_data)} pages.")
-
 
 def _chunked(iterable, size):
     for i in range(0, len(iterable), size):

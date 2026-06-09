@@ -1,8 +1,8 @@
 import argparse
 from presentation.theme import *
-from cli.commands import connection, spaces, labels
+from cli.commands import connection, spaces, labels, sync
 
-COMMANDS = [connection, spaces, labels]  # just add new modules here as you grow
+COMMANDS = [connection, spaces, labels, sync]  # just add new modules here as you grow
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cli", description=f"{BLUE}Bulk knowledge management for Confluence Cloud.{RESET}")

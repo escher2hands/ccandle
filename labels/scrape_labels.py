@@ -6,7 +6,7 @@ from network.network_utils import request_labels_for_space, request_pages_for_la
 import datetime
 from collections import defaultdict
 
-def sync_labels():
+def scrape_labels():
     from config.config_app import FRIENDLY_APP_NAME
     print(f"Syncing labels from your Confluence spaces to {FRIENDLY_APP_NAME}...")
     all_labels = sync_label_names_from_confluence()

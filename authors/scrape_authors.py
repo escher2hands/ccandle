@@ -7,9 +7,9 @@ BATCH_SIZE = 250        # max this out, so we can have fewer API calls
 
 # fetch the author history from the Confluence Cloud.
 # Squash 'streak' edits and store in bulk
-def scrape_authors():
-    pids = get_all_ids_in_pages()
-    batches = chunked(pids, BATCH_SIZE)    # we chunk so a timeout won't lose all our progress1
+def scrape_authors(delta_pages=None):
+    pids = delta_pages or get_all_ids_in_pages()        # default to all pids if not explicitly set
+    batches = chunked(pids, BATCH_SIZE)                 # we chunk so a timeout won't lose all our progress
     for batch_pids in batches:
         id_to_auth_dict = []
         for pid in batch_pids:
