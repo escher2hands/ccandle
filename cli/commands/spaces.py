@@ -4,6 +4,7 @@
 def register(subparsers):
     p = subparsers.add_parser("spaces", help="Manage your configured Confluence spaces")
     space_sub = p.add_subparsers(dest="space_cmd")
+    p.set_defaults(space_cmd="list", filter="")
 
     subs = {
         name: space_sub.add_parser(name, help=help_text)
