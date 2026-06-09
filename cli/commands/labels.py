@@ -1,5 +1,3 @@
-from presentation.page_previews import render_table
-from presentation.theme import BOLD, RED, RESET, DIM
 
 def register(subparsers):
     p = subparsers.add_parser("labels", help="Manage labels in bulk: add or delete labels from a list of page IDs")
@@ -22,6 +20,9 @@ def run(args):
     from network.network_utils import check_network_connection
     from presentation.formatting_utils import parse_pids_from_terminal
     from presentation.page_previews import get_pages_preview
+    from presentation.page_previews import render_table
+    from presentation.theme import BOLD, RED, RESET, DIM
+
     if not check_network_connection():
         return 1
 
