@@ -1,13 +1,7 @@
 # currently we only scrape pages metadata and html...
 # later we'll add more steps.
-from children.scrape_children import scrape_children
 from db.db_utils import get_all_ids_in_pages
-from db.table_utils import create_table
-from pages.schema_table_pages import SCHEMA_PAGES
-from pages.scrape_list_of_available_pages import scrape_page_metadata_in_space
-from pages.scrape_page_htmls import scrape_page_contents_from_server
 from presentation.theme import WIDTH_NICE, DIM, RESET
-from spaces.space_utils import list_configured_space_ids, get_space_attribute
 import datetime
 
 VALID_STEPS = ["children", "authors", "labels", "parse_text", "convert_links"]
@@ -26,10 +20,10 @@ def sync(hard_refresh=False, resume_at=None):
         ("labels", lambda: _scrape_labels()),
         ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages)),
         ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)),
-        #("assign_type", lambda: _assign_page_type_in_bulk(to_process_list)),
-        #("mentions", lambda: _scrape_and_store_all_mentions(to_process_list)),   # must go after assign type, as we don't care about mentions on useless page types
-        #("vectorize", lambda: _embed_pages_as_vectors(to_process_list)),
-        #("keyword", lambda: _run_fingerprinting(to_process_list)),
+        #("assign_type", lambda: _assign_page_type_in_bulk(delta_pages)),
+        #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
+        #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
+        #("keyword", lambda: _run_fingerprinting(delta_pages)),
         #("map_links", lambda: _find_link_events_for_all_pages()),        # can only be done on all pages, no subsets
         #("duplicates", lambda: _find_duplicates()),                      # can only be done on all pages, no subsets
     ]
@@ -48,15 +42,26 @@ def sync(hard_refresh=False, resume_at=None):
 
 
 def sync_pages(hard_refresh=False):
+    from db.table_utils import create_table
+    from pages.schema_table_pages import SCHEMA_PAGES
+    from pages.scrape_list_of_available_pages import scrape_page_metadata_in_space
+    from pages.scrape_page_htmls import scrape_page_contents_from_server
+    from sync.delete_dead_pages import delete_dead_db_pages
+    from spaces.space_utils import list_configured_space_ids, get_space_attribute
+    # we tuck the module imports inside, so folks skipping scraping have a more responsive application
+
     create_table("pages", SCHEMA_PAGES)  # this does nothing if the table already exists
 
     space_ids = list_configured_space_ids()
     delta_pages = []
+    all_cloud_ids = []
     for space_id in space_ids:
         space_name = get_space_attribute(space_id, "id", "alias")
         print("-" * WIDTH_NICE)
         print(f"Scraping page metadata for space {space_name.upper()} ({space_id})...\n")
         results = scrape_page_metadata_in_space(space_id, hard_refresh=hard_refresh)
+
+        all_cloud_ids += results['all_cloud_pages']           # store this for later checking of deleted pages
 
         pids = results["pids"]
         print(f"Stored metadata for {results['stored_count']} pages.\n")
@@ -72,9 +77,12 @@ def sync_pages(hard_refresh=False):
         print(f"Successfully stored page contents for {results['stored_count']} pages.")
 
         delta_pages.extend(pids)
+
+    delete_dead_db_pages(all_cloud_ids)
     return delta_pages
 
 # - STEPS ----------------------------------------------
+# we split this out here so possibly heavy module loading can be staged
 def _scrape_children(delta_pages):
     from children.scrape_children import scrape_children
     scrape_children(delta_pages)
