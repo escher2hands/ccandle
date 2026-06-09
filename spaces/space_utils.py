@@ -128,12 +128,10 @@ def _load_config_spaces():
         return {}   # empty config
 
 def print_formatted_space_list(space_results):
-    from presentation.formatting_utils import cut
-
-    print(f" ID " + "-" * 9 + " KEY " + "-" * 11 + " NAME " + "-" * 15)
-    for res in space_results:
-        sid = res.get('id')
-        key = res.get('key')
-        name = res.get('name')
-        print(f" {sid:<10}   {cut(key, 14)}  {name}")
-
+    from presentation.page_previews import render_table
+    COLUMNS = [
+        {"key": "id", "label": "SPACE ID", "width": 11},
+        {"key": "key", "label": "KEY", "width": 20},
+        {"key": "name", "label": "NAME"},
+    ]
+    render_table(space_results, COLUMNS)
