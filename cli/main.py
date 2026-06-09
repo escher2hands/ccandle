@@ -1,8 +1,8 @@
 import argparse
 from presentation.theme import *
-from cli.commands import connection, spaces, labels, sync
+from cli.commands import connection, spaces, labels, sync, smoke_test
 
-COMMANDS = [connection, spaces, labels, sync]  # just add new modules here as you grow
+COMMANDS = [connection, spaces, labels, sync, smoke_test]  # just add new modules here as you grow
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cli", description=f"{BLUE}Bulk knowledge management for Confluence Cloud.{RESET}")
@@ -14,7 +14,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     for cmd in COMMANDS:
-        if args.cmd == cmd.__name__.split(".")[-1]:  # matches "space", "connection", etc.
+        if args.cmd == cmd.__name__.split(".")[-1].replace("_", "-"):  # matches "space", "connection", etc.
             return cmd.run(args)
 
     return 2
