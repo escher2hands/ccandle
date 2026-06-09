@@ -32,6 +32,7 @@ def scrape_page_metadata_in_space(space_id, hard_refresh=False):
         "pids": [page['id'] for page in store_pages], # next stages of sync can work exclusively on changed pages.
         "stored_count": len(store_pages),
         "skipped_count": skipped_count,
+        "all_cloud_pages": [page['id'] for page in all_pages],
         "total_pages": len(all_pages),
     }
 
