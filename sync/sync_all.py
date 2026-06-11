@@ -67,6 +67,8 @@ def sync_pages(hard_refresh=False):
         print(f"Stored metadata for {results['stored_count']} pages.\n")
         if results['skipped_count'] != 0:
             print(f"Skipping {results['skipped_count']} pages, as they have not changed since your last sync.\n")
+        elif not hard_refresh:
+            print(f"Storing everything.")
         else:
             print(f"Storing everything, as you chose to hard refresh your database.")
 
