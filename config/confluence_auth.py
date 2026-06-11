@@ -1,7 +1,9 @@
 # to load our conference details for accessing the API.
 
 import os, json
-DETAILS_FILE = "config/confluence_details.json"
+import platformdirs
+CONFIG_DIR = platformdirs.user_config_dir("ccandle")
+DETAILS_FILE = os.path.join(CONFIG_DIR, "details.json")
 VALID_FIELDS = ["key", "email", "url"]
 
 def fetch_conf_details(field):
@@ -25,6 +27,7 @@ def _load_conf_details():
     if not os.path.exists(DETAILS_FILE):
         with open(DETAILS_FILE, "w") as f:
             json.dump({}, f, indent=2)
+        os.chmod(DETAILS_FILE, 0o600)  # set after creation so only owner can write / read
         return {}
 
     # read
@@ -37,12 +40,27 @@ def _load_conf_details():
         return {}   # empty config
 
 def load_conf_url():
+    from presentation.theme import RED, BLUE, DIM, RESET, WIDTH_NICE
+    from config.config_app import APP_HANDLE, FRIENDLY_APP_NAME
+    MSG_NO_CONF_CONFIGURED = (f"{RED}" + "-" * WIDTH_NICE + "\n"
+                              f"There is no Confluence URL configured.\n"
+                              f"{DIM}Please use {RESET}\n"
+                              f"   {APP_HANDLE} connection url {DIM}{BLUE}<YOUR CONFLUENCE CLOUD URL>\n{RESET}"
+                              f"{DIM}{RED}so {FRIENDLY_APP_NAME} can access your Confluence Cloud instance.\n\n"
+                              f"You may also have to set{RESET}\n"
+                              f"   {APP_HANDLE} connection email {DIM}{BLUE}<YOUR EMAIL> {RESET}\n"
+                              f"   {APP_HANDLE} connection token {DIM}{BLUE}<YOUR API TOKEN> {RESET}\n")
+    if not fetch_conf_details("url"):
+        print(MSG_NO_CONF_CONFIGURED)
+        exit(1)
     return fetch_conf_details("url")
 
 
 def set_conf_details(field, value):
     details = _load_conf_details()
     field = field.lower().strip()
+    if field == "token":
+        field = "key"
     if field not in VALID_FIELDS:
         print(f"{field} is not a valid field name. Use one of [{VALID_FIELDS}].")
         return 1
