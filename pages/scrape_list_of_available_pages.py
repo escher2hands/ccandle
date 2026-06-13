@@ -37,26 +37,24 @@ def scrape_page_metadata_in_space(space_id, hard_refresh=False):
     }
 
 def _store_page_metadata_to_db(pages_data):
-    conn = sqlite3.connect(PATH_DB)
-    cur = conn.cursor()
+    with sqlite3.connect(PATH_DB) as conn:
+        cur = conn.cursor()
 
-    params = [(
-            page["id"],
-            int(page["version"]),
-            page["space_id"],
-            page["tiny_link"],
-            page["retrieved_at"],)
-        for page in pages_data
-    ]
-    sql = f"""
-    INSERT OR REPLACE INTO {TABLE_PAGES}
-        (id, version, space_id, tiny_link, retrieved_at)
-    VALUES (?, ?, ?, ?, ?)
-    """
-    cur.executemany(sql, params)
-
-    conn.commit()
-    conn.close()
+        params = [(
+                page["id"],
+                int(page["version"]),
+                page["space_id"],
+                page["tiny_link"],
+                page["retrieved_at"],)
+            for page in pages_data
+        ]
+        sql = f"""
+        INSERT OR REPLACE INTO {TABLE_PAGES}
+            (id, version, space_id, tiny_link, retrieved_at)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        cur.executemany(sql, params)
+        conn.commit()
 
 def _local_pids_with_versions(space_id):
     rows = query_db_results(
