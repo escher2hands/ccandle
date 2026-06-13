@@ -4,7 +4,7 @@ from db.db_utils import get_all_ids_in_pages
 from presentation.theme import WIDTH_NICE, DIM, RESET
 import datetime
 
-VALID_STEPS = ["children", "authors", "labels", "parse_text", "convert_links"]
+VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links"]
 
 def sync(hard_refresh=False, resume_at=None):
     if not resume_at:
@@ -19,6 +19,7 @@ def sync(hard_refresh=False, resume_at=None):
         ("authors", lambda: _scrape_authors(delta_pages)),
         ("labels", lambda: _scrape_labels()),
         ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages)),
+        ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages)),
         ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)),
         #("assign_type", lambda: _assign_page_type_in_bulk(delta_pages)),
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
@@ -97,6 +98,9 @@ def _scrape_labels():
 def _extract_plain_texts_in_bulk(delta_pages):
     from pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
     extract_plain_texts_in_bulk(delta_pages)
+def _add_basic_metadata_in_bulk(delta_pages):
+    from pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
+    add_basic_metadata_in_bulk(delta_pages)
 def _clean_link_formatting_and_store_link_list(delta_pages):
     from pages.parsing.link_parser import clean_and_store_links
     clean_and_store_links(delta_pages)
