@@ -16,7 +16,7 @@ def get_field_in_pages(pid, field):
     if field not in VALID_FIELDS:
         raise ValueError(f"Invalid field name: '{field}'. Must be one of {VALID_FIELDS}")
     rows = query_db_results(select_query=field, table=TABLE_PAGES, where_clause=f"id = {pid}")
-    return rows[0] if rows else None
+    return rows[0][0] if rows else None
 
 def update_field(pid, field, field_value, path_to_db=PATH_DB):
     conn = sqlite3.connect(path_to_db)
