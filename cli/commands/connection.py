@@ -2,6 +2,7 @@
 # -   connection email EMAIL
 # -   connection url URL
 # -   connection token TOKEN
+# -   connection repo-url URL
 
 def register(subparsers):
     p = subparsers.add_parser("connection", help="Configure your Confluence Cloud connection")
@@ -11,6 +12,7 @@ def register(subparsers):
         ("email", "Set the email for authentication"),
         ("url",   "Set the Confluence Cloud URL. For example: company.atlassian.net/"),
         ("token", "Set the API token for authentication"),
+        ("repo-url", "Set the main repository base url for better page analysis. For example: git.name.company.com/"),
     ]:
         sub = conn_sub.add_parser(name, help=help_text)
         sub.add_argument("value", help="The value to set")
@@ -18,6 +20,6 @@ def register(subparsers):
 def run(args):
     from config.confluence_auth import set_conf_details
     key = args.conn_cmd  # "email", "url", or "token"
-    if key in ("email", "url", "token"):
-        return set_conf_details(key, args.value)
+    if key in ("email", "url", "token", "repo-url"):
+        return set_conf_details(key.replace("_", "-"), args.value)
     return 1
