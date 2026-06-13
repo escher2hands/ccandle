@@ -1,0 +1,90 @@
+# Walk the content in DOM order, collecting <p> tags as paragraph anchors
+# and rolling up any immediately-following list content into them.
+def extract_prose_paragraphs(soup):
+    HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+    LIST_TAGS    = {"ul", "ol"}
+    SKIP_TAGS    = {"ac:adf-extension", "ac:image", "ac:structured-macro",
+                    "figure", "table", "nav", "header", "footer", "aside"}
+
+    def get_words(tag):
+        return tag.get_text(separator=' ', strip=True).split()
+
+    def is_inside_list(tag):
+        for parent in tag.parents:
+            if parent.name in LIST_TAGS:
+                return True
+        return False
+
+    def is_inside_adf_fallback(tag):
+        for parent in tag.parents:
+            if parent.name == "ac:adf-fallback":
+                return True
+        return False
+
+    def is_structural_only(p_tag):
+        text = p_tag.get_text(strip=True)
+        if not text or len(text.split()) < 2:
+            return True
+        if p_tag.find("ac:image") or p_tag.find("ac:structured-macro"):
+            if len(text.split()) < 5:
+                return True
+        return False
+
+    def process_children(children):
+        """Walk a flat list of siblings and return word counts with list rollup."""
+        results = []
+        i = 0
+        while i < len(children):
+            tag = children[i]
+
+            if tag.name in SKIP_TAGS or tag.name in HEADING_TAGS:
+                i += 1
+                continue
+
+            if tag.name == "p":
+                if is_structural_only(tag) or is_inside_list(tag) or is_inside_adf_fallback(tag):
+                    i += 1
+                    continue
+
+                words = get_words(tag)
+
+                # roll up immediately following lists
+                j = i + 1
+                while j < len(children):
+                    sibling = children[j]
+                    if sibling.name in LIST_TAGS and not is_inside_adf_fallback(sibling):
+                        words += get_words(sibling)
+                        j += 1
+                    else:
+                        break
+
+                if words:
+                    results.append(len(words))
+                i = j
+                continue
+
+            if tag.name in LIST_TAGS:
+                if not is_inside_adf_fallback(tag):
+                    words = get_words(tag)
+                    if words:
+                        results.append(len(words))
+                i += 1
+                continue
+
+            i += 1
+        return results
+
+    def get_flat_children(parent):
+        return [c for c in parent.children
+                if hasattr(c, "name") and c.name is not None]
+
+    # If the page uses ac:layout, process each layout-cell independently.
+    # Otherwise fall back to processing the root's direct children.
+    layout_cells = soup.find_all("ac:layout-cell")
+    if layout_cells:
+        results = []
+        for cell in layout_cells:
+            results += process_children(get_flat_children(cell))
+        return results
+    else:
+        return process_children(get_flat_children(soup))
