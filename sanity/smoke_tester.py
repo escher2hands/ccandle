@@ -37,6 +37,9 @@ def interactive_smoke_test():
 
         BASE_CMD + ["labels", "add", "smoke-test-label", "2622718175", "2455404674"],
         BASE_CMD + ["labels", "delete", "smoke-test-label", "2622718175", "2455404674"],
+
+        #BASE_CMD + ["sql", "select id, labels, title from pages limit 15"],
+        #BASE_CMD + ["sql", "columns"],
     ]
 
     return smoke_test(test_commands=TEST_COMMANDS)
