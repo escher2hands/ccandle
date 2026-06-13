@@ -6,7 +6,7 @@ import subprocess, platform, re, time
 from collections.abc import Iterable
 
 EMAIL = fetch_conf_details("email")
-API_TOKEN = fetch_conf_details("key")
+API_TOKEN = fetch_conf_details("token")
 headers = DEFAULT_HEADERS.copy()
 TIMEOUT = 30
 
