@@ -3,7 +3,25 @@ from db.db_query_utils import query_field_multi_in_pages
 from pages.types.extract_type_signals import *
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
+from sklearn.preprocessing import StandardScaler
 
+def generate_scaled_signal_vectors_in_bulk():
+    page_ids = get_all_page_ids_in_db()
+    X = []
+
+    for page_id in page_ids:
+        sig_vec = get_decomposition_vector(page_id)
+        X.append(sig_vec)
+
+    X = np.array(X, dtype=float)
+    X_scaled = StandardScaler().fit_transform(X)
+
+    _store_type_signal_vectors(page_ids, X_scaled)
+    return page_ids, X_scaled
+
+def get_decomposition_vector(page_id):
+    signals_dict = decompose_page(page_id, verbose=False)
+    return np.array(list(signals_dict.values()), dtype=float)
 
 def decompose_page(page_id, verbose=False):
     signals_dict = {}
@@ -163,3 +181,29 @@ def inspect_page_type_signals():
     page_ids = [row[0] for row in rows]
     smell_scores = [row[1] for row in rows]
     return page_ids, smell_scores
+
+def _store_type_signal_vectors(page_ids, signal_vectors):
+    rows = [
+        (page_id, signal_vectors[i].astype(np.float32).tobytes())
+        for i, page_id in enumerate(page_ids)
+    ]
+    with sqlite3.connect(PATH_DB) as conn:
+        conn.executemany(
+            f"""INSERT INTO {TABLE_VECTORS} (id, type_signals_vec)
+                VALUES (?, ?)
+                ON CONFLICT(id) DO UPDATE SET type_signals_vec = excluded.type_signals_vec""",
+            rows,
+        )
+
+def load_type_signal_vectors():
+    with sqlite3.connect(PATH_DB) as conn:
+        rows = conn.execute(
+            f"SELECT id, type_signals_vec FROM {TABLE_VECTORS} WHERE type_signals_vec IS NOT NULL"
+        ).fetchall()
+
+    page_ids = [row[0] for row in rows]
+    X = np.array([
+        np.frombuffer(row[1], dtype=np.float32)
+        for row in rows
+    ])
+    return page_ids, X
