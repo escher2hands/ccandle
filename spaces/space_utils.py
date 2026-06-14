@@ -14,13 +14,16 @@ def list_spaces(filter_kw=None):
     results = request_paginated_results(ENDPOINT_SPACES)
     access_count = len(results)
 
-    # filter for a filter keyword
+    # filter for any filter keyword
     if filter_kw not in ("", None):
-        for kw in filter_kw:
-            results = [r for r in results if any(
+        results = [
+            r for r in results
+            if any(
                 str(r.get(field, "")).lower().startswith(kw)
+                for kw in filter_kw
                 for field in ("id", "key", "name")
-            )]
+            )
+        ]
 
     return {'results': results,
             'access_count': access_count,}
