@@ -1,12 +1,18 @@
 from bs4 import BeautifulSoup
+from config.config_db import TABLE_VECTORS
 from db.db_query_utils import query_field_multi_in_pages
+from db.db_utils import get_all_ids_in_pages
+from db.table_utils import create_table
 from pages.types.extract_type_signals import *
+from pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
 from sklearn.preprocessing import StandardScaler
+import sqlite3
+from config.config_db import PATH_DB, TABLE_PAGES
 
-def generate_scaled_signal_vectors_in_bulk():
-    page_ids = get_all_page_ids_in_db()
+def generate_signal_vectors_in_bulk(pids=None):
+    page_ids = pids or get_all_ids_in_pages()
     X = []
 
     for page_id in page_ids:
@@ -15,6 +21,8 @@ def generate_scaled_signal_vectors_in_bulk():
 
     X = np.array(X, dtype=float)
     X_scaled = StandardScaler().fit_transform(X)
+
+    create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
 
     _store_type_signal_vectors(page_ids, X_scaled)
     return page_ids, X_scaled
@@ -46,7 +54,7 @@ def decompose_page(page_id, verbose=False):
     signals_dict.update(signals)
 
     metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
-    signals = metric_flag_signals(json.loads(metric_flags))
+    signals = {"metric_flags": 0} #metric_flag_signals(json.loads(metric_flags))
     _print_signals_if_verbose(signals, "page eval metric flags:", verbose)
     signals_dict.update(signals)
 
@@ -146,12 +154,9 @@ def _empty_signals_vector():
         't_release', 't_performance', 't_anti_landing', 't_intro', 't_anti_intro', 't_solution',
         'h_solution',
         'b_meeting_minutes', 'b_workshop', 'b_g_release', 'b_release', 'b_anti_release', 'b_performance',
-        'b_anti_performance', 'b_bug', 'date', 'date_bad', 'date_reverse', 'bot-image-none', 'bot-image-few',
-        'bot-image-dense', 'bot-landing-page-candidate', 'bot-landing-page', 'bot-add-link-tree',
-        'bot-add-page-summary', 'bot-split-to-content-page', 'bot-lead-para-missing',
-        'bot-lead-para-links-limited', 'bot-lead-para-long', 'bot-lead-para-good', 'bot-links-limited',
-        'bot-links-few', 'bot-links-good', 'bot-links-dense', 'bot-page-length-empty', 'bot-page-length-stub',
-        'bot-page-length-short', 'bot-page-length-medium', 'bot-page-length-long',
+        'b_anti_performance', 'b_bug', 'date', 'date_bad', 'date_reverse',
+        # metric flags signals
+        'metric_flags',
         # base_content_signals
         'word_count', 'image_count', 'link_count', 'link_git_count', 'link_jira_count',
         'image_density', 'link_density', 'task_count', 'mentions_count', 'mention_density',
@@ -166,13 +171,11 @@ def _empty_signals_vector():
         'macro_toc', 'macro_jira_query',
         'macro_struct_total', 'macro_panels', 'macro_expandables', 'macro_excerpts',
     ]
-    SIGNALS_VECTOR_DIM = 80
+    SIGNALS_VECTOR_DIM = 59
     assert len(signal_keys) == SIGNALS_VECTOR_DIM, f"Got {len(signal_keys)}, expected {SIGNALS_VECTOR_DIM}"
     return {key: 0 for key in signal_keys}
 
 def inspect_page_type_signals():
-    import sqlite3
-    from config.config_db import PATH_DB, TABLE_PAGES
     with sqlite3.connect(PATH_DB) as conn:
         cur = conn.cursor()
         smell_type = 'eval_smell'
@@ -207,3 +210,4 @@ def load_type_signal_vectors():
         for row in rows
     ])
     return page_ids, X
+
