@@ -1,4 +1,4 @@
-SCHEMA_PAGES = """
+SCHEMA_VECTORS = """
     id TEXT PRIMARY KEY,
     type_signals_vec BLOB,
     type_cluster INTEGER,
