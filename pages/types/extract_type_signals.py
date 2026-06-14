@@ -8,8 +8,8 @@ from config.confluence_auth import load_conf_url, fetch_conf_details
 from pages.types.type_keyword_defs import TITLE_KEYWORD_LISTS, HEADERS_KEYWORD_LISTS, BODY_KEYWORD_LISTS
 from pages.parsing.paragraph_parser import extract_prose_paragraphs
 JIRA_URL = load_conf_url()+'browse/'
-LINK_PREFIX = r'<a href=\"'
-GITLAB_URL = fetch_conf_details('repo_url')
+LINK_PREFIX = r'<a href="'
+GITLAB_URL = "https://" + fetch_conf_details('repo_url')
 
 # ——— DATES —————————————————————————————————————————————————
 DATE_PATTERN = re.compile(r'(?<!\d)(?:\d{2}([\-./])\d{2}\1\d{4}|\d{4}([\-./])\d{2})(?=[\s\-_:.,;)]|$)')
@@ -138,6 +138,7 @@ def link_jira_count_from_html(html):
 
 # gitlab links — technical pages reference repos; rare in minutes
 def link_gitlab_count_from_html(html):
+    print("DEBUG: Search target = " + LINK_PREFIX + GITLAB_URL)
     return len(re.findall(LINK_PREFIX + GITLAB_URL, html))
 
 # ——— MACRO / STRUCTURE SIGNALS ————————————————————————————
