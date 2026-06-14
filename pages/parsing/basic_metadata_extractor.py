@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 from pages.types.extract_type_signals import link_count_from_html, image_count_from_html, word_count_from_soup
 import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
+from tqdm import tqdm
 
 def add_basic_metadata_in_bulk(pids):
     pages = _get_page_texts_and_htmls(pids)
     enriched_pages = []
-    for page in pages:
+    for page in tqdm(pages, desc="Extracting basic metadata from each page...", unit="page"):
         soup = BeautifulSoup(page['html'], 'html.parser')
         enriched = {
             'id': page['id'],
