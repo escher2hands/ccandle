@@ -1,4 +1,6 @@
 import requests
+from config.config_app import APP_HANDLE
+from presentation.theme import WIDTH_NICE, RED, BLUE, DIM, RESET
 from requests.auth import HTTPBasicAuth
 from config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE, CONFLUENCE_BASE_URL_V1
 from config.confluence_auth import fetch_conf_details
@@ -26,7 +28,10 @@ def _get(endpoint, params=None):
         print(f"Connection failed: {e}")
         return None
 
-    if response.status_code != 200:
+    if response.status_code == 404:
+        _print_message_404()
+        return None
+    elif response.status_code != 200:
         print(f"Request error {response.status_code}")
         return None
 
@@ -129,7 +134,6 @@ def delete_label_via_rest(page_id, label):
     return {"status": "success", "label": label, "body": None}
 
 def check_network_connection(host="8.8.8.8", timeout=3):
-    from presentation.theme import RED, RESET
     param = "-n" if platform.system().lower() == "windows" else "-c"
     command = ["ping", param, "1", "-W", str(timeout), host]
     try:
@@ -148,3 +152,15 @@ def check_network_connection(host="8.8.8.8", timeout=3):
 
     except OSError:
         return False
+
+def _print_message_404():
+    print(f"{RED}" + "-" * WIDTH_NICE + "\n"
+          f"Request error {response.status_code}\n\n"
+          f"{DIM}Probably, this might have been an: \n"
+          f"-   authentication error\n"
+          f"-   the page you requested does not exist\n"
+          f"...though there may be other possibilities.\n"
+          f"Double check your API token is not expired, and your email is valid.\n"
+          f"Set the correct values using {RESET}\n\n"
+          f"   {APP_HANDLE} connection {RESET}{BLUE} <EMAIL / URL / TOKEN>\n\n{RESET}"
+          f"{RED}{DIM}and try again.{RESET}\n")
