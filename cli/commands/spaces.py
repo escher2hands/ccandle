@@ -1,5 +1,7 @@
 # Spaces: get an overview on which spaces exist, which you've started tracking,
 # and also add / remove spaces from the tracking list.
+from config.confluence_auth import fetch_conf_details
+from presentation.theme import DIM, RESET
 
 def register(subparsers):
     p = subparsers.add_parser("spaces", help="Manage your configured Confluence spaces")
@@ -16,7 +18,7 @@ def register(subparsers):
         ]
     }
 
-    subs["list"].add_argument("--filter", nargs="+", help="Filter spaces by key or name")
+    subs["list"].add_argument("--filter", "-f", nargs="+", help="Filter spaces by key or name")
     subs["add"].add_argument("space_id", help="Numeric Confluence space ID")
     subs["add"].add_argument("alias", help="A local, user-friendly alias for the space")
     subs["remove"].add_argument("space_id", help="Numeric Confluence space ID")
@@ -34,9 +36,9 @@ def run(args):
         # format and print results
         print_formatted_space_list(results)
 
-        if args.filter != "":
+        if args.filter is not None and args.filter != "":
             print(f"\n{len(results)} result(s) for your filter: {args.filter}.")
-        print(f"You have access to {access_count} Confluence spaces.")
+        print(f"\nYou ({DIM}{fetch_conf_details('email')}{RESET}) have access to {access_count} Confluence spaces.")
         return 0
 
     elif args.space_cmd == "add":
