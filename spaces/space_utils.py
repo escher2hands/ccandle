@@ -19,7 +19,7 @@ def list_spaces(filter_kw=None):
         results = [
             r for r in results
             if any(
-                str(r.get(field, "")).lower().startswith(kw)
+                str(r.get(field, "")).lower().startswith(kw.lower())
                 for kw in filter_kw
                 for field in ("id", "key", "name")
             )
