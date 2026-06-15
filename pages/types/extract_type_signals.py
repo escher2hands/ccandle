@@ -5,8 +5,10 @@ from bs4 import BeautifulSoup
 import re
 from copy import copy
 from config.confluence_auth import load_conf_url, fetch_conf_details
+from pages.evaluation.page_scoring_defs import LEAD_PARA_MIN_WORDS, LEAD_PARA_MAX_WORDS, LEAD_PARA_MIN_LINKS
 from pages.types.type_keyword_defs import TITLE_KEYWORD_LISTS, HEADERS_KEYWORD_LISTS, BODY_KEYWORD_LISTS
-from pages.parsing.paragraph_parser import extract_prose_paragraphs
+from pages.parsing.paragraph_parser import extract_prose_paragraphs, extract_lead_paragraph_from_soup
+
 JIRA_URL = load_conf_url()+'browse/'
 LINK_PREFIX = r'<a href="'
 GITLAB_URL = "https://" + fetch_conf_details('repo_url')
@@ -31,7 +33,7 @@ def kw_in_text(text_snippet, kw_list):
     return sum(kw in text for kw in kw_list)
 
 # aggregates keyword hit counts across title, headers, and body for all keyword lists
-def kw_signals(title, soup, html, plain_text_body):
+def kw_signals(title, soup, plain_text):
     signals = {}
     for key, kw_list in TITLE_KEYWORD_LISTS.items():
         signals[key] = kw_in_text(title, kw_list)
@@ -39,7 +41,7 @@ def kw_signals(title, soup, html, plain_text_body):
     for key, kw_list in HEADERS_KEYWORD_LISTS.items():
         signals[key] = kw_in_text(headers, kw_list)
     for key, kw_list in BODY_KEYWORD_LISTS.items():
-        signals[key] = kw_in_text(plain_text_body, kw_list)
+        signals[key] = kw_in_text(plain_text, kw_list)
     return signals
 
 # ——— TABLE SIGNALS —————————————————————————————————————————
@@ -89,8 +91,9 @@ def table_diagram_and_image_counts_outside_from_soup(soup):
     html_without_tables = str(soup)
     return {
         "images": len(re.findall(r'</ac:image>', html_without_tables)),
-        "diagrams": len(re.findall(r'<ac:structured-macro ac:name="drawio"', html_without_tables)),
+        "diagrams": diagram_count_from_html(html_without_tables),
     }
+
 def image_count_from_html(html):
     return len(re.findall(r'</ac:image>', html))
 
@@ -102,6 +105,19 @@ def header_count_from_soup(soup):
 # comma-joined h1/h2 text — used for header keyword matching in kw_signals
 def header_titles_from_soup(soup):
     return ",".join(tag.get_text(strip=True) for tag in soup.find_all(['h1', 'h2']))
+
+def paragraph_lead_signals_from_soup(soup):
+    lead_html = extract_lead_paragraph_from_soup(soup)
+    if lead_html:
+        lead_soup = BeautifulSoup(lead_html, 'html.parser')
+        word_count = word_count_from_soup(lead_soup)
+        link_count = link_count_from_html(lead_html)
+        return {
+            "good_lead_para": LEAD_PARA_MIN_WORDS < word_count < LEAD_PARA_MAX_WORDS and link_count >= LEAD_PARA_MIN_LINKS,
+            "word_count": word_count,
+            "link_count": link_count,
+        }
+    return { "good_lead_para": False, "word_count": 0, "link_count": 0 }
 
 # paragraph length characteristics. Many lengthy paras suggests arch or canon docs
 def paragraph_length_signals_from_soup(soup):
@@ -138,7 +154,6 @@ def link_jira_count_from_html(html):
 
 # gitlab links — technical pages reference repos; rare in minutes
 def link_gitlab_count_from_html(html):
-    print("DEBUG: Search target = " + LINK_PREFIX + GITLAB_URL)
     return len(re.findall(LINK_PREFIX + GITLAB_URL, html))
 
 # ——— MACRO / STRUCTURE SIGNALS ————————————————————————————
@@ -170,11 +185,15 @@ def macro_structures_signals_from_html(html):
     panels = len(re.findall(r'<ac:structured-macro ac:name="panel"', html))
     expandables = len(re.findall(r'<ac:structured-macro ac:name="expand"', html))
     excerpts = len(re.findall(r'<ac:structured-macro ac:name="excerpt-include"', html))
+    decisions = '<ac:structured-macro ac:name="decisionreport"' in html
+    child_widget = '<ac:structured-macro ac:name="children"' in html
     return {
         "total": panels + expandables + excerpts,
         "panels": panels,
         "expandables": expandables,
         "excerpts": excerpts,
+        "decisions": decisions,
+        "child_widget": child_widget
     }
 
 # ——— MICRO-FORMATTING SIGNALS ——————————————————————————————
