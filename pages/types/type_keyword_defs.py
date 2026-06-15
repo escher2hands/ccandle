@@ -18,7 +18,7 @@ RELEASE_BODY_GREAT_KEYWORDS = ["zephyr"]
 RELEASE_ANTI_KEYWORDS = ["meeting", "minutes", "retrospective", "5-why", "5 why", "agenda", "action item",
                         "attendance", "participants", "presenter"]
 
-BUG_BODY_KEYWORDS = ["R1", "R2", "R3", "R4", "P1", "P2", "P3", "P4"]
+BUG_BODY_KEYWORDS = ["r1", "r2", "r3", "r4", "p1", "p2", "p3", "p4"]
 
 PERFORMANCE_TITLE_KEYWORDS = ["performance", "report", "stress", "load", "test"]
 PERFORMANCE_BODY_KEYWORDS = ["performance", "stress", "load", "throughput", "latency", "rps", "requests per second",
