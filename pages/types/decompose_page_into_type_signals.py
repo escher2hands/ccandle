@@ -4,31 +4,38 @@ from db.db_query_utils import query_field_multi_in_pages
 from db.db_utils import get_all_ids_in_pages
 from db.table_utils import create_table
 from pages.types.extract_type_signals import *
+from pages.types.type_signals_scaler import scale_signal_vectors
+from pages.types.type_signals_defs import SIGNAL_KEYS
 from pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
-from sklearn.preprocessing import StandardScaler
 import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
+from tqdm import tqdm
 
 def generate_signal_vectors_in_bulk(pids=None):
     page_ids = pids or get_all_ids_in_pages()
     X = []
 
-    for page_id in page_ids:
+    for page_id in tqdm(page_ids, desc="Generating type signal vectors...", unit="pages"):
         sig_vec = get_decomposition_vector(page_id)
         X.append(sig_vec)
 
     X = np.array(X, dtype=float)
-    X_scaled = StandardScaler().fit_transform(X)
+    X_scaled = scale_signal_vectors(X, SIGNAL_KEYS)
 
     create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
 
     _store_type_signal_vectors(page_ids, X_scaled)
-    return page_ids, X_scaled
 
 def get_decomposition_vector(page_id):
     signals_dict = decompose_page(page_id, verbose=False)
+    if(len(signals_dict) != 65):
+        print(len(signals_dict))
+        print(signals_dict)
+        signals_vec = np.array(list(signals_dict.values()), dtype=float)
+        print(signals_vec)
+        exit(1)
     return np.array(list(signals_dict.values()), dtype=float)
 
 def decompose_page(page_id, verbose=False):
@@ -39,52 +46,59 @@ def decompose_page(page_id, verbose=False):
         print("=" * WIDTH_NICE)
         print(page_id + " | " + title.upper() + "\n")
 
-    if word_count is None or word_count == 0:
-        if verbose: print("Empty page. No words. Skipping.")
+    if word_count is None or word_count < 50:
+        if verbose:
+            if word_count == 0: print("Empty page. No words. Skipping.")
+            else:               print("Stub page. Too few words to analyze. Skipping.")
         return _empty_signals_vector()
 
     soup = BeautifulSoup(html, 'html.parser')
 
-    signals = kw_signals(title, soup, html, plain_text)
-    _print_signals_if_verbose(signals, "keyword signals:", verbose)
+    word_count, image_count, link_count, child_list = query_field_multi_in_pages(page_id,
+                                              'word_count', 'image_count', 'link_count', 'child_list')
+    signals = base_content_signals(word_count, image_count, soup, html, plain_text)
+    _print_signals_if_verbose(signals, "base signals (proportional to word count)", verbose)
+    signals_dict.update(signals)
+
+    signals = paragraph_signals(soup)
+    _print_signals_if_verbose(signals, "paragraph signals", verbose)
+    signals_dict.update(signals)
+
+    child_count = len(json.loads(child_list))
+    signals = connectedness_signals(word_count, link_count, child_count, html)
+    _print_signals_if_verbose(signals, "connectedness signals", verbose)
+    signals_dict.update(signals)
+
+    signals = aggregate_table_signals(html, soup)
+    _print_signals_if_verbose(signals, "table signals", verbose)
+    signals_dict.update(signals)
+    
+    signals = aggregate_macro_signals(html)
+    _print_signals_if_verbose(signals, "macro signals", verbose)
+    signals_dict.update(signals)
+    signals = kw_signals(title, soup, plain_text)
+    _print_signals_if_verbose(signals, "keyword signals", verbose)
     signals_dict.update(signals)
 
     signals = date_pattern_in_title(title)
-    _print_signals_if_verbose(signals, "title has date signals:", verbose)
+    _print_signals_if_verbose(signals, "title has date signals", verbose)
     signals_dict.update(signals)
 
     metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
     signals = {"metric_flags": 0} #metric_flag_signals(json.loads(metric_flags))
-    _print_signals_if_verbose(signals, "page eval metric flags:", verbose)
-    signals_dict.update(signals)
-
-    word_count, image_count = query_field_multi_in_pages(page_id, 'word_count', 'image_count')
-    link_count = link_count_from_html(html)
-    signals = base_content_signals(word_count, image_count, link_count, soup, html, plain_text)
-    _print_signals_if_verbose(signals, "base stats (proportional to word count)", verbose)
-    signals_dict.update(signals)
-    signals = aggregate_table_signals(html, soup)
-    _print_signals_if_verbose(signals, "table_signals:", verbose)
-    signals_dict.update(signals)
-    
-    signals = aggregate_macro_signals(html)
-    _print_signals_if_verbose(signals, "macro signals:", verbose)
+    _print_signals_if_verbose(signals, "page evaluation metric signals", verbose)
     signals_dict.update(signals)
 
     return signals_dict
 
-def base_content_signals(word_count, image_count, link_count, soup, html, plain_text):
+def base_content_signals(word_count, image_count, soup, html, plain_text):
     mention_count = macro_mentions_count_from_html(html)
     word_count_div = (word_count / 100) or 1
-    para_stats = paragraph_length_signals_from_soup(soup)
+
     return {
         'word_count': word_count,
         'image_count': image_count,
-        'link_count': link_count,
-        'link_git_count': link_gitlab_count_from_html(html),
-        'link_jira_count': link_jira_count_from_html(html),
         'image_density': (image_count / word_count_div),
-        'link_density': (link_count / word_count_div),
         'task_count': macro_tasks_count_from_html(html),
         'mentions_count': mention_count,
         'mention_density': mention_count / word_count_div,
@@ -92,18 +106,37 @@ def base_content_signals(word_count, image_count, link_count, soup, html, plain_
         'bullet_count': bullet_count_from_html(html),
         'header_count': header_count_from_soup(soup),
         'digit_to_letter_ratio': digit_to_letter_ratio_from_text(plain_text),
+    }
+
+def paragraph_signals(soup):
+    para_stats = paragraph_length_signals_from_soup(soup)
+    lead_para_stats = paragraph_lead_signals_from_soup(soup)
+    return {
         'para_count': para_stats['count'],
         'para_longest': para_stats['longest'],
         'para_share_long': para_stats['share_long'],
         'para_share_short': para_stats['share_short'],
         'para_average': para_stats['average'],
+        'para_lead_good': lead_para_stats['good_lead_para'],
+        'para_lead_words': lead_para_stats['word_count'],
+        'para_lead_links': lead_para_stats['link_count'],
+    }
+
+def connectedness_signals(word_count, link_count, child_count, html):
+    word_count_div = (word_count / 100) or 1
+    return {
+        'link_count': link_count,
+        'link_git_count': link_gitlab_count_from_html(html),
+        'link_jira_count': link_jira_count_from_html(html),
+        'link_density': (link_count / word_count_div),
+        'child_count': child_count,
     }
 
 def metric_flag_signals(metrics_json):
-    from metadata_defs.label_defs_all import ALL_METRIC_FLAGS
+    # from metadata_defs.label_defs_all import ALL_METRIC_FLAGS
     # Convert input to a set (handles list input directly)
     present = set(metrics_json or [])
-    return {flag: int(flag in present) for flag in ALL_METRIC_FLAGS}
+    return None # {flag: int(flag in present) for flag in ALL_METRIC_FLAGS}
 
 def aggregate_table_signals(html, soup):
     cell_sigs = table_cell_signature_stats_from_soup(soup)
@@ -130,6 +163,8 @@ def aggregate_macro_signals(html):
         'macro_panels': macros_struct['panels'],
         'macro_expandables': macros_struct['expandables'],
         'macro_excerpts': macros_struct['excerpts'],
+        'macro_decisions': macros_struct['decisions'],
+        'macro_children': macros_struct['child_widget'],
     }
 
 def _print_signals(signals):
@@ -149,31 +184,9 @@ def _print_signals_if_verbose(signals, message, verbose):
 
 
 def _empty_signals_vector():
-    signal_keys = [
-        't_month', 't_g_meeting_minutes', 't_meeting_minutes', 't_g_workshop_minutes', 't_workshop_minutes',
-        't_release', 't_performance', 't_anti_landing', 't_intro', 't_anti_intro', 't_solution',
-        'h_solution',
-        'b_meeting_minutes', 'b_workshop', 'b_g_release', 'b_release', 'b_anti_release', 'b_performance',
-        'b_anti_performance', 'b_bug', 'date', 'date_bad', 'date_reverse',
-        # metric flags signals
-        'metric_flags',
-        # base_content_signals
-        'word_count', 'image_count', 'link_count', 'link_git_count', 'link_jira_count',
-        'image_density', 'link_density', 'task_count', 'mentions_count', 'mention_density',
-        'diagram_count', 'bullet_count', 'header_count', 'digit_to_letter_ratio',
-        'para_count', 'para_longest', 'para_share_long', 'para_share_short', 'para_average',
-        # aggregate_table_signals
-        'table_count', 'minutes_in_tables', 'word_count_outside_tables',
-        'diagram_outside_tables', 'img_outside_tables',
-        'sig_table_has_cells', 'sig_cell_share_low_words', 'sig_cell_share_empty',
-        'sig_table_long_cell', 'sig_cell_many',
-        # aggregate_macro_signals
-        'macro_toc', 'macro_jira_query',
-        'macro_struct_total', 'macro_panels', 'macro_expandables', 'macro_excerpts',
-    ]
-    SIGNALS_VECTOR_DIM = 59
-    assert len(signal_keys) == SIGNALS_VECTOR_DIM, f"Got {len(signal_keys)}, expected {SIGNALS_VECTOR_DIM}"
-    return {key: 0 for key in signal_keys}
+    SIGNALS_VECTOR_DIM = 65
+    assert len(SIGNAL_KEYS) == SIGNALS_VECTOR_DIM, f"Got {len(SIGNAL_KEYS)}, expected {SIGNALS_VECTOR_DIM}"
+    return {key: 0 for key in SIGNAL_KEYS}
 
 def inspect_page_type_signals():
     with sqlite3.connect(PATH_DB) as conn:
