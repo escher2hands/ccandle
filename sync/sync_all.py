@@ -4,7 +4,7 @@ from db.db_utils import get_all_ids_in_pages
 from presentation.theme import WIDTH_NICE, DIM, RESET
 import datetime
 
-VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links"]
+VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "assign_type"]
 
 def sync(hard_refresh=False, resume_at=None):
     if not resume_at:
@@ -21,7 +21,7 @@ def sync(hard_refresh=False, resume_at=None):
         ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages)),
         ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages)),
         ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)),
-        #("assign_type", lambda: _assign_page_type_in_bulk(delta_pages)),
+        ("assign_type", lambda: _generate_signal_vectors_in_bulk(delta_pages)),
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
@@ -65,19 +65,19 @@ def sync_pages(hard_refresh=False):
         all_cloud_ids += results['all_cloud_pages']           # store this for later checking of deleted pages
 
         pids = results["pids"]
-        print(f"Stored metadata for {results['stored_count']} pages.\n")
+        print(f"{DIM}Stored metadata for {RESET}{results['stored_count']}{DIM} pages.\n{RESET}")
         if results['skipped_count'] != 0:
-            print(f"Skipping {results['skipped_count']} pages, as they have not changed since your last sync.\n")
+            print(f"{DIM}Skipping {RESET}{results['skipped_count']}{DIM} pages, as they have not changed since your last sync.\n{RESET}")
         elif not hard_refresh:
-            print(f"Storing everything.")
+            print(f"{DIM}Storing {RESET}everything.")
         else:
-            print(f"Storing everything, as you chose to hard refresh your database.")
+            print(f"{DIM}Storing {RESET}everything{DIM}, as you chose to {RESET}hard refresh{DIM} your database.{RESET}")
 
         if results['stored_count'] == 0:
             continue  # skip this space, as nothing has changed
-        print("Now syncing page contents...")
+        print(f"{DIM}Now syncing page contents...{RESET}")
         scrape_page_contents_from_server(pids)
-        print(f"Successfully stored page contents for {results['stored_count']} pages.")
+        print(f"{DIM}Successfully stored page contents for {RESET}{results['stored_count']}{DIM} pages.{RESET}")
 
         delta_pages.extend(pids)
 
@@ -104,6 +104,10 @@ def _add_basic_metadata_in_bulk(delta_pages):
 def _clean_link_formatting_and_store_link_list(delta_pages):
     from pages.parsing.link_parser import clean_and_store_links
     clean_and_store_links(delta_pages)
+def _generate_signal_vectors_in_bulk(delta_pages):
+    from pages.types.decompose_page_into_type_signals import generate_signal_vectors_in_bulk
+    generate_signal_vectors_in_bulk(delta_pages)
+
 
 def set_all_pages_as_processed(processed_list):
     from config.config_db import TABLE_PAGES, PATH_DB
