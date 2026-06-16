@@ -128,6 +128,9 @@ P95_RAW = {
     'sig_cell_share_empty': 1.0,          # ratio_0_1, no-op
     'sig_table_long_cell': 1.0,
     'sig_cell_many': 1.0,                 # binary, no-op
+    'lexic_jargon_share': 1.0,
+    'lexic_rare_words_share': 1.0,
+    'lexic_topical_focus': 1.0,
     'macro_toc': 1.0,
     'macro_jira_query': 1.0,              # binary, no-op
     'macro_struct_total': 1.0,

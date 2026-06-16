@@ -206,6 +206,69 @@ def digit_to_letter_ratio_from_text(plain_text):
     letter_count = sum(c.isalpha() for c in plain_text)
     return letter_count / (digit_count + 1)
 
+# ——— LEXICOGRAPHIC SIGNALS —————————————————————————————————
+import re
+from collections import Counter
+from wordfreq import zipf_frequency
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+WORD_RE = re.compile(r"[A-Za-z][A-Za-z\-_/0-9]*")
+
+def word_not_in_dictionary(word: str) -> bool:
+    z = zipf_frequency(word, "en")
+    return z < 1.5
+
+def lexicographic_signals_from_plain_text(plain_text: str, debug=False):
+    FOCUS_THRESHOLD = 4
+    RARE_ZIPF = 3
+    KW_ZIPF = 4
+    # Tokenize and remove stopwords up front
+    tokens = [
+        t
+        for t in WORD_RE.findall(plain_text.lower())
+        if t not in ENGLISH_STOP_WORDS
+    ]
+
+    if not tokens:
+        return {
+            "lexic_jargon_share": 0.0,
+            "lexic_rare_words_share": 0.0,
+            "lexic_topical_focus": 0.0,
+        }
+
+    total = len(tokens)
+    freq = Counter(tokens)
+
+    # find rare words using zipf frequencies
+    rare_tokens = sum(1 for t in tokens if zipf_frequency(t, "en") < RARE_ZIPF)
+    if debug:
+        rare_token_words = [t for t in tokens if zipf_frequency(t, "en") < RARE_ZIPF]
+        print(f"RARE: {rare_token_words}")
+
+    # find words not in the dictionary. These we'll call 'jargon.'
+    jargon_tokens = sum(1 for t in tokens if word_not_in_dictionary(t))
+    if debug:
+        jargon_token_words = [t for t in tokens if word_not_in_dictionary(t)]
+        print(f"JARGON: {jargon_token_words}")
+    # find if this page repeats rare words, suggesting it's more explanatory and focused on one topic
+    kw_focus_tokens = sum(
+        count
+        for word, count in freq.items()
+        if count >= FOCUS_THRESHOLD and zipf_frequency(word, "en") < KW_ZIPF
+    )
+    if debug:
+        kw_focus_token_words = [
+            {word: count}
+            for word, count in freq.items()
+            if count >= FOCUS_THRESHOLD and zipf_frequency(word, "en") < KW_ZIPF]
+        print(f"FOCUS: {kw_focus_token_words}")
+
+    return {
+        "lexic_jargon_share": jargon_tokens / total,
+        "lexic_rare_words_share": rare_tokens / total,
+        "lexic_topical_focus": kw_focus_tokens / total,
+    }
+
 # scores a page title against a ruleset — kept here pending classifier refactor
 def score_title_keywords(page_title, rules, debug_mode=False):
     title = page_title.lower()

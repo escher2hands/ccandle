@@ -5,7 +5,7 @@ from db.db_utils import get_all_ids_in_pages
 from db.table_utils import create_table
 from pages.types.extract_type_signals import *
 from pages.types.type_signals_scaler import scale_signal_vectors
-from pages.types.type_signals_defs import SIGNAL_KEYS
+from pages.types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM
 from pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
@@ -13,7 +13,7 @@ import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
-def generate_signal_vectors_in_bulk(pids=None):
+def generate_signal_vectors_in_bulk(pids=None, do_scaling=True):
     page_ids = pids or get_all_ids_in_pages()
     X = []
 
@@ -22,11 +22,12 @@ def generate_signal_vectors_in_bulk(pids=None):
         X.append(sig_vec)
 
     X = np.array(X, dtype=float)
-    X_scaled = scale_signal_vectors(X, SIGNAL_KEYS)
+    if do_scaling:
+        X = scale_signal_vectors(X, SIGNAL_KEYS)
 
     create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
 
-    _store_type_signal_vectors(page_ids, X_scaled)
+    _store_type_signal_vectors(page_ids, X)
 
 def get_decomposition_vector(page_id):
     signals_dict = decompose_page(page_id, verbose=False)
@@ -71,6 +72,10 @@ def decompose_page(page_id, verbose=False):
 
     signals = aggregate_table_signals(html, soup)
     _print_signals_if_verbose(signals, "table signals", verbose)
+    signals_dict.update(signals)
+
+    signals = lexicographic_signals_from_plain_text(plain_text)
+    _print_signals_if_verbose(signals, "lexicographic signals", verbose)
     signals_dict.update(signals)
     
     signals = aggregate_macro_signals(html)
@@ -184,7 +189,6 @@ def _print_signals_if_verbose(signals, message, verbose):
 
 
 def _empty_signals_vector():
-    SIGNALS_VECTOR_DIM = 65
     assert len(SIGNAL_KEYS) == SIGNALS_VECTOR_DIM, f"Got {len(SIGNAL_KEYS)}, expected {SIGNALS_VECTOR_DIM}"
     return {key: 0 for key in SIGNAL_KEYS}
 
