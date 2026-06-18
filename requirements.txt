@@ -1,12 +1,12 @@
 beautifulsoup4==4.15.0
--e git+ssh://git@github.com/escher2hands/ccandle.git@6cb023a6c6bc32726bf1c04704852714e25b3fab#egg=ccandle
 certifi==2026.5.20
 charset-normalizer==3.4.7
 idna==3.18
+numpy==2.4.6
 platformdirs==4.10.0
 RapidFuzz==3.14.5
 requests==2.34.2
 soupsieve==2.8.4
-tqdm==4.68.2
+tqdm==4.68.1
 typing_extensions==4.15.0
 urllib3==2.7.0
