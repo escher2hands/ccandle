@@ -4,19 +4,22 @@ import os, json
 import platformdirs
 CONFIG_DIR = platformdirs.user_config_dir("ccandle")
 DETAILS_FILE = os.path.join(CONFIG_DIR, "details.json")
-VALID_FIELDS = ["key", "email", "url"]
+VALID_FIELDS = ["token", "email", "url", "repo-url"]
 
 def fetch_conf_details(field):
+    field = field.replace("_", "-")
     if field.lower() not in VALID_FIELDS:
         return None
     data = _load_conf_details()
 
     if field == "email":
         return data.get("EMAIL")
-    elif field == "key":
-        return data.get("KEY")
+    elif field == "token":
+        return data.get("TOKEN")
     elif field == "url":
         return data.get("URL")
+    elif field == "repo-url":
+        return data.get("REPO-URL") or "NOT SET"
     return None
 
 def _load_conf_details():
@@ -59,8 +62,6 @@ def load_conf_url():
 def set_conf_details(field, value):
     details = _load_conf_details()
     field = field.lower().strip()
-    if field == "token":
-        field = "key"
     if field not in VALID_FIELDS:
         print(f"{field} is not a valid field name. Use one of [{VALID_FIELDS}].")
         return 1
@@ -70,7 +71,7 @@ def set_conf_details(field, value):
         json.dump(details, f, indent=2)
 
     set_value = value
-    if field == "key":
+    if field == "token":
         set_value = "SECRET"
     print(f"Updated field {field} to {set_value}")
     return 0

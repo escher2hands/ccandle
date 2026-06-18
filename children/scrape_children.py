@@ -2,6 +2,7 @@ from config.config_db import TABLE_PAGES, PATH_DB
 from config.config_network import ENDPOINT_PAGES, ENDPOINT_CHILDREN
 from db.db_utils import get_all_ids_in_pages
 from network.network_utils import chunked, request_paginated_results
+from tqdm import tqdm
 
 BATCH_SIZE = 100         # we batch to not lose all progress when there's a connection timeout.
 CHILD_LIMIT = 250        # we shoot for the max results per response, to reduce count of calls.
@@ -11,23 +12,24 @@ CHILD_LIMIT = 250        # we shoot for the max results per response, to reduce 
 # and also for guessing future topical relationships.
 def scrape_children(pid_list=None):
     pids = pid_list or get_all_ids_in_pages()
-    batches = chunked(pids, BATCH_SIZE)    # we chunk so a timeout won't lose all our progress
-    for batch_pids in batches:
-        id_to_children_dicts = []
-        for pid in batch_pids:
-            # our endpoint is:
-            endpoint = ENDPOINT_PAGES + "/" + str(pid) + "/" + ENDPOINT_CHILDREN
-            results = request_paginated_results(endpoint, limit=CHILD_LIMIT)
-            children = [result.get("id", []) for result in results]
-            id_to_children_dicts.append({
-                "id": pid,
-                "children": children,
-            })
-        _store_child_list_for_pages(id_to_children_dicts)
+    batches = list(chunked(pids, BATCH_SIZE))
 
+    with tqdm(total=len(pids), desc="Scraping children information", unit="page") as pbar:
+        for batch_pids in batches:
+            id_to_children_dicts = []
+            for pid in batch_pids:
+                endpoint = ENDPOINT_PAGES + "/" + str(pid) + "/" + ENDPOINT_CHILDREN
+                results = request_paginated_results(endpoint, limit=CHILD_LIMIT)
+                children = [result.get("id", []) for result in results]
+                id_to_children_dicts.append({
+                    "id": pid,
+                    "children": children,
+                })
+                pbar.update(1)
+            _store_child_list_for_pages(id_to_children_dicts)
 
 # store the scraped child id info for a batch of pages
-def _store_child_list_for_pages(child_list_dict, quiet=False):
+def _store_child_list_for_pages(child_list_dict, quiet=True):
     import sqlite3, json
     if not quiet: print(f"Storing child history for {len(child_list_dict)} pages...")
 

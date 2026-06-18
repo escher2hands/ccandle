@@ -12,7 +12,8 @@ def register(subparsers):
 def run(args):
     from sync.sync_all import sync
     from network.network_utils import check_network_connection
-    if not check_network_connection():
-        return 1
+    if args.from_step in ["children", "authors", "labels", None]:
+        if not check_network_connection():
+            return 1                # force internet connection for steps that require API connection
     sync(args.hard_refresh, args.from_step)
     return 0

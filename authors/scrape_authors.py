@@ -2,6 +2,7 @@ from config.config_db import PATH_DB, TABLE_PAGES
 from db.db_utils import get_all_ids_in_pages
 from network.network_utils import request_paginated_results, chunked
 from config.config_network import ENDPOINT_AUTHORS, ENDPOINT_PAGES
+from tqdm import tqdm
 
 BATCH_SIZE = 250        # max this out, so we can have fewer API calls
 
@@ -10,19 +11,21 @@ BATCH_SIZE = 250        # max this out, so we can have fewer API calls
 def scrape_authors(delta_pages=None):
     pids = delta_pages or get_all_ids_in_pages()        # default to all pids if not explicitly set
     batches = chunked(pids, BATCH_SIZE)                 # we chunk so a timeout won't lose all our progress
-    for batch_pids in batches:
-        id_to_auth_dict = []
-        for pid in batch_pids:
-            # the endpoint is pages/12345/versions
-            endpoint = ENDPOINT_PAGES + "/" + str(pid) + "/" + ENDPOINT_AUTHORS
-            results = request_paginated_results(endpoint, limit=200)
-            authors = [result.get("authorId", []) for result in results]
-            authors = squash_to_interesting(authors)
-            id_to_auth_dict.append({
-                "id": pid,
-                "authors": authors
-            })
-        _store_author_history_for_pages(id_to_auth_dict)
+    with tqdm(total=len(pids), desc="Scraping author information", unit="page") as pbar:
+        for batch_pids in batches:
+            id_to_auth_dict = []
+            for pid in batch_pids:
+                # the endpoint is pages/12345/versions
+                endpoint = ENDPOINT_PAGES + "/" + str(pid) + "/" + ENDPOINT_AUTHORS
+                results = request_paginated_results(endpoint, limit=200)
+                authors = [result.get("authorId", []) for result in results]
+                authors = squash_to_interesting(authors)
+                id_to_auth_dict.append({
+                    "id": pid,
+                    "authors": authors
+                })
+                pbar.update(1)
+            _store_author_history_for_pages(id_to_auth_dict)
     return id_to_auth_dict
 
 # we choose not to respect the true author history, as editors often make
@@ -43,7 +46,7 @@ def squash_to_interesting(your_list):
     return result
 
 
-def _store_author_history_for_pages(author_history_dict, quiet=False):
+def _store_author_history_for_pages(author_history_dict, quiet=True):
     import sqlite3, json
     if not quiet: print(f"Storing author history for {len(author_history_dict)} pages...")
 

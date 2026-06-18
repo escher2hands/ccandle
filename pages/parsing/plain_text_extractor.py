@@ -50,8 +50,17 @@ def extract_plain_texts_in_bulk(pid_list=None):
     _store_plain_texts_in_bulk(texts)
     return texts
 
+
 def _store_plain_texts_in_bulk(text_records):
-    return
+    import sqlite3
+    from config.config_db import PATH_DB, TABLE_PAGES
+    with sqlite3.connect(PATH_DB) as conn:
+        cur = conn.cursor()
+        cur.executemany(
+            f"UPDATE {TABLE_PAGES} SET plain_text = ? WHERE id = ?",
+            [(record['text'], record['id']) for record in text_records]
+        )
+        conn.commit()
 
 #     Parses and cleans Confluence HTML:
 #       - Removes ADF fallback tags (duplicated macro content)

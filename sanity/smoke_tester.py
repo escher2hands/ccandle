@@ -31,13 +31,22 @@ def interactive_smoke_test():
         BASE_CMD + ["spaces", "list"],
         BASE_CMD + ["spaces", "list", "--filter", test_space_query],
         BASE_CMD + ["spaces", "configured"],
+
+        BASE_CMD + ["sync"],
+        BASE_CMD + ["sync", "--from-step", "parse_text"],
+
+        BASE_CMD + ["labels", "add", "smoke-test-label", "2622718175", "2455404674"],
+        BASE_CMD + ["labels", "delete", "smoke-test-label", "2622718175", "2455404674"],
+
+        BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 15"],
+        BASE_CMD + ["sql", "columns"],
     ]
 
     return smoke_test(test_commands=TEST_COMMANDS)
 
 def smoke_test(test_commands):
     suite_start = time.time()
-    there_was_a_failure = False
+    failures = 0
     for cmd in test_commands:
         print("\n" + "=" * WIDTH_NICE * 2)
         print("RUNNING:", " ".join(cmd))
@@ -71,7 +80,7 @@ def smoke_test(test_commands):
         if process.returncode != 0:
             cmd_status = "FAILED"
             COLOR = YELLOW
-            there_was_a_failure = True
+            failures += 1
         else:
             cmd_status = "OK"
             COLOR = GREEN
@@ -83,5 +92,7 @@ def smoke_test(test_commands):
               f"{RESET}")
 
     suite_elapsed = time.time() - suite_start
-    print(f"\nTOTAL TEST SUITE DURATION : {suite_elapsed:.2f}s\n")
-    return there_was_a_failure
+    print(f"\nTOTAL TEST SUITE DURATION : {suite_elapsed:.2f}s\n"
+          f"   SUCCESSFUL: {len(test_commands) - failures}\n"
+          f"   FAILED: {failures}\n")
+    return failures
