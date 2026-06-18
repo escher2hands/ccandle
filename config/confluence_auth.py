@@ -13,14 +13,14 @@ def fetch_conf_details(field):
     data = _load_conf_details()
 
     if field == "email":
-        return data.get("EMAIL") or "NOT SET"
+        return data.get("EMAIL")
     elif field == "token":
-        return data.get("TOKEN") or "NOT SET"
+        return data.get("TOKEN")
     elif field == "url":
-        return data.get("URL") or "NOT SET"
+        return data.get("URL")
     elif field == "repo-url":
         return data.get("REPO-URL") or "NOT SET"
-    return "NOT SET"
+    return None
 
 def _load_conf_details():
     # ensure our config directory exists
