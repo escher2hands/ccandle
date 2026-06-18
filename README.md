@@ -31,3 +31,7 @@ page quality, and space navigability
 - Stats: pull specific information about pages, like finding count and page ids of duplicates, orphans, and other
 undesirable junk. Get info on which pages are the most linked to, and more
 - Link and label suggestions (via fancy embeddings and statistical methods)
+
+## more to-dos:
+- change filepath handling to support running from a terminal as precompiled lib, instead of only within an IDE.
+- reach feature parity with my company's internal tool (gap explorer, space content distribution explorer,...)
