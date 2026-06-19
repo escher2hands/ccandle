@@ -40,6 +40,8 @@ def interactive_smoke_test():
 
         #BASE_CMD + ["sql", "select id, labels, title from pages limit 15"],
         #BASE_CMD + ["sql", "columns"],
+
+        BASE_CMD + ["stats", "authors", "--space-id", f"{test_space_id}", "--limit", f"{10}"],
     ]
 
     return smoke_test(test_commands=TEST_COMMANDS)
