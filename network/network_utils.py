@@ -20,7 +20,7 @@ def _make_session():
 
 SESSION = _make_session()
 
-def _get(endpoint, params=None):
+def _get(endpoint, params=None, quiet=False):
     url = f"{CONFLUENCE_BASE_URL}{endpoint}"
     try:
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
@@ -28,16 +28,17 @@ def _get(endpoint, params=None):
         print(f"Connection failed: {e}")
         return None
 
-    if response.status_code == 404:
-        _print_message_404()
-        return None
-    elif response.status_code != 200:
-        print(f"Request error {response.status_code}")
-        return None
+    if not quiet:
+        if response.status_code == 404:
+            _print_message_404(response.status_code)
+            return None
+        elif response.status_code != 200:
+            print(f"Request error {response.status_code}")
+            return None
 
     return response.json()
 
-def request_paginated_results(endpoint, limit=50, max_items=100000):
+def request_paginated_results(endpoint, limit=50, max_items=100000, quiet=False):
     all_results = []
     cursor = None
 
@@ -46,7 +47,7 @@ def request_paginated_results(endpoint, limit=50, max_items=100000):
         if cursor:
             params["cursor"] = cursor
 
-        data = _get(endpoint, params=params)
+        data = _get(endpoint, params=params, quiet=quiet)
         if data is None:
             break
 
@@ -69,8 +70,8 @@ def request_paginated_results(endpoint, limit=50, max_items=100000):
 
     return all_results
 
-def request_one_result(endpoint):
-    data = _get(endpoint)
+def request_one_result(endpoint, quiet=False):
+    data = _get(endpoint, quiet=False)
     return data.get("results") if data else None
 
 def request_page_contents(page_id_list, strip_to_html=False):
@@ -85,7 +86,7 @@ def request_page_contents(page_id_list, strip_to_html=False):
             "id": ",".join(chunk),
             "body-format": FORMAT_STORAGE,
             "limit": 15,
-        })
+        }, quiet=False)
 
         if data is None:
             return []
@@ -133,6 +134,29 @@ def delete_label_via_rest(page_id, label):
         return {"status": "error", "label": label, "body": response.json()}
     return {"status": "success", "label": label, "body": None}
 
+# for fetching user / author metadata
+def request_users_metadata(account_ids, batch_size=250):
+    url = f"{CONFLUENCE_BASE_URL}/users-bulk"
+    all_results = []
+
+    for i in range(0, len(account_ids), batch_size):
+        batch = account_ids[i:i + batch_size]
+        payload = {"accountIds": batch}
+
+        try:
+            response = SESSION.post(url, json=payload, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"Connection failed: {e}")
+            return all_results
+
+        if response.status_code != 200:
+            print(f"Request error {response.status_code}")
+            return all_results
+
+        data = response.json()
+        all_results.extend(data.get("results", []))
+    return all_results
+
 def check_network_connection(host="8.8.8.8", timeout=3):
     param = "-n" if platform.system().lower() == "windows" else "-c"
     command = ["ping", param, "1", "-W", str(timeout), host]
@@ -153,9 +177,9 @@ def check_network_connection(host="8.8.8.8", timeout=3):
     except OSError:
         return False
 
-def _print_message_404():
+def _print_message_404(response_status_code):
     print(f"{RED}" + "-" * WIDTH_NICE + "\n"
-          f"Request error {response.status_code}\n\n"
+          f"Request error {response_status_code}\n\n"
           f"{DIM}Probably, this might have been an: \n"
           f"-   authentication error\n"
           f"-   the page you requested does not exist\n"

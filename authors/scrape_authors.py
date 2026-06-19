@@ -17,7 +17,7 @@ def scrape_authors(delta_pages=None):
             for pid in batch_pids:
                 # the endpoint is pages/12345/versions
                 endpoint = ENDPOINT_PAGES + "/" + str(pid) + "/" + ENDPOINT_AUTHORS
-                results = request_paginated_results(endpoint, limit=200)
+                results = request_paginated_results(endpoint, limit=200, quiet=True)
                 authors = [result.get("authorId", []) for result in results]
                 authors = squash_to_interesting(authors)
                 id_to_auth_dict.append({
