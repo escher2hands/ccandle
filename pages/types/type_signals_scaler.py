@@ -129,8 +129,8 @@ P95_RAW = {
     'sig_table_long_cell': 1.0,
     'sig_cell_many': 1.0,                 # binary, no-op
 
-    'code_blocks': 0,           # TODO: Move this and scale this!
-    'code_blocks_lines': 0,
+    'code_blocks': 4.0,
+    'code_blocks_lines': 71.0,
 
     'lexic_jargon_share': 1.0,
     'lexic_rare_words_share': 1.0,
