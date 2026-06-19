@@ -26,14 +26,11 @@ def _get(endpoint, params=None):
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
     except requests.exceptions.RequestException as e:
         print(f"Connection failed: {e}")
-        return None
 
     if response.status_code == 404:
         _print_message_404()
-        return None
     elif response.status_code != 200:
         print(f"Request error {response.status_code}")
-        return None
 
     return response.json()
 
@@ -47,8 +44,6 @@ def request_paginated_results(endpoint, limit=50, max_items=100000):
             params["cursor"] = cursor
 
         data = _get(endpoint, params=params)
-        if data is None:
-            break
 
         all_results.extend(data.get("results", []))
 
@@ -132,6 +127,29 @@ def delete_label_via_rest(page_id, label):
     if response.text:
         return {"status": "error", "label": label, "body": response.json()}
     return {"status": "success", "label": label, "body": None}
+
+# for fetching user / author metadata
+def request_users_metadata(account_ids, batch_size=250):
+    url = f"{CONFLUENCE_BASE_URL}/users-bulk"
+    all_results = []
+
+    for i in range(0, len(account_ids), batch_size):
+        batch = account_ids[i:i + batch_size]
+        payload = {"accountIds": batch}
+
+        try:
+            response = SESSION.post(url, json=payload, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"Connection failed: {e}")
+            return all_results
+
+        if response.status_code != 200:
+            print(f"Request error {response.status_code}")
+            return all_results
+
+        data = response.json()
+        all_results.extend(data.get("results", []))
+    return all_results
 
 def check_network_connection(host="8.8.8.8", timeout=3):
     param = "-n" if platform.system().lower() == "windows" else "-c"
