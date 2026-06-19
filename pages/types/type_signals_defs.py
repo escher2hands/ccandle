@@ -17,6 +17,8 @@ SIGNAL_KEYS = [
     # aggregate macro signals
     'macro_toc', 'macro_jira_query',
     'macro_struct_total', 'macro_panels', 'macro_expandables', 'macro_excerpts', 'macro_decisions', 'macro_children',
+    # code block signals
+    'code_blocks', 'code_blocks_lines',
     # keywords in titles / body / headers signals
     't_month', 't_g_meeting_minutes', 't_meeting_minutes', 't_g_workshop_minutes', 't_workshop_minutes',
     't_release', 't_performance', 't_anti_landing', 't_intro', 't_anti_intro', 't_solution',
@@ -29,4 +31,4 @@ SIGNAL_KEYS = [
     'metric_flags',
 ]
 
-SIGNALS_VECTOR_DIM = 68
+SIGNALS_VECTOR_DIM = 70
