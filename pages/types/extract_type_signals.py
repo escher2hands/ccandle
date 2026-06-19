@@ -143,7 +143,8 @@ def bullet_count_from_html(html):
 def link_count_from_html(html):
     confluence_links = len(re.findall(r'<ac:link[>\s]', html))
     external_links   = len(re.findall(r'<a\s+[^>]*href=', html))
-    return confluence_links + external_links
+    mail_to_links    = mail_to_links = len(re.findall(r'<a\s+[^>]*href\s*=\s*["\']?mailto:', html))
+    return confluence_links + external_links - mail_to_links    # exclude mail_to_links caught by external_links count
 
 # jira links — strong indicator for release notes and performance test results
 def link_jira_count_from_html(html):
