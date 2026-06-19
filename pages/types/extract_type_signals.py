@@ -196,6 +196,24 @@ def macro_structures_signals_from_html(html):
         "child_widget": child_widget
     }
 
+def macro_code_block_signals_from_soup(soup):
+    code_blocks = soup.find_all(lambda tag: (tag.name == "ac:structured-macro" and tag.get("ac:name") == "code"))
+    total_lines = 0
+
+    for block in code_blocks:
+        body = block.find("ac:plain-text-body") # Confluence usually stores the code content inside ac:plain-text-body
+        if body is None:
+            continue
+
+        code = body.get_text()
+        if code:
+            total_lines += len(code.splitlines())   # Count non-empty blocks as at least one line
+
+    return {
+        "code_blocks": len(code_blocks),
+        "code_blocks_lines": total_lines,
+    }
+
 # ——— MICRO-FORMATTING SIGNALS ——————————————————————————————
 def word_count_from_soup(soup):
     return len(soup.get_text(separator=' ', strip=True).split())
