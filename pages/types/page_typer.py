@@ -36,9 +36,10 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import classification_report, confusion_matrix
 from pages.types.type_signals_defs import SIGNAL_KEYS
 from pages.types.decompose_page_into_type_signals import load_type_signal_vectors
-from config.config_db import PATH_DB, TABLE_PAGES, TABLE_VECTORS
 
 # ---- CONFIG --------------------------------------------------------------
+PATH_DB = "your_corpus.db"
+TABLE_VECTORS = "vectors"
 OUT_DIR = "."
 
 # Choose ONE of these. If SEED_CSV_PATH is set (non-None), it takes priority.
@@ -64,7 +65,7 @@ SEED_SETS = {
 # at the cost of more false positives on "which type"). Given the stated
 # preference (minimize false negatives - catch borderline matches), start LOW
 # and use threshold_sweep.csv to see the tradeoff curve before committing.
-CONFIDENCE_THRESHOLD = 0.6
+CONFIDENCE_THRESHOLD = 0.35
 
 N_CV_FOLDS = 5
 RANDOM_STATE = 42
@@ -102,8 +103,9 @@ def load_seed_labels():
 def explore_types():
     print("Loading corpus vectors...")
     page_ids, X = load_type_signal_vectors()
-    pid_to_row = {int(pid): i for i, pid in enumerate(page_ids)}
+    pid_to_row = {pid: i for i, pid in enumerate(page_ids)}
     print(f"Corpus: {len(page_ids)} pages, dim={X.shape[1]}")
+
     seeds = load_seed_labels()
     if not seeds:
         print("No seed labels found. Fill in SEED_SETS or set SEED_CSV_PATH.")
