@@ -31,12 +31,6 @@ def generate_signal_vectors_in_bulk(pids=None, do_scaling=True):
 
 def get_decomposition_vector(page_id):
     signals_dict = decompose_page(page_id, verbose=False)
-    if(len(signals_dict) != 65):
-        print(len(signals_dict))
-        print(signals_dict)
-        signals_vec = np.array(list(signals_dict.values()), dtype=float)
-        print(signals_vec)
-        exit(1)
     return np.array(list(signals_dict.values()), dtype=float)
 
 def decompose_page(page_id, verbose=False):
@@ -81,6 +75,11 @@ def decompose_page(page_id, verbose=False):
     signals = aggregate_macro_signals(html)
     _print_signals_if_verbose(signals, "macro signals", verbose)
     signals_dict.update(signals)
+
+    signals = macro_code_block_signals_from_soup(soup)
+    _print_signals_if_verbose(signals, "code block signals", verbose)
+    signals_dict.update(signals)
+
     signals = kw_signals(title, soup, plain_text)
     _print_signals_if_verbose(signals, "keyword signals", verbose)
     signals_dict.update(signals)
@@ -89,11 +88,13 @@ def decompose_page(page_id, verbose=False):
     _print_signals_if_verbose(signals, "title has date signals", verbose)
     signals_dict.update(signals)
 
-    metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
+    # metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
     signals = {"metric_flags": 0} #metric_flag_signals(json.loads(metric_flags))
     _print_signals_if_verbose(signals, "page evaluation metric signals", verbose)
     signals_dict.update(signals)
 
+    # ensure we're not putting any malformed vectors in
+    assert len(signals_dict) == SIGNALS_VECTOR_DIM, f"Got {len(signals_dict)}, expected {SIGNALS_VECTOR_DIM}"
     return signals_dict
 
 def base_content_signals(word_count, image_count, soup, html, plain_text):
