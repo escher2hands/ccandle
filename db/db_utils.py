@@ -4,8 +4,13 @@ from config.config_db import PATH_DB, TABLE_PAGES
 from db.db_query_utils import query_db_results
 from pages.schema_table_pages import VALID_FIELDS
 
-def get_all_ids_in_pages(path_to_db=PATH_DB):
-    return [res[0] for res in query_db_results(select_query="id", table=TABLE_PAGES, path_to_db=path_to_db)]
+def get_all_ids_in_pages(space_id=None, path_to_db=PATH_DB):
+    space_query = f"space_id={space_id}" if space_id else "1=1"
+    return [res[0] for res in query_db_results(select_query="id", where_clause=space_query, table=TABLE_PAGES, path_to_db=path_to_db)]
+
+def id_exists_in_table(pid, table=TABLE_PAGES, path_to_db=PATH_DB):
+    results = query_db_results("id", table=table, where_clause=f"id={pid}", path_to_db=path_to_db)
+    return len(results) > 0
 
 def random_pid_in_pages(count=1):
     import random
@@ -19,9 +24,8 @@ def get_field_in_pages(pid, field):
     return rows[0][0] if rows else None
 
 def update_field(pid, field, field_value, path_to_db=PATH_DB):
-    conn = sqlite3.connect(path_to_db)
-    cur = conn.cursor()
-    query = f"UPDATE {TABLE_PAGES} SET {field} = ? WHERE id = ?"
-    cur.execute(query, (field_value, pid))
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(path_to_db) as conn:
+        cur = conn.cursor()
+        query = f"UPDATE {TABLE_PAGES} SET {field} = ? WHERE id = ?"
+        cur.execute(query, (field_value, pid))
+        conn.commit()

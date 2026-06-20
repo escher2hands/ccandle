@@ -11,6 +11,7 @@ DATA_DIR = Path(user_data_dir(APP_NAME))
 DB_DIR = DATA_DIR / "db"
 CONFIG_DIR = DATA_DIR / "config"
 
+PATH_SPACES_CONFIG = CONFIG_DIR / "config_spaces.json"
 PATH_DB = DB_DIR / "confluence_mirror.db"
 
 for directory in (DB_DIR, CONFIG_DIR):

@@ -4,9 +4,8 @@ import json
 import os
 from config.config_network import ENDPOINT_SPACES
 from network.network_utils import request_paginated_results, request_one_result
+from config.config_db import PATH_SPACES_CONFIG
 
-
-SPACE_CONFIG = "config/config_spaces.json"
 
 # allows the user to list the spaces they have access to, printing valuable
 # info like the space id, short name, and description
@@ -65,7 +64,7 @@ def add_space(space_id, alias):
     }
 
     # write back to the file
-    with open(SPACE_CONFIG, "w") as f:
+    with open(PATH_SPACES_CONFIG, "w") as f:
         json.dump(data, f, indent=2)
 
     return { 'status': 'success' }
@@ -87,7 +86,7 @@ def remove_space(space_id):
         del data[key_to_remove]
 
     # save changes to our updated config
-        with open(SPACE_CONFIG, "w") as f:
+        with open(PATH_SPACES_CONFIG, "w") as f:
             json.dump(data, f, indent=2)
 
         print(f"Successfully removed space: {key_to_remove} (ID: {space_id})")
@@ -111,23 +110,35 @@ def get_space_attribute(space_identifier, id_type, attribute):
 
     return None
 
+# takes in any type of identifier, and still returns the space id
+def get_space_id_fuzzy(input_space):
+    data = _load_config_spaces()
+    input_str = str(input_space)
+
+    for id_type in ("id", "short_id", "alias"):
+        for space_info in data.values():
+            if space_info.get(id_type) == input_str:
+                return space_info.get("id")
+
+    return None
+
 def _load_config_spaces():
     # ensure our config directory exists
-    os.makedirs(os.path.dirname(SPACE_CONFIG), exist_ok=True)
+    os.makedirs(os.path.dirname(PATH_SPACES_CONFIG), exist_ok=True)
 
     # if not, create a new config for use
-    if not os.path.exists(SPACE_CONFIG):
-        with open(SPACE_CONFIG, "w") as f:
+    if not os.path.exists(PATH_SPACES_CONFIG):
+        with open(PATH_SPACES_CONFIG, "w") as f:
             json.dump({}, f, indent=2)
         return {}
 
     # read
     try:
-        with open(SPACE_CONFIG, "r") as f:
+        with open(PATH_SPACES_CONFIG, "r") as f:
             return json.load(f)
     # handle corruption
     except (json.JSONDecodeError, ValueError):
-        print(f"Warning: {SPACE_CONFIG} is corrupted. Returning empty config.")
+        print(f"Warning: {PATH_SPACES_CONFIG} is corrupted. Returning empty config.")
         return {}   # empty config
 
 def print_formatted_space_list(space_results):
@@ -138,3 +149,30 @@ def print_formatted_space_list(space_results):
         {"key": "name", "label": "NAME"},
     ]
     render_table(space_results, COLUMNS)
+
+def resolve_space_fuzzy(input_space) -> dict:
+    with open(PATH_SPACES_CONFIG) as f:
+        CONFIG_SPACES = json.load(f)["spaces"]
+    # Build lookup maps for convenience
+    ID_TO_SPACE = {v["id"]: v for v in CONFIG_SPACES.values()}
+    SHORT_TO_SPACE = {v["short_id"]: v for v in CONFIG_SPACES.values()}
+    ALIAS_TO_SPACE = {v["alias"]: v for v in CONFIG_SPACES.values()}
+
+    """Return the canonical space dict given an id, short_id, or alias."""
+    input_str = str(input_space)
+    if input_str in ID_TO_SPACE:
+        return ID_TO_SPACE[input_str]
+    if input_str in SHORT_TO_SPACE:
+        return SHORT_TO_SPACE[input_str]
+    if input_str in ALIAS_TO_SPACE:
+        return ALIAS_TO_SPACE[input_str]
+    raise ValueError(f"\n"
+                     f"{RED}" + "-" * WIDTH_NICE +
+                     f"\n{BOLD}Unknown space identifier: {input_space}{RESET}{RED}\n"
+                     f"{DIM}Use the space ID or short ID of the space to inspect links.\n"
+                     f"Try: \n"
+                     f"{RESET}   {APP_HANDLE} spaces configured\n"
+                     f"{DIM}{RED}to get the exact space ID or its short ID.\n" +
+                     f"{RESET}{RED}" + "-" * WIDTH_NICE +
+                     f"{RESET}")
+

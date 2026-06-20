@@ -5,7 +5,7 @@ import sqlite3, json
 
 def find_top_authors_across_pages(pid_list=None, limit=50, space_id=None, path_to_db=PATH_DB):
     if pid_list is None:
-        pid_list = get_all_ids_in_pages(path_to_db)
+        pid_list = get_all_ids_in_pages(path_to_db=path_to_db)
     author_counter = Counter()
     space_id_query = f"space_id = {space_id}" if space_id else "1=1"
 

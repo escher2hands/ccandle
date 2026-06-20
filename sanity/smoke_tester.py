@@ -1,7 +1,9 @@
 import subprocess, time
+
+from config.config_app import APP_NAME
 from presentation.theme import YELLOW, GREEN, BLUE, RESET, WIDTH_NICE
 
-BASE_CMD = ["ccandle"]
+BASE_CMD = [f"{APP_NAME}"]
 
 def interactive_smoke_test():
     print(f"\n{BLUE}" + "=" * WIDTH_NICE)
@@ -11,7 +13,7 @@ def interactive_smoke_test():
     yes = input().strip().lower()
     if yes in ("y", "yes"):
         print(f"Please input a test page ID:")
-        test_page_id = input()
+        test_pid = input()
         print(f"Please input a test space ID (id of a Confluence space you are tracking):")
         test_space_id = input()
         print(f"Please input some test space short name fragment to search for:")
@@ -19,7 +21,7 @@ def interactive_smoke_test():
         print(f"Please input a test navbox name:")
         test_nav_name = input()
     else:
-        test_page_id = '1471579641'
+        test_pid = '1471579641'
         test_space_id = '601554991'
         test_space_query = 'but'
         test_nav_name = "on!track abc's navbox"
@@ -38,8 +40,15 @@ def interactive_smoke_test():
         BASE_CMD + ["labels", "add", "smoke-test-label", "2622718175", "2455404674"],
         BASE_CMD + ["labels", "delete", "smoke-test-label", "2622718175", "2455404674"],
 
+
         BASE_CMD + ["stats", "authors", "--space-id", f"{test_space_id}", "--limit", f"{10}"],
-      
+
+        BASE_CMD + ["stats", "links", "popular", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "orphans", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "incoming", f"{test_pid}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
+
+
         BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 15"],
         BASE_CMD + ["sql", "columns"],
     ]
