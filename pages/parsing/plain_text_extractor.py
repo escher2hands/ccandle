@@ -9,6 +9,7 @@ from tqdm import tqdm
 from db.db_query_utils import query_db_results
 from db.db_utils import get_all_ids_in_pages
 from spaces.space_utils import get_space_attribute
+import re
 
 # --- Confluence-specific HTML element identifiers ---
 MACRO_FALLBACK_TAG = "ac:adf-fallback"
@@ -24,10 +25,11 @@ LIST_ITEM_ELEMENT = "li"
 
 # Full pipeline: cleans Confluence HTML and extracts plain text.
 # space_key is reserved for future link formatting (see insert_internal_link_flags).
-def extract_plain_text_from_html(html_body: str, space_key: str) -> str:
-    if not html_body:
+def extract_plain_text_from_html(html: str, space_key: str) -> str:
+    if not html:
         return ""
-    soup = clean_confluence_html(html_body)
+    html = _insert_internal_link_flags(html, space_key)
+    soup = clean_confluence_html(html)
     return extract_text_from_soup(soup)
 
 def extract_plain_texts_in_bulk(pid_list=None):
@@ -44,7 +46,7 @@ def extract_plain_texts_in_bulk(pid_list=None):
     for record in tqdm(pids_to_htmls, desc="Extracting plain text from bulk", unit="page"):
         texts.append({
             'id': record['id'],
-            'text': extract_plain_text_from_html(html_body=record['html'], space_key=record['space_key']),
+            'text': extract_plain_text_from_html(html=record['html'], space_key=record['space_key']),
         })
 
     _store_plain_texts_in_bulk(texts)
@@ -67,8 +69,8 @@ def _store_plain_texts_in_bulk(text_records):
 #       - Replaces excerpt-include macros with readable placeholders
 #       - Strips tags that contribute no text content
 #     Returns a cleaned BeautifulSoup object.
-def clean_confluence_html(html_body: str) -> BeautifulSoup:
-    soup = BeautifulSoup(html_body or "", "html.parser")
+def clean_confluence_html(html: str) -> BeautifulSoup:
+    soup = BeautifulSoup(html or "", "html.parser")
 
     _remove_adf_fallbacks(soup)
     _replace_excerpt_include_macros(soup)
@@ -132,6 +134,27 @@ def extract_text_from_soup(soup: BeautifulSoup) -> str:
             add_if_new(text)
 
     return "\n".join(output).strip()
+
+def _insert_internal_link_flags(html, default_space_key="UNKNOWN") -> str:
+    pattern = re.compile(r"<ac:link\b[^>]*>(?:[^<]|<(?!/ac:link>))*?</ac:link>",flags=re.DOTALL)
+
+    def _replace(match):
+        link_tag = match.group(0)
+        title_match = re.search(r'ri:content-title="([^"]+)"', link_tag)
+        if not title_match:
+            return link_tag  # nothing we can do
+        space_match = re.search(r'ri:space-key="([^"]+)"', link_tag)
+        space_key = (space_match.group(1)   if space_match   else default_space_key)
+
+        # If we *still* don't have a space key, leave unqualified
+        if space_key:
+            target = f"{space_key}:{title_match.group(1)}"
+        else:
+            target = title_match.group(1)
+
+        return link_tag + f"[[link to: {target}]]"
+
+    return pattern.sub(_replace, html)
 
 # Returns True if this element is already inside another block-level element.
 def _is_nested_block(el) -> bool:
