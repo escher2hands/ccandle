@@ -5,7 +5,7 @@
 # -   stats links popular
 # -   stats links cross-space
 # -   ...
-from config.config_app import APP_HANDLE
+from config.config_app import FRIENDLY_APP_NAME
 from config.config_db import PATH_DB
 from spaces.space_utils import get_space_attribute
 from presentation.theme import *
@@ -15,7 +15,7 @@ def _add_common_args(sub):
     # args shared by every stats subcommand.
     sub.add_argument("--space-id", help="Limit search to only within a particular space")
     sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top N results")
-    sub.add_argument("--db-path", default=PATH_DB, help=f"Get results from your specified database, instead of {APP_HANDLE}'s default")
+    sub.add_argument("--db-path", default=PATH_DB, help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
     sub.add_argument("--ids-only", action="store_true", help="Print only IDs, one line, comma-separated")
 
 
@@ -84,7 +84,7 @@ def run(args):
             results = find_orphaned_pages(space_id=args.space_id, path_to_db=args.db_path)
             print(f"\nTotal orphaned pages: {results['total']}\n")
 
-            orphan_rows = results['detailed rows']
+            orphan_rows = results['detailed_rows']
 
             orphans_by_space = Counter(row[2] for row in orphan_rows)
             for space_id, orphans_in_space in sorted(orphans_by_space.items()):
@@ -92,7 +92,7 @@ def run(args):
                 space_alias = get_space_attribute(space_id, "id", "alias").upper()
                 pct = 100 * orphans_in_space / total_in_space
                 print(f" {orphans_in_space:<5} /  {total_in_space:<5} = {pct:.0f}"
-                      f" %  orphans in space {space_alias:<20} ({space_id})")
+                      f" %  orphans in space {space_alias:<25} ({space_id})")
 
             if results['total'] > 200:
                 print(f"\nThere are {results['total']} orphaned pages. Do you really want to list them all? "
@@ -134,7 +134,7 @@ def run(args):
 
             print(f"\n{BLUE}The most linked to pages in your synced Confluence spaces."
                   f"\nThese are usually important pages, since they are the most referred-to pages."
-                  f"\n{APP_HANDLE} can only search for incoming links from spaces {BOLD}you have configured."
+                  f"\n{FRIENDLY_APP_NAME} can only search for incoming links from spaces {BOLD}you have configured."
                   f"\n{RESET}")
 
             COLUMNS = [
@@ -167,7 +167,7 @@ def run(args):
                 {"key": "space_alias", "label": "SHORT ID", "width": 19},
                 {"key": "count", "label": "LINKS"},
             ]
-            render_table(results, COLUMNS)
+            render_table(results[:args.limit], COLUMNS)
             return 0
 
     if args.stats_cmd == "duplicates":
