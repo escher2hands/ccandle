@@ -10,6 +10,7 @@ from db.db_utils import get_all_ids_in_pages
 
 LINK_PATTERN = re.compile(r"\[\[link to:\s*(.*?)\s*\]\](?!\])", re.DOTALL)
 EXTRACT_PATTERN = re.compile(r"\[\[link to: ([^\]]+)\]\]")
+PERSONAL_SPACE_RE = re.compile(r"^~[0-9a-f]{20,32}$")
 
 # Loads the data we need for link conversion in one shot
 # "pages": {pid: plain_text},
@@ -46,7 +47,7 @@ def convert_links_in_memory(data, debug_mode=False):
         space_key = None
         if ":" in inner_text:
             possible_space, rest = inner_text.split(":", 1)
-            if possible_space.isupper():
+            if possible_space.isupper() or PERSONAL_SPACE_RE.match(possible_space): # short_id or personal space
                 space_key = possible_space
                 inner_text = rest.strip()
 
@@ -57,7 +58,7 @@ def convert_links_in_memory(data, debug_mode=False):
 
         converted_links_count += 1
         if debug_mode: print(f"DEBUG: Converted a link - [[link to: {space_key}:{target_pid}]]")
-        return f"[[link to: {space_key.upper()}:{target_pid}]]"
+        return f"[[link to: {space_key}:{target_pid}]]"
 
     for pid, page_text in pages.items():
         if not page_text:
