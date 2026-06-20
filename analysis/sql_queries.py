@@ -5,7 +5,7 @@ from presentation.page_previews import render_results
 from presentation.theme import RED, RESET, BOLD, DIM
 
 def query_via_cli(your_query, path_to_db=PATH_DB, force_table=False):
-    print(path_to_db)
+    # print(path_to_db)
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         try:
