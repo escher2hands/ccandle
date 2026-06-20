@@ -53,11 +53,19 @@ def find_max_linked_to_stats(space_id=None, path_to_db=PATH_DB, limit=20):
         })
     return results
 
-def _extract_link_ids(links_list: str) -> set[str]:
+def _extract_link_ids(links_list) -> set[str]:
+    """links_list: JSON-encoded string of 'SPACEKEY:pageid' link strings."""
     if not links_list:
         return set()
-    return set(LINK_ID_RE.findall(links_list))
-
+    parsed = json.loads(links_list)
+    ids = set()
+    for link in parsed:
+        if not link:
+            continue
+        _, _, pid = link.partition(":")
+        if pid:
+            ids.add(pid.strip())
+    return ids
 
 def find_orphaned_pages(pids=None, space_id=None, path_to_db=PATH_DB):
     if pids is None:
@@ -67,7 +75,7 @@ def find_orphaned_pages(pids=None, space_id=None, path_to_db=PATH_DB):
 
     incoming_links = set()
     rows = query_db_results(select_query="id, title, space_id, links_list", path_to_db=path_to_db)
-    page_info = {row[0]: row[:3] for row in rows}  # id -> (id, title, space_id)
+    page_info = {str(row[0]): row[:3] for row in rows}  # id -> (id, title, space_id)
 
     for _, _, _, links_list in rows:
         incoming_links.update(_extract_link_ids(links_list))
@@ -78,7 +86,7 @@ def find_orphaned_pages(pids=None, space_id=None, path_to_db=PATH_DB):
     orphan_rows = [page_info[pid] for pid in orphaned_pages if pid in page_info]
 
     return {
-        "detailed rows": orphan_rows,
+        "detailed_rows": orphan_rows,
         "total": len(orphan_rows),
     }
 
