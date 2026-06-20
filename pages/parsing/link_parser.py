@@ -6,6 +6,7 @@
 # step after page_evaluator.py will have run.
 import re, sqlite3, json
 from config.config_db import PATH_DB, TABLE_PAGES
+from db.db_utils import get_all_ids_in_pages
 
 LINK_PATTERN = re.compile(r"\[\[link to:\s*(.*?)\s*\]\](?!\])", re.DOTALL)
 EXTRACT_PATTERN = re.compile(r"\[\[link to: ([^\]]+)\]\]")
@@ -55,7 +56,8 @@ def convert_links_in_memory(data, debug_mode=False):
             return match.group(0)  # leave unchanged
 
         converted_links_count += 1
-        return f"[[link to: {space_key}:{target_pid}]]"
+        if debug_mode: print(f"DEBUG: Converted a link - [[link to: {space_key}:{target_pid}]]")
+        return f"[[link to: {space_key.upper()}:{target_pid}]]"
 
     for pid, page_text in pages.items():
         if not page_text:
@@ -73,10 +75,8 @@ def build_links_list_in_memory(data: dict) -> dict:
     links_map = {}
 
     for pid, page_text in pages.items():
-        if not page_text:
-            continue
-        link_tags = EXTRACT_PATTERN.findall(page_text)
-        links_map[pid] = json.dumps(link_tags)  # [] if no matches
+        link_tags = EXTRACT_PATTERN.findall(page_text or "")
+        links_map[pid] = json.dumps(link_tags)
 
     return links_map
 
@@ -102,14 +102,13 @@ def persist_changes(data, links_map, path_to_db=PATH_DB):
 
 # Complete pipeline:
 # load -> process -> store
-def clean_and_store_links(pid_list, path_to_db=PATH_DB, debug_mode=False):
+def clean_and_store_links(pid_list=None, path_to_db=PATH_DB, debug_mode=False):
+    pid_list = pid_list or get_all_ids_in_pages()
     # load data for the given pages
     data = load_pages_and_title_index(pid_list, path_to_db)
-
     # process the data in place
     convert_links_in_memory(data, debug_mode=debug_mode)
     links_map = build_links_list_in_memory(data)
-
     # bulk store the data back to the DB, using the specified db connection
     persist_changes(data, links_map, path_to_db)
 
