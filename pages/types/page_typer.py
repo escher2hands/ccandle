@@ -1,9 +1,9 @@
 from config.config_db import TABLE_VECTORS, PATH_DB
 from db.db_utils import get_all_ids_in_pages
 from pages.types.decompose_page_into_type_signals import load_type_signal_vectors, generate_signal_vectors_in_bulk
-from pages.types.page_type_explorer import load_seed_labels, RANDOM_STATE, CONFIDENCE_THRESHOLD
-import sqlite3
-import csv
+from pages.types.page_type_explorer import load_seed_labels, RANDOM_STATE, CONFIDENCE_THRESHOLD, MODEL_PATH
+from pages.types.type_signals_defs import SIGNAL_KEYS
+import sqlite3, csv, joblib
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
