@@ -36,14 +36,16 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import classification_report, confusion_matrix
 from pages.types.type_signals_defs import SIGNAL_KEYS
 from pages.types.decompose_page_into_type_signals import load_type_signal_vectors
-from config.config_db import PATH_DB, TABLE_PAGES, TABLE_VECTORS
+from config.config_db import PATH_DB, TABLE_PAGES, TABLE_VECTORS, CONFIG_DIR
+from datetime import datetime
+import joblib
 
 # ---- CONFIG --------------------------------------------------------------
 OUT_DIR = "."
 
 # Choose ONE of these. If SEED_CSV_PATH is set (non-None), it takes priority.
 SEED_CSV_PATH = '/Users/morganrandall/Downloads/Page type confirmed ids.csv'
-
+MODEL_PATH = CONFIG_DIR / "type_model.joblib"
 SEED_SETS = {
     # "meeting_minutes": {101, 102, 103},
     # "workshop_minutes": {201, 202},
@@ -264,3 +266,50 @@ def explore_types():
         "SEED_SETS / the seed CSV and retrain."
     )
 
+def fit_type_model(model_path=MODEL_PATH):
+    """
+    Training step. Run this once per team/corpus where seed labels exist.
+    Produces a portable model artifact (no page IDs inside) that can be
+    checked into the repo and reused by anyone with a compatible signal
+    vector schema — regardless of their corpus's page IDs.
+    """
+    page_ids, X = load_type_signal_vectors()
+    pid_to_row = {int(pid): i for i, pid in enumerate(page_ids)}
+
+    seeds = load_seed_labels()
+    if not seeds:
+        raise RuntimeError("No seed labels found. Fill in SEED_SETS or set SEED_CSV_PATH.")
+
+    seen = {}
+    for label, seed_pids in seeds.items():
+        for p in seed_pids:
+            seen.setdefault(p, []).append(label)
+    overlaps = {p for p, labs in seen.items() if len(labs) > 1}
+
+    train_idx, train_y = [], []
+    for label, seed_pids in seeds.items():
+        for p in seed_pids:
+            if p in overlaps or p not in pid_to_row:
+                continue
+            train_idx.append(pid_to_row[p])
+            train_y.append(label)
+
+    X_train = X[train_idx]
+    y_train = np.array(train_y)
+
+    clf = RandomForestClassifier(
+        n_estimators=300,
+        class_weight="balanced",
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+    )
+    clf.fit(X_train, y_train)
+
+    artifact = {
+        "model": clf,
+        "signal_keys": SIGNAL_KEYS,        # so inference can validate vector schema/order
+        "confidence_threshold": CONFIDENCE_THRESHOLD,
+        "trained_at": datetime.utcnow().isoformat(),
+    }
+    joblib.dump(artifact, model_path)
+    print(f"Wrote portable model to {model_path}")
