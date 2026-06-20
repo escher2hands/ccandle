@@ -26,7 +26,6 @@ def _get(endpoint, params=None, quiet=False):
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
     except requests.exceptions.RequestException as e:
         print(f"Connection failed: {e}")
-        return None
 
     if not quiet:
         if response.status_code == 404:

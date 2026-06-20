@@ -9,10 +9,10 @@ def register(subparsers):
     conn_sub = p.add_subparsers(dest="conn_cmd")
 
     for name, help_text in [
-        ("email", "Set the email for authentication"),
-        ("url",   "Set the Confluence Cloud URL. For example: company.atlassian.net/"),
-        ("token", "Set the API token for authentication"),
-        ("repo-url", "Set the main repository base url for better page analysis. For example: git.name.company.com/"),
+        ("email", "Set your email for authentication to your Confluence Cloud instance."),
+        ("url",   "Set your Confluence Cloud URL. For example: company.atlassian.net/"),
+        ("token", "Set your API token for authentication. Manage tokens at: https://id.atlassian.com/manage/api-tokens"),
+        ("repo-url", "Set your team's main repository base url for better page analysis. For example: git.name.company.com/"),
     ]:
         sub = conn_sub.add_parser(name, help=help_text)
         sub.add_argument("value", help="The value to set")

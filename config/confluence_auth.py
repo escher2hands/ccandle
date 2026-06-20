@@ -20,7 +20,7 @@ def fetch_conf_details(field):
     elif field == "url":
         return data.get("URL")
     elif field == "repo-url":
-        return data.get("REPO-URL")
+        return data.get("REPO-URL") or "UNSET"
     return None
 
 
