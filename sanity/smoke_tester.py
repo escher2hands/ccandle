@@ -1,7 +1,9 @@
 import subprocess, time
+
+from config.config_app import APP_NAME
 from presentation.theme import YELLOW, GREEN, BLUE, RESET, WIDTH_NICE
 
-BASE_CMD = ["ccandle"]
+BASE_CMD = [f"{APP_NAME}"]
 
 def interactive_smoke_test():
     print(f"\n{BLUE}" + "=" * WIDTH_NICE)
