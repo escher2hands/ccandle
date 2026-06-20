@@ -20,21 +20,24 @@ def _make_session():
 
 SESSION = _make_session()
 
-def _get(endpoint, params=None):
+def _get(endpoint, params=None, quiet=False):
     url = f"{CONFLUENCE_BASE_URL}{endpoint}"
     try:
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
     except requests.exceptions.RequestException as e:
         print(f"Connection failed: {e}")
 
-    if response.status_code == 404:
-        _print_message_404()
-    elif response.status_code != 200:
-        print(f"Request error {response.status_code}")
+    if not quiet:
+        if response.status_code == 404:
+            _print_message_404(response.status_code)
+            return None
+        elif response.status_code != 200:
+            print(f"Request error {response.status_code}")
+            return None
 
     return response.json()
 
-def request_paginated_results(endpoint, limit=50, max_items=100000):
+def request_paginated_results(endpoint, limit=50, max_items=100000, quiet=False):
     all_results = []
     cursor = None
 
@@ -43,7 +46,9 @@ def request_paginated_results(endpoint, limit=50, max_items=100000):
         if cursor:
             params["cursor"] = cursor
 
-        data = _get(endpoint, params=params)
+        data = _get(endpoint, params=params, quiet=quiet)
+        if data is None:
+            break
 
         all_results.extend(data.get("results", []))
 
@@ -64,8 +69,8 @@ def request_paginated_results(endpoint, limit=50, max_items=100000):
 
     return all_results
 
-def request_one_result(endpoint):
-    data = _get(endpoint)
+def request_one_result(endpoint, quiet=False):
+    data = _get(endpoint, quiet=False)
     return data.get("results") if data else None
 
 def request_page_contents(page_id_list, strip_to_html=False):
@@ -80,7 +85,7 @@ def request_page_contents(page_id_list, strip_to_html=False):
             "id": ",".join(chunk),
             "body-format": FORMAT_STORAGE,
             "limit": 15,
-        })
+        }, quiet=False)
 
         if data is None:
             return []
@@ -171,9 +176,9 @@ def check_network_connection(host="8.8.8.8", timeout=3):
     except OSError:
         return False
 
-def _print_message_404():
+def _print_message_404(response_status_code):
     print(f"{RED}" + "-" * WIDTH_NICE + "\n"
-          f"Request error {response.status_code}\n\n"
+          f"Request error {response_status_code}\n\n"
           f"{DIM}Probably, this might have been an: \n"
           f"-   authentication error\n"
           f"-   the page you requested does not exist\n"

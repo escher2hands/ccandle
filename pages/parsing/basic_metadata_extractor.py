@@ -1,5 +1,6 @@
 # get link count, word count, image count, lead para, and check if page has link tree
 from bs4 import BeautifulSoup
+from pages.parsing.paragraph_parser import extract_lead_paragraph_from_soup
 from pages.types.extract_type_signals import link_count_from_html, image_count_from_html, word_count_from_soup
 import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
@@ -15,7 +16,7 @@ def add_basic_metadata_in_bulk(pids):
             'word_count': word_count_from_soup(soup),
             'link_count': link_count_from_html(page['html']),
             'image_count': image_count_from_html(page['html']),
-            'lead_para': "",
+            'lead_para': extract_lead_paragraph_from_soup(soup),
             'has_link_tree': False,
         }
         enriched_pages.append(enriched)

@@ -5,7 +5,7 @@ from db.db_utils import get_all_ids_in_pages
 from db.table_utils import create_table
 from pages.types.extract_type_signals import *
 from pages.types.type_signals_scaler import scale_signal_vectors
-from pages.types.type_signals_defs import SIGNAL_KEYS
+from pages.types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM
 from pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
@@ -13,7 +13,7 @@ import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
-def generate_signal_vectors_in_bulk(pids=None):
+def generate_signal_vectors_in_bulk(pids=None, do_scaling=True):
     page_ids = pids or get_all_ids_in_pages()
     X = []
 
@@ -22,20 +22,15 @@ def generate_signal_vectors_in_bulk(pids=None):
         X.append(sig_vec)
 
     X = np.array(X, dtype=float)
-    X_scaled = scale_signal_vectors(X, SIGNAL_KEYS)
+    if do_scaling:
+        X = scale_signal_vectors(X, SIGNAL_KEYS)
 
     create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
 
-    _store_type_signal_vectors(page_ids, X_scaled)
+    _store_type_signal_vectors(page_ids, X)
 
 def get_decomposition_vector(page_id):
     signals_dict = decompose_page(page_id, verbose=False)
-    if(len(signals_dict) != 65):
-        print(len(signals_dict))
-        print(signals_dict)
-        signals_vec = np.array(list(signals_dict.values()), dtype=float)
-        print(signals_vec)
-        exit(1)
     return np.array(list(signals_dict.values()), dtype=float)
 
 def decompose_page(page_id, verbose=False):
@@ -72,10 +67,19 @@ def decompose_page(page_id, verbose=False):
     signals = aggregate_table_signals(html, soup)
     _print_signals_if_verbose(signals, "table signals", verbose)
     signals_dict.update(signals)
+
+    signals = lexicographic_signals_from_plain_text(plain_text)
+    _print_signals_if_verbose(signals, "lexicographic signals", verbose)
+    signals_dict.update(signals)
     
     signals = aggregate_macro_signals(html)
     _print_signals_if_verbose(signals, "macro signals", verbose)
     signals_dict.update(signals)
+
+    signals = macro_code_block_signals_from_soup(soup)
+    _print_signals_if_verbose(signals, "code block signals", verbose)
+    signals_dict.update(signals)
+
     signals = kw_signals(title, soup, plain_text)
     _print_signals_if_verbose(signals, "keyword signals", verbose)
     signals_dict.update(signals)
@@ -84,11 +88,13 @@ def decompose_page(page_id, verbose=False):
     _print_signals_if_verbose(signals, "title has date signals", verbose)
     signals_dict.update(signals)
 
-    metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
+    # metric_flags, title = query_field_multi_in_pages(page_id, 'metrics_json', 'title')
     signals = {"metric_flags": 0} #metric_flag_signals(json.loads(metric_flags))
     _print_signals_if_verbose(signals, "page evaluation metric signals", verbose)
     signals_dict.update(signals)
 
+    # ensure we're not putting any malformed vectors in
+    assert len(signals_dict) == SIGNALS_VECTOR_DIM, f"Got {len(signals_dict)}, expected {SIGNALS_VECTOR_DIM}"
     return signals_dict
 
 def base_content_signals(word_count, image_count, soup, html, plain_text):
@@ -184,7 +190,6 @@ def _print_signals_if_verbose(signals, message, verbose):
 
 
 def _empty_signals_vector():
-    SIGNALS_VECTOR_DIM = 65
     assert len(SIGNAL_KEYS) == SIGNALS_VECTOR_DIM, f"Got {len(SIGNAL_KEYS)}, expected {SIGNALS_VECTOR_DIM}"
     return {key: 0 for key in SIGNAL_KEYS}
 

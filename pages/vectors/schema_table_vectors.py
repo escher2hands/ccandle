@@ -1,8 +1,8 @@
 SCHEMA_VECTORS = """
     id TEXT PRIMARY KEY,
     type_signals_vec BLOB,
-    type_cluster INTEGER,
-    type_nearest_dist REAL,
+    type TEXT,
+    type_confidence REAL,
     
     embedding_vec BLOB,
     embedding_reduced BLOB,

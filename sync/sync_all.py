@@ -21,7 +21,7 @@ def sync(hard_refresh=False, resume_at=None):
         ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages)),
         ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages)),
         ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)),
-        ("assign_type", lambda: _generate_signal_vectors_in_bulk(delta_pages)),
+        ("assign_type", lambda: _type_all_pages(delta_pages)),
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
@@ -104,9 +104,9 @@ def _add_basic_metadata_in_bulk(delta_pages):
 def _clean_link_formatting_and_store_link_list(delta_pages):
     from pages.parsing.link_parser import clean_and_store_links
     clean_and_store_links(delta_pages)
-def _generate_signal_vectors_in_bulk(delta_pages):
-    from pages.types.decompose_page_into_type_signals import generate_signal_vectors_in_bulk
-    generate_signal_vectors_in_bulk(delta_pages)
+def _type_all_pages(delta_pages):
+    from pages.types.page_typer import type_all_pages
+    type_all_pages(delta_pages)
 
 
 def set_all_pages_as_processed(processed_list):

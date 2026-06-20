@@ -2,8 +2,9 @@
 
 import os, json
 import platformdirs
-CONFIG_DIR = platformdirs.user_config_dir("ccandle")
-DETAILS_FILE = os.path.join(CONFIG_DIR, "details.json")
+from config.config_db import CONFIG_DIR
+DETAILS_FILE = CONFIG_DIR / "conf_details.json"
+
 VALID_FIELDS = ["token", "email", "url", "repo-url"]
 
 def fetch_conf_details(field):
@@ -19,28 +20,29 @@ def fetch_conf_details(field):
     elif field == "url":
         return data.get("URL")
     elif field == "repo-url":
-        return data.get("REPO-URL") or "NOT SET"
+        return data.get("REPO-URL") or "UNSET"
     return None
 
+
 def _load_conf_details():
-    # ensure our config directory exists
-    os.makedirs(os.path.dirname(DETAILS_FILE), exist_ok=True)
-
-    # if not, create a new config for use
-    if not os.path.exists(DETAILS_FILE):
-        with open(DETAILS_FILE, "w") as f:
+    if not DETAILS_FILE.exists():
+        with DETAILS_FILE.open("w", encoding="utf-8") as f:
             json.dump({}, f, indent=2)
-        os.chmod(DETAILS_FILE, 0o600)  # set after creation so only owner can write / read
-        return {}
 
-    # read
+        try:
+            os.chmod(DETAILS_FILE, 0o600)         # set after creation so only owner can write / read
+        except OSError:
+            pass
+
+        return {}                                       # empty config
+
     try:
-        with open(DETAILS_FILE, "r") as f:
+        with DETAILS_FILE.open("r", encoding="utf-8") as f:
             return json.load(f)
-    # handle corruption
+
     except (json.JSONDecodeError, ValueError):
         print(f"Warning: {DETAILS_FILE} is corrupted. Returning empty config.")
-        return {}   # empty config
+        return {}                                       # empty config
 
 def load_conf_url():
     from presentation.theme import RED, BLUE, DIM, RESET, WIDTH_NICE
