@@ -94,16 +94,28 @@ def run(args):
                 print(f" {orphans_in_space:<5} /  {total_in_space:<5} = {pct:.0f}"
                       f" %  orphans in space {space_alias:<25} ({space_id})")
 
+            COLUMNS = [
+                {"key": "id", "label": "PAGE ID", "width": 12},
+                {"key": "title", "label": "TITLE"},
+            ]
+            display_results = True
             if results['total'] > 200:
                 print(f"\nThere are {results['total']} orphaned pages. Do you really want to list them all? "
                       f"\nType 'yes' or 'no' to confirm.")
                 confirm = input().strip().lower()
-                if confirm in ("yes", "y"):
-                    print(f"\nOrphaned pages ({len(orphan_rows)}):")
-                    for result in orphan_rows:
-                        print(f"{result[0]} | {result[1]}")
-
-                    return 0
+                if confirm not in ("yes", "y"):
+                    display_results = False
+            if display_results:
+                print(f"\nOrphaned pages ({len(orphan_rows)}):")
+                display_rows = [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                    }
+                    for row in orphan_rows
+                ]
+                render_table(display_rows, COLUMNS)
+                return 0
             return 0
 
         # python cli.py stats links incoming PAGE
@@ -132,9 +144,9 @@ def run(args):
                 print(", ".join(r["pid"] for r in results))
                 return 0                    # exit immediately
 
-            print(f"\n{BLUE}The most linked to pages in your synced Confluence spaces."
-                  f"\nThese are usually important pages, since they are the most referred-to pages."
-                  f"\n{FRIENDLY_APP_NAME} can only search for incoming links from spaces {BOLD}you have configured."
+            print(f"\n{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces."
+                  f"\nThese are usually important pages, since the network of pages keep referring to them."
+                  f"\nNote: {FRIENDLY_APP_NAME} can only search for incoming links from spaces you have configured."
                   f"\n{RESET}")
 
             COLUMNS = [
