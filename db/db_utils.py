@@ -4,8 +4,9 @@ from config.config_db import PATH_DB, TABLE_PAGES
 from db.db_query_utils import query_db_results
 from pages.schema_table_pages import VALID_FIELDS
 
-def get_all_ids_in_pages(path_to_db=PATH_DB):
-    return [res[0] for res in query_db_results(select_query="id", table=TABLE_PAGES, path_to_db=path_to_db)]
+def get_all_ids_in_pages(space_id=None, path_to_db=PATH_DB):
+    space_query = f"space_id={space_id}" if space_id else "1=1"
+    return [res[0] for res in query_db_results(select_query="id", where_clause=space_query, table=TABLE_PAGES, path_to_db=path_to_db)]
 
 def id_exists_in_table(pid, table=TABLE_PAGES, path_to_db=PATH_DB):
     results = query_db_results("id", table=table, where_clause=f"id={pid}", path_to_db=path_to_db)
