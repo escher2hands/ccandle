@@ -13,44 +13,28 @@ def type_all_pages(delta_pages=None):
     apply_type_labels()
     print("Done.\n")
 
-def apply_type_labels():
+
+def apply_type_labels(model_path=MODEL_PATH):
+    """
+    Inference step. No seeds, no training corpus dependency — just loads
+    the shared model artifact and applies it to whatever corpus is local.
+    """
+    artifact = joblib.load(model_path)
+    clf = artifact["model"]
+    threshold = artifact["confidence_threshold"]
+
+    if artifact["signal_keys"] != SIGNAL_KEYS:
+        raise ValueError(
+            "Signal vector schema mismatch: this model was trained on a "
+            "different SIGNAL_KEYS layout than the current corpus produces."
+        )
+
     page_ids, X = load_type_signal_vectors()
-    pid_to_row = {int(pid): i for i, pid in enumerate(page_ids)}
-
-    seeds = load_seed_labels()
-    if not seeds:
-        raise RuntimeError("No seed labels found. Fill in SEED_SETS or set SEED_CSV_PATH.")
-
-    seen = {}
-    for label, seed_pids in seeds.items():
-        for p in seed_pids:
-            seen.setdefault(p, []).append(label)
-    overlaps = {p for p, labs in seen.items() if len(labs) > 1}
-
-    train_idx, train_y = [], []
-    for label, seed_pids in seeds.items():
-        for p in seed_pids:
-            if p in overlaps or p not in pid_to_row:
-                continue
-            train_idx.append(pid_to_row[p])
-            train_y.append(label)
-
-    X_train = X[train_idx]
-    y_train = np.array(train_y)
-
-    clf = RandomForestClassifier(
-        n_estimators=300,
-        class_weight="balanced",
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
-    )
-    clf.fit(X_train, y_train)
-    classes = clf.classes_
 
     probs = clf.predict_proba(X)
     max_prob = probs.max(axis=1)
-    pred_label = classes[np.argmax(probs, axis=1)]
-    final_label = np.where(max_prob >= CONFIDENCE_THRESHOLD, pred_label, "uncategorized")
+    pred_label = clf.classes_[np.argmax(probs, axis=1)]
+    final_label = np.where(max_prob >= threshold, pred_label, "uncategorized")
 
     rows = [
         (str(lbl), float(conf), int(pid))
@@ -63,5 +47,3 @@ def apply_type_labels():
             rows,
         )
         conn.commit()
-
-    print(f"Assigned types for {len(rows)} rows")
