@@ -5,7 +5,7 @@ from db.db_utils import get_all_ids_in_pages
 from db.table_utils import create_table
 from pages.types.extract_type_signals import *
 from pages.types.type_signals_scaler import scale_signal_vectors
-from pages.types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM
+from pages.types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM, THRESH_PAGE_EMPTY
 from pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np
@@ -13,7 +13,7 @@ import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
-def generate_signal_vectors_in_bulk(pids=None, do_scaling=True):
+def generate_signal_vectors_in_bulk(pids=None):
     page_ids = pids or get_all_ids_in_pages()
     X = []
 
@@ -22,12 +22,11 @@ def generate_signal_vectors_in_bulk(pids=None, do_scaling=True):
         X.append(sig_vec)
 
     X = np.array(X, dtype=float)
-    if do_scaling:
-        X = scale_signal_vectors(X, SIGNAL_KEYS)
+    X_scaled = scale_signal_vectors(X, SIGNAL_KEYS)
 
     create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
 
-    _store_type_signal_vectors(page_ids, X)
+    _store_type_signal_vectors(page_ids, X, X_scaled)
 
 def get_decomposition_vector(page_id):
     signals_dict = decompose_page(page_id, verbose=False)
@@ -41,7 +40,7 @@ def decompose_page(page_id, verbose=False):
         print("=" * WIDTH_NICE)
         print(page_id + " | " + title.upper() + "\n")
 
-    if word_count is None or word_count < 50:
+    if word_count is None or word_count < THRESH_PAGE_EMPTY:
         if verbose:
             if word_count == 0: print("Empty page. No words. Skipping.")
             else:               print("Stub page. Too few words to analyze. Skipping.")
@@ -203,16 +202,17 @@ def inspect_page_type_signals():
     smell_scores = [row[1] for row in rows]
     return page_ids, smell_scores
 
-def _store_type_signal_vectors(page_ids, signal_vectors):
+def _store_type_signal_vectors(page_ids, signal_vec_unscaled, signal_vectors):
     rows = [
-        (page_id, signal_vectors[i].astype(np.float32).tobytes())
+        (page_id, signal_vec_unscaled[i].astype(np.float32).tobytes(), signal_vectors[i].astype(np.float32).tobytes())
         for i, page_id in enumerate(page_ids)
     ]
     with sqlite3.connect(PATH_DB) as conn:
         conn.executemany(
-            f"""INSERT INTO {TABLE_VECTORS} (id, type_signals_vec)
-                VALUES (?, ?)
-                ON CONFLICT(id) DO UPDATE SET type_signals_vec = excluded.type_signals_vec""",
+            f"""INSERT INTO {TABLE_VECTORS} (id, type_signals_unscaled, type_signals_vec)
+                VALUES (?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET type_signals_unscaled = excluded.type_signals_unscaled, 
+                type_signals_vec = excluded.type_signals_vec""",
             rows,
         )
 
