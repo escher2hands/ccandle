@@ -22,15 +22,7 @@ MACRO_NAME_ATTR = "ac:name"
 BLOCK_ELEMENTS = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "table", "pre"]
 HEADING_ELEMENTS = {"h1", "h2"}
 LIST_ITEM_ELEMENT = "li"
-
-# Full pipeline: cleans Confluence HTML and extracts plain text.
-# space_key is reserved for future link formatting (see insert_internal_link_flags).
-def extract_plain_text_from_html(html: str, space_key: str) -> str:
-    if not html:
-        return ""
-    html = _insert_internal_link_flags(html, space_key)
-    soup = clean_confluence_html(html)
-    return extract_text_from_soup(soup)
+INTERNAL_LINK_FLAG_PATTERN = re.compile(r"\[\[link to:\s+(~[A-Za-z0-9]+|[A-Z0-9]+):(.*?)\]\]", re.DOTALL,)
 
 def extract_plain_texts_in_bulk(pid_list=None):
     pids = pid_list or get_all_ids_in_pages()
@@ -44,14 +36,55 @@ def extract_plain_texts_in_bulk(pid_list=None):
 
     texts = []
     for record in tqdm(pids_to_htmls, desc="Extracting plain text from bulk", unit="page"):
+        text, word_count = extract_text_and_word_count_from_html(html=record['html'], space_key=record['space_key'])
         texts.append({
             'id': record['id'],
-            'text': extract_plain_text_from_html(html=record['html'], space_key=record['space_key']),
+            'text': text,
+            'word_count': word_count,
         })
 
     _store_plain_texts_in_bulk(texts)
     return texts
 
+# Walks block-level elements in document order and converts them to plain text:
+#   - Headings become [[Heading: ...]]
+#   - List items get a dash prefix
+#   - All other blocks are extracted as-is
+# Skips nested blocks to avoid double-processing, and deduplicates across the doc.
+def extract_text_and_word_count_from_html(html: str, space_key: str) -> tuple[str, int]:
+    if not html:
+        return "", 0
+
+    html = _insert_internal_link_flags(html, space_key)     # insert link tags for later metrics
+    soup = clean_confluence_html(html)                      # get soup for easier page decomposition
+
+    output = []
+    seen = set()
+    word_count = 0
+
+    def add_if_new(display_text: str, count_text: str) -> None:
+        nonlocal word_count
+        display_text = display_text.strip()
+        if display_text and display_text not in seen:
+            seen.add(display_text)
+            output.append(display_text)
+            count_text = INTERNAL_LINK_FLAG_PATTERN.sub("", count_text)
+            word_count += len(count_text.split())
+
+    for el in soup.find_all(BLOCK_ELEMENTS, recursive=True):
+        if _is_nested_block(el):
+            continue
+
+        text = el.get_text(" ", strip=True)
+
+        if el.name in HEADING_ELEMENTS:
+            add_if_new(f"[[Heading: {text}]]", text)
+        elif el.name == LIST_ITEM_ELEMENT:
+            add_if_new(f"- {text}", text)
+        else:
+            add_if_new(text, text)
+
+    return "\n".join(output).strip(), word_count
 
 def _store_plain_texts_in_bulk(text_records):
     import sqlite3
@@ -59,8 +92,8 @@ def _store_plain_texts_in_bulk(text_records):
     with sqlite3.connect(PATH_DB) as conn:
         cur = conn.cursor()
         cur.executemany(
-            f"UPDATE {TABLE_PAGES} SET plain_text = ? WHERE id = ?",
-            [(record['text'], record['id']) for record in text_records]
+            f"UPDATE {TABLE_PAGES} SET plain_text = ?, word_count = ? WHERE id = ?",
+            [(record['text'], record['word_count'], record['id']) for record in text_records]
         )
         conn.commit()
 
@@ -104,36 +137,6 @@ def _strip_empty_tags(soup: BeautifulSoup) -> None:
     for tag in soup.find_all():
         if not tag.get_text(strip=True):
             tag.decompose()
-
-#    Walks block-level elements in document order and converts them to plain text:
-#      - Headings become [[Heading: ...]]
-#      - List items get a dash prefix
-#      - All other blocks are extracted as-is
-#    Skips nested blocks to avoid double-processing, and deduplicates across the doc.
-def extract_text_from_soup(soup: BeautifulSoup) -> str:
-    output = []
-    seen = set()
-
-    def add_if_new(text: str) -> None:
-        text = text.strip()
-        if text and text not in seen:
-            seen.add(text)
-            output.append(text)
-
-    for el in soup.find_all(BLOCK_ELEMENTS, recursive=True):
-        if _is_nested_block(el):
-            continue
-
-        text = el.get_text(" ", strip=True)
-
-        if el.name in HEADING_ELEMENTS:
-            add_if_new(f"[[Heading: {text}]]")
-        elif el.name == LIST_ITEM_ELEMENT:
-            add_if_new(f"- {text}")
-        else:
-            add_if_new(text)
-
-    return "\n".join(output).strip()
 
 def _insert_internal_link_flags(html, default_space_key="UNKNOWN") -> str:
     pattern = re.compile(r"<ac:link\b[^>]*>(?:[^<]|<(?!/ac:link>))*?</ac:link>",flags=re.DOTALL)
