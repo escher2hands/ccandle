@@ -222,10 +222,10 @@ def load_type_signal_vectors():
             f"SELECT id, type_signals_vec FROM {TABLE_VECTORS} WHERE type_signals_vec IS NOT NULL"
         ).fetchall()
 
-    page_ids = [row[0] for row in rows]
+    pids = [row[0] for row in rows]
     X = np.array([
         np.frombuffer(row[1], dtype=np.float32)
         for row in rows
     ])
-    return page_ids, X
+    return pids, X
 
