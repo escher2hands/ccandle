@@ -1,7 +1,7 @@
 # get link count, word count, image count, lead para, and check if page has link tree
 from bs4 import BeautifulSoup
 from pages.parsing.paragraph_parser import extract_lead_paragraph_from_soup
-from pages.types.extract_type_signals import link_count_from_html, image_count_from_html, word_count_from_soup
+from pages.types.extract_type_signals import link_count_from_html, image_count_from_html
 import sqlite3
 from config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
@@ -13,7 +13,6 @@ def add_basic_metadata_in_bulk(pids):
         soup = BeautifulSoup(page['html'], 'html.parser')
         enriched = {
             'id': page['id'],
-            'word_count': word_count_from_soup(soup),
             'link_count': link_count_from_html(page['html']),
             'image_count': image_count_from_html(page['html']),
             'lead_para': extract_lead_paragraph_from_soup(soup),
@@ -40,9 +39,9 @@ def _store_enriched_metadata(enriched_records):
         cur = conn.cursor()
         cur.executemany(
             f"UPDATE {TABLE_PAGES} "
-            f"SET word_count = ?, link_count = ?, image_count = ?, lead_para = ?, has_link_tree = ? "
+            f"SET link_count = ?, image_count = ?, lead_para = ?, has_link_tree = ? "
             f"WHERE id = ?",
-            [(rec['word_count'], rec['link_count'], rec['image_count'], rec['lead_para'], rec['has_link_tree'],
+            [(rec['link_count'], rec['image_count'], rec['lead_para'], rec['has_link_tree'],
               rec['id']) for rec in enriched_records]
         )
         conn.commit()
