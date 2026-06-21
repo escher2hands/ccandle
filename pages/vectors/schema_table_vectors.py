@@ -1,5 +1,6 @@
 SCHEMA_VECTORS = """
     id TEXT PRIMARY KEY,
+    type_signals_unscaled BLOB,
     type_signals_vec BLOB,
     type TEXT,
     type_confidence REAL,
