@@ -59,7 +59,7 @@ def run(args):
     from db.db_utils import get_all_ids_in_pages
 
     if args.stats_cmd == "authors":
-        from space_stats.stats_authors import find_top_authors_across_pages
+        from analysis.stats_authors import find_top_authors_across_pages
 
         COLUMNS = [
             {"key": "edits", "label": "EDITS", "width": 8},
@@ -70,8 +70,8 @@ def run(args):
         return 0
 
     if args.stats_cmd == "links":
-        from space_stats.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
-                                                 find_cross_space_links)
+        from analysis.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
+                                              find_cross_space_links)
         if args.links_cmd == "orphans":
             print("Finding orphaned pages...")
 
