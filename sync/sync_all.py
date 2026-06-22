@@ -107,7 +107,7 @@ def _clean_link_formatting_and_store_link_list(delta_pages):
 def _type_all_pages(delta_pages):
     from pages.types.page_typer import type_all_pages
     type_all_pages(delta_pages)
-def _find_duplicates():
+def _scan_for_duplicates():
     from analysis.stats_duplicates import scan_for_duplicates_in_corpus
     scan_for_duplicates_in_corpus()
 
