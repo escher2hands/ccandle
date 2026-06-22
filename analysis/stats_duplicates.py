@@ -285,3 +285,22 @@ def _store_duplicate_lists(mapping):
         query = f"""UPDATE {TABLE_PAGES} SET duplicate_list = ? WHERE id = ?"""
         cur.executemany(query, rows)
 
+
+def fetch_unique_duplicate_groups(space_id=None):
+    with sqlite3.connect(PATH_DB) as conn:
+        space_filter = f"space_id = {space_id}" if space_id else "1=1"
+        query = f"""SELECT duplicate_list FROM {TABLE_PAGES} WHERE duplicate_list IS NOT NULL AND {space_filter}"""
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+
+    seen = set()
+    unique_groups = []
+
+    for (dup_json,) in rows:
+        group = tuple(json.loads(dup_json))  # already sorted
+        if group not in seen:
+            seen.add(group)
+            unique_groups.append(list(group))
+
+    return unique_groups
