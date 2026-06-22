@@ -26,13 +26,15 @@ from sklearn.neighbors import NearestNeighbors
 from config.config_db import PATH_DB, TABLE_PAGES
 from pages.types.type_signals_defs import THRESH_PAGE_EMPTY
 from pages.types.decompose_page_into_type_signals import load_type_signal_vectors
-import sqlite3
-import numpy as np
+import sqlite3, json
+from tqdm import tqdm
+
+from presentation.theme import DIM, RESET
 
 # Set this higher for more fuzzy matching, lower if you need more exactness.
 # Remember, this is the first pass on type signals. A second pass will make
 # actual jaccard based matching
-T_SIGNALS_THRESHOLD = 6.0
+T_SIGNALS_THRESHOLD = 0.7
 
 # Tried euclidean and manhattan, and found euclidean is just fine.
 # Not much of a difference. So euclidean is fine.
@@ -41,7 +43,7 @@ DEFAULT_METRIC = "euclidean"
 # Jaccard similarity floor for the second pass, and the shingle window size
 # (consecutive words per shingle). Both apply only to the candidate pairs
 # the type-signal pass already narrowed things down to.
-JACCARD_SIMILARITY_THRESHOLD = 0.7
+JACCARD_SIMILARITY_THRESHOLD = 0.84
 SHINGLE_SIZE = 5
 
 CandidatePair = namedtuple("CandidatePair", ["page_id_a", "page_id_b", "distance"])
@@ -49,6 +51,12 @@ JaccardDuplicate = namedtuple(
     "JaccardDuplicate",
     ["page_id_a", "page_id_b", "jaccard_similarity", "signal_distance"],
 )
+
+def scan_for_duplicates_in_corpus():
+    pairs = find_duplicate_pages(epsilon=0.7, jaccard_threshold=0.85)
+    groups = group_jaccard_duplicates(pairs)
+    mapping = build_duplicate_mapping(groups)
+    _store_duplicate_lists(mapping)
 
 # Full pipeline, start to finish: type-signal nearest-neighbor candidate
 # generation, then Jaccard shingle comparison restricted to those
@@ -60,9 +68,10 @@ def find_duplicate_pages(epsilon=T_SIGNALS_THRESHOLD, metric=DEFAULT_METRIC,
                          k_shingle=SHINGLE_SIZE):
     ids, X, meta = _load_filtered_vectors()
     candidate_pairs = _find_candidate_pairs(ids, X, epsilon, metric)
-    print("Completed pre-filtering to find similar pages. \n"
-          "We'll compare these to find near-exact duplicates.")
-    return find_jaccard_duplicates(candidate_pairs, meta, jaccard_threshold, k_shingle)
+    print(f"{DIM}Completed pre-filtering to find similar pages. \n"
+          f"We'll compare these to find near-exact duplicates.{RESET}")
+    blob = find_jaccard_duplicates(candidate_pairs, meta, jaccard_threshold, k_shingle)
+    return blob
 
 
 # Bulk-load word_count and plain_text for every page in a single query.
@@ -171,6 +180,11 @@ def _jaccard_similarity(set_a, set_b):
     union = len(set_a | set_b)
     return intersection / union if union else 0.0
 
+# Module-level (not a closure) so it can be pickled and sent to worker
+# processes -- a nested function or lambda would fail here.
+def _shingle_worker(args):
+    pid, text, k = args
+    return pid, _make_shingles(_normalize_text(text), k=k)
 
 # Run Jaccard shingle comparison on the specific candidate pairs produced
 # by find_duplicate_candidate_pairs -- not on clusters. The nearest-neighbor
@@ -196,14 +210,13 @@ def find_jaccard_duplicates(candidate_pairs, meta, threshold=JACCARD_SIMILARITY_
     page_ids = {pid for pair in candidate_pairs for pid in (pair.page_id_a, pair.page_id_b)}
 
     shingles_by_id = {}
-    for pid in page_ids:
+    for pid in tqdm(page_ids, desc="Shingling pages"):
         entry = meta.get(pid)
-        if not entry or not entry[1]:
-            continue
-        shingles_by_id[pid] = _make_shingles(_normalize_text(entry[1]), k=k_shingle)
+        if entry and entry[1]:
+            shingles_by_id[pid] = _make_shingles(_normalize_text(entry[1]), k=k_shingle)
 
     results = []
-    for pair in candidate_pairs:
+    for pair in tqdm(candidate_pairs, desc="Comparing pairs"):
         a, b = pair.page_id_a, pair.page_id_b
         if a not in shingles_by_id or b not in shingles_by_id:
             continue
@@ -212,4 +225,63 @@ def find_jaccard_duplicates(candidate_pairs, meta, threshold=JACCARD_SIMILARITY_
             results.append(JaccardDuplicate(a, b, sim, pair.distance))
 
     return sorted(results, key=lambda r: r.jaccard_similarity, reverse=True)
+
+def group_jaccard_duplicates(jaccard_duplicates):
+    uf = UnionFind()
+    for dup in jaccard_duplicates:
+        uf.union(dup.page_id_a, dup.page_id_b)
+
+    groups = {}
+    for dup in jaccard_duplicates:
+        for pid in (dup.page_id_a, dup.page_id_b):
+            root = uf.find(pid)
+            groups.setdefault(root, set()).add(pid)
+
+    return [
+        sorted(group, key=lambda x: int(x))
+        for group in groups.values()
+        if len(group) > 1
+    ]
+
+
+def build_duplicate_mapping(groups):
+    # Serialize at build time so stored values are independent strings,
+    # not aliased references to the same live list.
+    return {
+        pid: json.dumps(group)
+        for group in groups
+        for pid in group
+    }
+
+
+class UnionFind:
+    def __init__(self):
+        self.parent = {}
+
+    def find(self, x):
+        if x not in self.parent:
+            self.parent[x] = x
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        px, py = self.find(x), self.find(y)
+        if px != py:
+            self.parent[py] = px
+
+# mapping: dict {page_id: [pid1, pid2, ...]}
+def _store_duplicate_lists(mapping):
+    with sqlite3.connect(PATH_DB) as conn:
+        cur = conn.cursor()
+        # clear the old ones, so that we have a cleanly built list with no stales
+        query = f"UPDATE {TABLE_PAGES} SET duplicate_list = NULL"
+        cur.execute(query)
+
+        rows = [
+            (dup_list, pid)
+            for pid, dup_list in mapping.items()
+        ]
+        query = f"""UPDATE {TABLE_PAGES} SET duplicate_list = ? WHERE id = ?"""
+        cur.executemany(query, rows)
 
