@@ -2,9 +2,12 @@
 
 import json
 import os
+
+from config.config_app import APP_HANDLE
 from config.config_network import ENDPOINT_SPACES
 from network.network_utils import request_paginated_results, request_one_result
 from config.config_db import PATH_SPACES_CONFIG
+from presentation.theme import *
 
 
 # allows the user to list the spaces they have access to, printing valuable
@@ -144,8 +147,8 @@ def _load_config_spaces():
 def print_formatted_space_list(space_results):
     from presentation.page_previews import render_table
     COLUMNS = [
-        {"key": "id", "label": "SPACE ID", "width": 11},
-        {"key": "key", "label": "KEY", "width": 20},
+        {"key": "id", "label": "SPACE ID"},
+        {"key": "key", "label": "KEY"},
         {"key": "name", "label": "NAME"},
     ]
     render_table(space_results, COLUMNS)

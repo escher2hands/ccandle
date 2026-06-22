@@ -57,9 +57,10 @@ def run(args):
     from presentation.page_previews import render_table
     from collections import Counter
     from db.db_utils import get_all_ids_in_pages
+    from db.db_query_utils import query_field_multi_in_pages
 
     if args.stats_cmd == "authors":
-        from space_stats.stats_authors import find_top_authors_across_pages
+        from analysis.stats_authors import find_top_authors_across_pages
 
         COLUMNS = [
             {"key": "edits", "label": "EDITS", "width": 8},
@@ -70,8 +71,8 @@ def run(args):
         return 0
 
     if args.stats_cmd == "links":
-        from space_stats.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
-                                                 find_cross_space_links)
+        from analysis.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
+                                              find_cross_space_links)
         if args.links_cmd == "orphans":
             print("Finding orphaned pages...")
 
@@ -183,7 +184,29 @@ def run(args):
             return 0
 
     if args.stats_cmd == "duplicates":
-        print("stats duplicates: not yet implemented")
+        from analysis.stats_duplicates import fetch_unique_duplicate_groups
+
+        dup_groups = fetch_unique_duplicate_groups(space_id=args.space_id)
+        if args.ids_only:
+            page_ids = [page_id
+                for group in dup_groups
+                for page_id in group]
+            print(", ".join(page_ids))
+            return 0                  # exit immediately
+
+        group_num = 1
+        for dup_group in dup_groups:
+            print(f"{DIM}" + "-" * WIDTH_NICE + f"{RESET}")
+            print(f"{BOLD}Duplicate group {RED}{group_num}{RESET} {DIM}({len(dup_group)} members):{RESET}")
+            for page_id in dup_group:
+                title, space_id = query_field_multi_in_pages(page_id, "title", "space_id")
+                space_alias = get_space_attribute(space_id, "id", "alias")
+                print(f"{page_id:<12}  {DIM}|{RESET}  {space_alias:<20}  {DIM}|{RESET}  {title}")
+            print()             # add a new line for visual break from next group
+            group_num += 1
+
+        total_pages = sum(len(group) for group in dup_groups)
+        print(f"Found {RED}{len(dup_groups)}{RESET} duplicate groups containing {BOLD}{total_pages}{RESET} pages.")
         return 0
 
     if args.stats_cmd == "children":

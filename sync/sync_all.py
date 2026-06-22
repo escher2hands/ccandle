@@ -4,7 +4,7 @@ from db.db_utils import get_all_ids_in_pages
 from presentation.theme import WIDTH_NICE, DIM, RESET
 import datetime
 
-VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "assign_type"]
+VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "assign_type", "find_duplicates"]
 
 def sync(hard_refresh=False, resume_at=None):
     if not resume_at:
@@ -26,7 +26,7 @@ def sync(hard_refresh=False, resume_at=None):
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
         #("map_links", lambda: _find_link_events_for_all_pages()),        # can only be done on all pages, no subsets
-        #("duplicates", lambda: _find_duplicates()),                      # can only be done on all pages, no subsets
+        ("find_duplicates", lambda: _find_duplicates()),                      # can only be done on all pages, no subsets
     ]
     for name, fn in steps:
         if resume_at and name != resume_at:
@@ -107,7 +107,9 @@ def _clean_link_formatting_and_store_link_list(delta_pages):
 def _type_all_pages(delta_pages):
     from pages.types.page_typer import type_all_pages
     type_all_pages(delta_pages)
-
+def _scan_for_duplicates():
+    from analysis.stats_duplicates import scan_for_duplicates_in_corpus
+    scan_for_duplicates_in_corpus()
 
 def set_all_pages_as_processed(processed_list):
     from config.config_db import TABLE_PAGES, PATH_DB
