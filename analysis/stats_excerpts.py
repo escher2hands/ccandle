@@ -52,7 +52,7 @@ def find_excerpt_sources_in_bulk(pages_basic_data):
         for excerpt in excerpts:
             excerpt['source_id'] = page['id']
         if excerpts:
-            serialized = [_serialize(excerpt) for excerpt in excerpts]
+            serialized = [serialize_excerpt(excerpt) for excerpt in excerpts]
             all_excerpts.update({page['id']: serialized})
 
     return all_excerpts
@@ -64,7 +64,7 @@ def find_excerpt_includes_in_bulk(pages_basic_data, existing_excerpt_index=None)
         if excerpts:
             all_serialized = []
             for exc in excerpts:
-                all_serialized.append(_serialize(exc))
+                all_serialized.append(serialize_excerpt(exc))
             all_excerpts.update({page['id']: all_serialized})
 
     return all_excerpts
@@ -148,9 +148,9 @@ def _normalize_name(text):
     text = text.lower()
     return str(text).replace('"', '').replace("'", "").replace(":", "")
 
-def _serialize(excerpt):
+def serialize_excerpt(excerpt):
     return f"{excerpt['type']}:{excerpt['name']}:{excerpt['is_source']}:{excerpt['source_id']}"
-def _unserialize(serialized_excerpt):
+def deserialize_excerpt(serialized_excerpt):
     EXCERPT_RE = re.compile(r"^([^:]+):([^:]+):([^:]+):([^:]+)$")
     match = EXCERPT_RE.match(serialized_excerpt)
 
@@ -166,7 +166,7 @@ def _unserialize(serialized_excerpt):
 def _serialize_loaded_excerpts(excerpt_data):
     serialized = {}
     for pid, exc_items in excerpt_data.items():
-        serialized[pid] = [_serialize(exc) for exc in exc_items]
+        serialized[pid] = [serialize_excerpt(exc) for exc in exc_items]
     return serialized
 
 def _store_excerpts(excerpts_data, path_to_db=PATH_DB):
@@ -191,7 +191,7 @@ def load_existing_excerpt_sources_in_db(path_to_db=PATH_DB):
         excerpts = json.loads(excerpts_json)
 
         for excerpt_str in excerpts:
-            obj = _unserialize(excerpt_str)
+            obj = deserialize_excerpt(excerpt_str)
             if obj['is_source'] != CONSUMER_FLAG:
                 index[page_id].append(obj)
 

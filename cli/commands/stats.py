@@ -217,7 +217,7 @@ def run(args):
 
     if args.stats_cmd == "excerpts":
         from db.db_query_utils import query_db_results
-        from analysis.stats_excerpts import unserialize_excerpt
+        from analysis.stats_excerpts import deserialize_excerpt
         import json
         space_query = f"space_id={args.space_id}" if args.space_id else "1=1"
         excerpts_filter = "excerpts is not null"
@@ -230,19 +230,19 @@ def run(args):
             space_shid = get_space_attribute(res[1], "id", "short_id")
             serialized_excerpts = json.loads(res[3])
             for ser_excerpt in serialized_excerpts:
-                unser_excerpt = unserialize_excerpt(ser_excerpt)
+                deser_excerpt = deserialize_excerpt(ser_excerpt)
                 excerpt = {
                     'id': res[0],
                     'space_alias': space_shid,
-                    'excerpt_type': unser_excerpt["type"],
-                    'excerpt_name': unser_excerpt["name"],
-                    'excerpt_is_source': unser_excerpt["is_source"],
-                    'excerpt_source': unser_excerpt["source_id"],
+                    'excerpt_type': deser_excerpt["type"],
+                    'excerpt_name': deser_excerpt["name"],
+                    'excerpt_is_source': deser_excerpt["is_source"],
+                    'excerpt_source': deser_excerpt["source_id"],
                     'title': res[2],
                 }
-                if args.sources_only and unser_excerpt['is_source'] != 'source':
+                if args.sources_only and deser_excerpt['is_source'] != 'source':
                     continue
-                if args.navboxes_only and unser_excerpt['type'] != 'navbox':
+                if args.navboxes_only and deser_excerpt['type'] != 'navbox':
                     continue
                 excerpt_data.append(excerpt)
 
