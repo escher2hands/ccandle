@@ -55,7 +55,7 @@ def convert_links_in_memory(data, debug_mode=False):
                 space_short_id = possible_space
                 inner_text = rest.strip()
 
-        resolved = resolve_pid_and_space_from_title(
+        resolved = resolve_pid_from_title_and_space(
             title=inner_text,
             space_short_id=space_short_id,
             title_to_pid_index=title_index,
@@ -83,7 +83,7 @@ def convert_links_in_memory(data, debug_mode=False):
 
 # Looks up pid from (title, space_short_id). If no index provided, builds one on the fly.
 # title_to_pid_index should be {(title, space_short_id): pid}.
-def resolve_pid_and_space_from_title(title, space_short_id, title_to_pid_index=None):
+def resolve_pid_from_title_and_space(title, space_short_id, title_to_pid_index=None):
     if title_to_pid_index is None:
         with sqlite3.connect(PATH_DB) as conn: # One-off: build a minimal index for just this title
             cur = conn.cursor()
@@ -98,7 +98,6 @@ def resolve_pid_and_space_from_title(title, space_short_id, title_to_pid_index=N
     pid = title_to_pid_index.get((title, space_short_id))
 
     if not pid:
-        print(f"Unresolved: title='{title}' space='{space_short_id}'")
         return {'target_pid': title, 'title': title, 'space_short_id': space_short_id}
 
     return {'target_pid': pid, 'title': title, 'space_short_id': space_short_id}
