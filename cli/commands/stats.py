@@ -42,10 +42,16 @@ def register(subparsers):
     sub_cross_space = links_sub.add_parser("cross-space", help="See links into/out of a space")
     _add_common_args(sub_cross_space)
 
-    # -- coming soon --
+    sub_excerpts = stats_sub.add_parser("excerpts",
+                                        help="See navbox and excerpt (sources and mentions) info across your pages")
+    _add_common_args(sub_excerpts)
+    sub_excerpts.add_argument("--sources-only", "-s", action="store_true", help="Show only sources")
+    sub_excerpts.add_argument("--navboxes-only", "-n", action="store_true", help="Show only navboxes")
+
     sub_duplicates = stats_sub.add_parser("duplicates", help="Find likely duplicate pages")
     _add_common_args(sub_duplicates)
 
+    # -- coming soon --
     sub_children = stats_sub.add_parser("children", help="See page hierarchy / child-count stats")
     _add_common_args(sub_children)
 
@@ -54,7 +60,7 @@ def register(subparsers):
 
 
 def run(args):
-    from presentation.page_previews import render_table
+    from presentation.page_previews import render_table, render_results
     from collections import Counter
     from db.db_utils import get_all_ids_in_pages
     from db.db_query_utils import query_field_multi_in_pages
@@ -208,6 +214,49 @@ def run(args):
         total_pages = sum(len(group) for group in dup_groups)
         print(f"Found {RED}{len(dup_groups)}{RESET} duplicate groups containing {BOLD}{total_pages}{RESET} pages.")
         return 0
+
+    if args.stats_cmd == "excerpts":
+        from db.db_query_utils import query_db_results
+        from analysis.stats_excerpts import deserialize_excerpt
+        import json
+        space_query = f"space_id={args.space_id}" if args.space_id else "1=1"
+        excerpts_filter = "excerpts is not null"
+        select_query = "id, space_id, title, excerpts"
+        path_db = args.db_path if args.db_path else PATH_DB
+        results = query_db_results(select_query, where_clause=f"{space_query} AND {excerpts_filter}", path_to_db=path_db)
+
+        excerpt_data = []
+        for res in results:
+            space_shid = get_space_attribute(res[1], "id", "short_id")
+            serialized_excerpts = json.loads(res[3])
+            for ser_excerpt in serialized_excerpts:
+                deser_excerpt = deserialize_excerpt(ser_excerpt)
+                excerpt = {
+                    'id': res[0],
+                    'space_alias': space_shid,
+                    'excerpt_type': deser_excerpt["type"],
+                    'excerpt_name': deser_excerpt["name"],
+                    'excerpt_is_source': deser_excerpt["is_source"],
+                    'excerpt_source': deser_excerpt["source_id"],
+                    'title': res[2],
+                }
+                if args.sources_only and deser_excerpt['is_source'] != 'source':
+                    continue
+                if args.navboxes_only and deser_excerpt['type'] != 'navbox':
+                    continue
+                excerpt_data.append(excerpt)
+
+        COLUMNS = [
+            {"key": "id", "label": "PAGE ID", "width": 12},
+            {"key": "space_alias", "label": "SPACE", "width": 9},
+            {"key": "excerpt_name", "label": "EXCERPT NAME", "width": 25},
+            {"key": "excerpt_type", "label": "EXC. TYPE", "width": 9},
+            {"key": "excerpt_source", "label": "EXC. SOURCE", "width": 12},
+            {"key": "title", "label": "PAGE TITLE"},
+        ]
+        render_table(excerpt_data[:args.limit], COLUMNS)
+        print(f"\n{DIM}There are {RESET}{len(excerpt_data)}{DIM} excerpts in total. \n"
+              f"Use {RESET}{BLUE} --limit L{RESET}{DIM} to set how many results to display.")
 
     if args.stats_cmd == "children":
         print("stats children: not yet implemented")

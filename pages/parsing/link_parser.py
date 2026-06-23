@@ -7,6 +7,7 @@
 import re, sqlite3, json
 from config.config_db import PATH_DB, TABLE_PAGES
 from db.db_utils import get_all_ids_in_pages
+from spaces.space_utils import get_space_attribute
 
 LINK_PATTERN = re.compile(r"\[\[link to:\s*(.*?)\s*\]\](?!\])", re.DOTALL)
 EXTRACT_PATTERN = re.compile(r"\[\[link to: ([^\]]+)\]\]")
@@ -14,7 +15,7 @@ PERSONAL_SPACE_RE = re.compile(r"^~[0-9a-f]{20,32}$")
 
 # Loads the data we need for link conversion in one shot
 # "pages": {pid: plain_text},
-# "title_index": {(title, space_key): pid}
+# "title_index": {(title, space_key): pid} - should work even if more than one page has the same title
 def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
@@ -23,10 +24,12 @@ def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
 
     pages = {}
     title_index = {}
-    pid_set = set(pid_list)  # O(1) lookup
+    pid_set = set(pid_list)
 
-    for pid, title, space_key, body in rows:
-        title_index[title.strip()] = pid
+    for pid, title, space_id, body in rows:
+        space_shid = get_space_attribute(space_id, 'id', 'short_id')
+        key = (title.strip(), space_shid)
+        title_index[key] = pid
         if pid in pid_set:
             pages[pid] = body
 
@@ -38,27 +41,36 @@ def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
 # for cross-space links.
 def convert_links_in_memory(data, debug_mode=False):
     pages = data["pages"]
-    title_index = data["title_index"]
+    title_index = data["title_index"]  # now {(title, space_short_id): pid}
     converted_links_count = 0
 
     def resolve_link(match):
         nonlocal converted_links_count
         inner_text = match.group(1).strip()
-        space_key = None
+        space_short_id = None
+
         if ":" in inner_text:
             possible_space, rest = inner_text.split(":", 1)
-            if possible_space.isupper() or PERSONAL_SPACE_RE.match(possible_space): # short_id or personal space
-                space_key = possible_space
+            if possible_space.isupper() or PERSONAL_SPACE_RE.match(possible_space):
+                space_short_id = possible_space
                 inner_text = rest.strip()
 
-        target_pid = title_index.get(inner_text)
-        if not target_pid:
-            if debug_mode: print(f"Unresolved link: {inner_text}")
-            return match.group(0)  # leave unchanged
+        resolved = resolve_pid_from_title_and_space(
+            title=inner_text,
+            space_short_id=space_short_id,
+            title_to_pid_index=title_index,
+        )
+        target_pid = resolved['target_pid']
+
+        if target_pid == inner_text:  # fallback sentinel — resolution failed
+            if debug_mode:
+                print(f"Unresolved link: {inner_text}")
+            return match.group(0)
 
         converted_links_count += 1
-        if debug_mode: print(f"DEBUG: Converted a link - [[link to: {space_key}:{target_pid}]]")
-        return f"[[link to: {space_key}:{target_pid}]]"
+        if debug_mode:
+            print(f"DEBUG: Converted link — [[link to: {space_short_id}:{target_pid}]]")
+        return f"[[link to: {space_short_id}:{target_pid}]]"
 
     for pid, page_text in pages.items():
         if not page_text:
@@ -68,6 +80,27 @@ def convert_links_in_memory(data, debug_mode=False):
             pages[pid] = updated
 
     return converted_links_count
+
+# Looks up pid from (title, space_short_id). If no index provided, builds one on the fly.
+# title_to_pid_index should be {(title, space_short_id): pid}.
+def resolve_pid_from_title_and_space(title, space_short_id, title_to_pid_index=None):
+    if title_to_pid_index is None:
+        with sqlite3.connect(PATH_DB) as conn: # One-off: build a minimal index for just this title
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, space_id FROM {TABLE_PAGES} WHERE title=?", (title,)
+            )
+            title_to_pid_index = {}
+            for pid, space_id in cur.fetchall():
+                space_shid = get_space_attribute(space_id, 'id', 'short_id')
+                title_to_pid_index[(title, space_shid)] = pid
+
+    pid = title_to_pid_index.get((title, space_short_id))
+
+    if not pid:
+        return {'target_pid': title, 'title': title, 'space_short_id': space_short_id}
+
+    return {'target_pid': pid, 'title': title, 'space_short_id': space_short_id}
 
 # Extracts linked page IDs into links_list field.
 # Returns: {pid: "comma,separated,links"}
