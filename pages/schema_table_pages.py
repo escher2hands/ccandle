@@ -33,6 +33,7 @@ SCHEMA_PAGES = """
     child_list TEXT,
     mentions_list TEXT,
     duplicate_list TEXT,
+    excerpts TEXT,
     labels TEXT,
 
     llama_summary TEXT,
