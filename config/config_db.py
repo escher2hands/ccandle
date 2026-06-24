@@ -13,6 +13,7 @@ CONFIG_DIR = DATA_DIR / "config"
 
 PATH_SPACES_CONFIG = CONFIG_DIR / "config_spaces.json"
 PATH_DB = DB_DIR / "confluence_mirror.db"
+PATH_MODEL = CONFIG_DIR / "type_model.joblib"
 
 for directory in (DB_DIR, CONFIG_DIR):
     directory.mkdir(parents=True, exist_ok=True)
