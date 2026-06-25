@@ -1,8 +1,9 @@
+from db.db_utils import get_all_ids_in_pages
 from pages.parsing.excerpt_defs import NAVBOX_FLAG, EXCERPT_FLAG
 from analysis.stats_link_info import find_orphaned_pages
 from config.config_db import PATH_DB
 from db.db_query_utils import query_db_results
-from config.config_types import TYPE_ADMIN_FILTER
+from config.config_types import TYPE_ADMIN_FILTER, TYPE_LIST
 from pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
 from pages.types.type_signals_defs import THRESH_PAGE_EMPTY
 from presentation.theme import *
@@ -90,7 +91,7 @@ def present_space_overview(space_id, quiet=False, path_to_db=PATH_DB):
     space_alias = get_space_attribute(space_id, 'id', 'alias')
     space_shid = get_space_attribute(space_id, 'id', 'short_id')
 
-    print('=' * WIDTH_NICE)
+    print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
     print(f"{BOLD}OVERVIEW FOR SPACE {BLUE}{space_alias}{RESET} {DIM}({space_id}, {space_shid}){RESET}:")
     print()
 
@@ -103,9 +104,10 @@ def present_space_overview(space_id, quiet=False, path_to_db=PATH_DB):
     print()
     sdata = gather_relevant_space_data(space_id, path_to_db)
     print_grouped_stats(sdata, quiet=quiet)
-    print("\n")
+    print("")
 
-    print_page_types(space_id=None)
+    print_page_types(space_id=space_id, total_pages=sdata['total_pages'], print_heading=False, path_to_db=path_to_db)
+    print("\n")
 
 def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
     space_query = f"space_id={space_id}" if space_id else "1=1"
@@ -170,8 +172,46 @@ def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
         "hub_coverage":             share(stats["canonical_intros"], cp),
     }
 
-def print_page_types(space_id):
-    return 0
+def print_page_types(space_id, total_pages=None, print_heading=True, path_to_db=PATH_DB):
+    type_stats = gather_page_types_breakdown(space_id, path_to_db)
+    total_pages = total_pages or len(get_all_ids_in_pages(space_id=space_id))
+    if print_heading:
+        space_alias = get_space_attribute(space_id, 'id', 'alias')
+        space_shid = get_space_attribute(space_id, 'id', 'short_id')
+        print(f"{BOLD} OVERVIEW FOR SPACE {BLUE}{space_alias}{RESET} {DIM}({space_id}, {space_shid}){RESET}:")
+    else:
+        print(f"PAGE TYPE BREAKDOWN")
+    print("-" * WIDTH_NICE)
+
+    for p_type in type_stats.keys():
+        count = type_stats[p_type]
+        t_share = share(count, total_pages) * 100
+        print(f"{t_share:2.0f} %    ({count:5} pages)    {p_type}")
+
+def gather_page_types_breakdown(space_id, path_to_db):
+    space_query = f"space_id={space_id}" if space_id else "1=1"
+    SF = f"{space_query}"   # don't filter for types here, as we want the full breakdown
+    with sqlite3.connect(path_to_db) as conn:
+        conn.row_factory = sqlite3.Row
+
+        # Build one SELECT line per type, using positional ? params
+        select_lines = ",\n            ".join(
+            f"COUNT(*) FILTER (WHERE page_type = ?) AS {p_type}"
+            for p_type in TYPE_LIST
+        )
+        # Values in the same order as the placeholders
+        params = tuple(TYPE_LIST)
+
+        cur = conn.cursor()
+        cur.execute(f"""
+            SELECT
+                {select_lines}
+            FROM pages
+            WHERE {SF}
+            """, params
+                    )
+        type_stats = cur.fetchone()
+    return type_stats
 
 def print_grouped_stats(space_stats, quiet=False):
     for group in STATS_GROUPS:
