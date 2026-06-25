@@ -5,7 +5,7 @@ from spaces.space_utils import get_space_attribute
 
 
 def register(subparsers):
-    p = subparsers.add_parser("cartography", help="Learn quick stats on your configured Confluence spaces")
+    p = subparsers.add_parser("cartographer", help="Learn quick stats on your configured Confluence spaces")
     p.add_argument("--space-id", help="Narrow overview to just one space")
     p.add_argument("--quiet", "-q", action="store_true", default=False,
                         help="Mute verbose explanations")
@@ -30,10 +30,8 @@ def run(args):
         {"key": "most_common_type", "label": "COMMON DESC. TYPES", "width": 20},
         {"key": "title", "label": "TITLE"},
     ]
-    print()
-    print("=" * WIDTH_NICE)
     space_alias = get_space_attribute(args.space_id, 'id', 'alias')
-    print(f"Finding interesting entry points for space {space_alias} ({args.space_id}):\n")
+    print(f"\nFinding interesting entry points for space {BLUE}{space_alias}{RESET} {DIM}({args.space_id}){RESET}:\n")
     cartography_results = make_maps(args.space_id, limit=args.limit)
 
     render_table(cartography_results, COLUMNS)
