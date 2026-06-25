@@ -26,7 +26,6 @@ Output:
 Run: python3 classify_page_types.py
 """
 
-import sqlite3
 import csv
 import numpy as np
 import pandas as pd
@@ -36,8 +35,8 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import classification_report, confusion_matrix
 from pages.types.type_signals_defs import SIGNAL_KEYS
 from pages.types.decompose_page_into_type_signals import load_type_signal_vectors
-from config.config_db import PATH_DB, TABLE_PAGES, TABLE_VECTORS, CONFIG_DIR
-from datetime import datetime
+from config.config_db import PATH_MODEL
+from datetime import datetime, timezone
 import joblib
 
 # ---- CONFIG --------------------------------------------------------------
@@ -45,7 +44,6 @@ OUT_DIR = "."
 
 # Choose ONE of these. If SEED_CSV_PATH is set (non-None), it takes priority.
 SEED_CSV_PATH = '/Users/morganrandall/Downloads/Page type confirmed ids.csv'
-MODEL_PATH = CONFIG_DIR / "type_model.joblib"
 SEED_SETS = {
     # "meeting_minutes": {101, 102, 103},
     # "workshop_minutes": {201, 202},
@@ -266,7 +264,7 @@ def explore_types():
         "SEED_SETS / the seed CSV and retrain."
     )
 
-def fit_type_model(model_path=MODEL_PATH):
+def fit_type_model(model_path=PATH_MODEL):
     """
     Training step. Run this once per team/corpus where seed labels exist.
     Produces a portable model artifact (no page IDs inside) that can be
@@ -307,9 +305,10 @@ def fit_type_model(model_path=MODEL_PATH):
 
     artifact = {
         "model": clf,
+        "classes": clf.classes_.tolist(),
         "signal_keys": SIGNAL_KEYS,        # so inference can validate vector schema/order
         "confidence_threshold": CONFIDENCE_THRESHOLD,
-        "trained_at": datetime.utcnow().isoformat(),
+        "trained_at": datetime.now(timezone.utc).isoformat(),
     }
     joblib.dump(artifact, model_path)
     print(f"Wrote portable model to {model_path}")
