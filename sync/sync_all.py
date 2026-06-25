@@ -1,7 +1,7 @@
 # currently we only scrape pages metadata and html...
 # later we'll add more steps.
 from db.db_utils import get_all_ids_in_pages
-from presentation.theme import WIDTH_NICE, DIM, RESET
+from presentation.theme import *
 import datetime
 
 VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "excerpts",
@@ -28,9 +28,16 @@ def sync(hard_refresh=False, resume_at=None):
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
         #("map_links", lambda: _find_link_events_for_all_pages()),        # can only be done on all pages, no subsets
-        ("find_duplicates", lambda: _find_duplicates()),                      # can only be done on all pages, no subsets
+        ("find_duplicates", lambda: _scan_for_duplicates()),                      # can only be done on all pages, no subsets
     ]
     for name, fn in steps:
+        if resume_at and resume_at not in VALID_STEPS:
+            print(f"{RED}Invalid step: {RESET}{resume_at}{RESET}\n"
+                  f"{RED}{DIM}That's not a valid step in the processing pipeline.\n"
+                  f"Please specify a step in:\n"
+                  f"   {RESET}{DIM}{VALID_STEPS}.\n"
+                  f"{RED}{DIM}instead.\n{RESET}")
+            exit(1)
         if resume_at and name != resume_at:
             print(f"{DIM}Skipping step {RESET}{name}")
             continue
