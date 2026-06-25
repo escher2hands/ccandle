@@ -1,8 +1,7 @@
 # get link count, word count, image count, lead para, and check if page has link tree
 from bs4 import BeautifulSoup
 
-from pages.parsing.eval_defs import PARA_LENGTH_MIN, PARA_LINKS_MIN, WORDS_PER_HEADER_MAX, WORDS_PER_PAGE_MAX, \
-    WORDS_UNTIL_TOC
+from pages.parsing.eval_defs import *
 from pages.parsing.paragraph_parser import extract_lead_paragraph_from_soup
 from pages.parsing.plain_text_extractor import extract_text_and_word_count_from_html
 from pages.types.extract_type_signals import link_count_from_html, image_count_from_html, macro_child_widget_from_html, \
@@ -28,8 +27,7 @@ def add_basic_metadata_in_bulk(pids):
             'eval_notes': eval_notes['serialized_notes'],
         }
         enriched_pages.append(enriched)
-    return enriched_pages
-    #_store_enriched_metadata(enriched_pages)
+    _store_enriched_metadata(enriched_pages)
 
 def _get_eval_notes(html, soup, space_id, word_count):
     lead_para_html = extract_lead_paragraph_from_soup(soup)
@@ -38,14 +36,14 @@ def _get_eval_notes(html, soup, space_id, word_count):
 
     notes = []
     if word_count > WORDS_PER_PAGE_MAX:
-        notes.append("page-too-long")
+        notes.append(NOTES_PAGE_TOO_LONG)
     header_count = header_count_from_soup(soup)
     if (header_count > 0 and (word_count / header_count_from_soup(soup))) or (word_count > WORDS_PER_HEADER_MAX * 2):
-        notes.append("headers-too-few")
+        notes.append(NOTES_HEADERS_TOO_FEW)
     if word_count > WORDS_UNTIL_TOC and not macro_has_toc_from_html(html):
-        notes.append("toc-missing")
+        notes.append(NOTES_TOC_MISSING)
     if lead_words > PARA_LENGTH_MIN and link_count_from_html(lead_para_html) > PARA_LINKS_MIN:
-        notes.append("lead-para-good")
+        notes.append(NOTES_LEAD_PARA_GOOD)
     notes_data = {
         'has_link_tree': macro_child_widget_from_html(html),
         'serialized_notes': json.dumps(notes),
