@@ -18,20 +18,17 @@ Note: manage API tokens from Atlassian at: https://id.atlassian.com/manage/api-t
 - run `ccandle sync` to scrape the space, and process the scraped pages
 
 ### do things
+- run `ccandle overview` to get at-a-glance appraisal of quality and navigability metrics in your tracked Confluence spaces
+- dive deeper with `ccandle stats` to find specific information on most popular (linked-to) pages, orphans, duplicate pages, or more
 - run `ccandle sql query YOUR_QUERY` to run arbitrary queries on your processed offline page mirror
 - run `ccandle labels add LABEL_NAME PAGE_ID_LIST` to add labels to a bulk set of pages, and 
 `... delete LABEL_NAME PAGE_ID_LIST` to remove. 
 
-Is that it? For now, it is! This is a rebuild I am making on my own time. In the next six weeks, I plan to introduce some 
+Is that it? For now, it is! This is a rebuild I am making on my own time. In the next four weeks, I plan to introduce some 
 stronger features:
 
 ## roadmap
-- Overview: get at a glance metrics for Confluence space health on characteristics like space connectedness, 
-page quality, and space navigability
-- Stats: pull specific information about pages, like finding count and page ids of duplicates, orphans, and other
-undesirable junk. Get info on which pages are the most linked to, and more
 - Link and label suggestions (via fancy embeddings and statistical methods)
 
 ## more to-dos:
-- change filepath handling to support running from a terminal as precompiled lib, instead of only within an IDE.
 - reach feature parity with my company's internal tool (gap explorer, space content distribution explorer,...)
