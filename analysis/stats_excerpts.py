@@ -15,14 +15,8 @@ from presentation.theme import *
 from spaces.space_utils import get_space_attribute
 import sqlite3, json, re
 from collections import defaultdict
-import datetime
 from yaspin import yaspin
-
-NAVBOX_KEYWORDS = ["navbox", "category box", "explorer box"]
-NAVBOX_FLAG = "navbox"
-EXCERPT_FLAG = "excerpt"
-SOURCE_FLAG = "source"
-CONSUMER_FLAG = "consumer"
+from pages.parsing.excerpt_defs import *
 
 def find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB):
     pages_basic_data = _load_page_data(delta_pages, path_to_db)
@@ -36,14 +30,14 @@ def find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB):
         excerpt_includes = find_excerpt_includes_in_bulk(pages_basic_data,
                                                      existing_excerpt_index=pre_existing_excerpt_sources)
 
-    print(f"{DIM}Storing excerpts info for all {len(excerpt_sources.items()) + len(excerpt_includes.items())} pages...{RESET}")
+    print(f"{DIM}\nStoring excerpts info for all {len(excerpt_sources.items()) + len(excerpt_includes.items())} pages...{RESET}")
 
     serialized_pre_existing = _serialize_loaded_excerpts(pre_existing_excerpt_sources)
 
     all_excerpts_info = _merge_excerpt_indexes(excerpt_sources, serialized_pre_existing, excerpt_includes)
     _store_excerpts(all_excerpts_info)
 
-    print("Finished computing excerpt inf ofor all pages.\n")
+    print(f"{DIM}Finished computing excerpt info for all pages.\n{RESET}")
 
 def find_excerpt_sources_in_bulk(pages_basic_data):
     all_excerpts = {}

@@ -18,7 +18,7 @@ SCHEMA_PAGES = """
     link_count INTEGER,
     image_count INTEGER,
     has_link_tree BOOLEAN,
-    metrics_json TEXT,
+    eval_notes TEXT,
 
     page_type TEXT,
     mm_smell INTEGER,

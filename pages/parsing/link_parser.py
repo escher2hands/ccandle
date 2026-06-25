@@ -11,7 +11,6 @@ from spaces.space_utils import get_space_attribute
 
 LINK_PATTERN = re.compile(r"\[\[link to:\s*(.*?)\s*\]\](?!\])", re.DOTALL)
 EXTRACT_PATTERN = re.compile(r"\[\[link to: ([^\]]+)\]\]")
-PERSONAL_SPACE_RE = re.compile(r"^~[0-9a-f]{20,32}$")
 
 # Loads the data we need for link conversion in one shot
 # "pages": {pid: plain_text},
@@ -50,10 +49,9 @@ def convert_links_in_memory(data, debug_mode=False):
         space_short_id = None
 
         if ":" in inner_text:
-            possible_space, rest = inner_text.split(":", 1)
-            if possible_space.isupper() or PERSONAL_SPACE_RE.match(possible_space):
-                space_short_id = possible_space
-                inner_text = rest.strip()
+            space_tag, rest = inner_text.split(":", 1)
+            space_short_id = space_tag
+            inner_text = rest.strip()
 
         resolved = resolve_pid_from_title_and_space(
             title=inner_text,

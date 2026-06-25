@@ -187,15 +187,17 @@ def macro_structures_signals_from_html(html):
     expandables = len(re.findall(r'<ac:structured-macro ac:name="expand"', html))
     excerpts = len(re.findall(r'<ac:structured-macro ac:name="excerpt-include"', html))
     decisions = '<ac:structured-macro ac:name="decisionreport"' in html
-    child_widget = '<ac:structured-macro ac:name="children"' in html
     return {
         "total": panels + expandables + excerpts,
         "panels": panels,
         "expandables": expandables,
         "excerpts": excerpts,
         "decisions": decisions,
-        "child_widget": child_widget
+        "child_widget": macro_child_widget_from_html(html)
     }
+
+def macro_child_widget_from_html(html):
+    return '<ac:structured-macro ac:name="children"' in html
 
 def macro_code_block_signals_from_soup(soup):
     code_blocks = soup.find_all(lambda tag: (tag.name == "ac:structured-macro" and tag.get("ac:name") == "code"))
