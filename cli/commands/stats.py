@@ -4,6 +4,8 @@
 # -   stats links incoming PAGE_ID
 # -   stats links popular
 # -   stats links cross-space
+# -   stats excerpts
+# -   stats duplicates
 # -   ...
 from config.config_app import FRIENDLY_APP_NAME
 from config.config_db import PATH_DB
