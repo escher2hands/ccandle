@@ -7,66 +7,73 @@ from pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
 from pages.types.type_signals_defs import THRESH_PAGE_EMPTY
 from presentation.theme import *
 from spaces.space_utils import list_configured_space_ids, get_space_attribute
+import sqlite3
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class StatConfig:
+    title: str
+    goal: float
+    group: str
+    hint: str = ""
 
 STATS_KEYS = {
     # TOPOLOGY / CONNECTEDNESS
-    "dead_ends_share": {
-        "title": "Pages without links",
-        "goal": 10.0,
-        "group": "topology",
-        "hint": "share of pages with no OUTgoing links",
-    },
-    "orphans_share": {
-        "title": "Orphan pages",
-        "goal": 40.0,
-        "group": "topology",
-        "hint": "share of pages with no INcoming links",
-    },
-    "link_density": {
-        "title": "Link density",
-        "goal": 3.0,
-        "group": "topology",
-        "hint": "links per 100 words across content pages",
-    },
-    # PAGE QUALITY
-    "lead_paras_good_share": {
-        "title": "Good lead paragraphs",
-        "goal": 15.0,
-        "group": "quality",
-        'hint': "share of pages that have a descriptive leading paragraph with links",
-    },
-    "excerpts_and_reuse_share": {
-        "title": "Pages reusing excerpts",
-        "goal": 10.0,
-        "group": "quality",
-        "hint": "share pages reusing excerpts of other pages, reducing redundancy and drift",
-    },
-    "junk_pages_share": {
-        "title": "Junk / empty pages",
-        "goal": 5.0,
-        "group": "quality",
-        "hint": "share of pages that are empty, very short, or duplicated",
-    },
-    # NAVIGATION
-    "landing_page_coverage": {
-        "title": "Landing page coverage",
-        "goal": 5.0,
-        "group": "navigation",
-        "hint": "",
-    },
-    "navbox_coverage": {
-        "title": "Navbox coverage",
-        "goal": 20.0,
-        "group": "navigation",
-        "hint": "share of pages containing navboxes, guiding users through a topic",
-    },
-    "hub_coverage": {
-        "title": "Hub coverage",
-         "goal": 20.0,
-        "group": "navigation",
-        "hint": "coverage of expected topic clusters with intro pages",
-    },
+    "dead_ends_share": StatConfig(
+        title="Pages without links",
+        goal=10.0,
+        group="topology",
+        hint="share of pages with no OUTgoing links",
+    ),
+    "orphans_share": StatConfig(
+        title="Orphan pages",
+        goal=40.0,
+        group="topology",
+        hint="share of pages with no INcoming links",
+    ),
+    "link_density": StatConfig(
+        title="Link density",
+        goal=3.0,
+        group="topology",
+        hint="links per 100 words across content pages",
+    ),
+    "lead_paras_good_share": StatConfig(
+        title="Good lead paragraphs",
+        goal=15.0,
+        group="quality",
+        hint="share of pages that have a descriptive leading paragraph with links",
+    ),
+    "excerpts_and_reuse_share": StatConfig(
+        title="Pages reusing excerpts",
+        goal=10.0,
+        group="quality",
+        hint="share pages reusing excerpts of other pages, reducing redundancy and drift",
+    ),
+    "junk_pages_share": StatConfig(
+        title="Junk / empty pages",
+        goal=5.0,
+        group="quality",
+        hint="share of pages that are empty, very short, or duplicated",
+    ),
+    "landing_page_coverage": StatConfig(
+        title="Landing page coverage",
+        goal=5.0,
+        group="navigation",
+    ),
+    "navbox_coverage": StatConfig(
+        title="Navbox coverage",
+        goal=20.0,
+        group="navigation",
+        hint="share of pages containing navboxes, guiding users through a topic",
+    ),
+    "hub_coverage": StatConfig(
+        title="Hub coverage",
+        goal=20.0,
+        group="navigation",
+        hint="coverage of expected topic clusters with intro pages",
+    ),
 }
+
 STATS_GROUPS = ["topology", "quality", "navigation"]
 STATS_GROUP_TITLES = {
     "topology": "TOPOLOGY / CONNECTEDNESS",
@@ -94,11 +101,11 @@ def present_space_overview(space_id, quiet=False, path_to_db=PATH_DB):
     print(f"Total content pages in space " + f":{sdata['content_pages']:>9}")
     print(f"Total words in content pages " + f":{sdata['content_words']:>9}")
     print()
-    grouped_data = build_stat_view(sdata, quiet=quiet)
-    print_grouped_stats(grouped_data)
+    sdata = gather_relevant_space_data(space_id, path_to_db)
+    print_grouped_stats(sdata, quiet=quiet)
     print("\n")
 
-    print_page_types()
+    print_page_types(space_id=None)
 
 def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
     space_query = f"space_id={space_id}" if space_id else "1=1"
@@ -108,93 +115,83 @@ def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
     CF = f"{space_query} AND {TYPE_ADMIN_FILTER}"   # content pages filter
     content_totals = query_db_results("COUNT(*), SUM(word_count), SUM(link_count)",
                       where_clause=CF, path_to_db=path_to_db)[0]
-    content_pages, content_words, content_links = content_totals[0], content_totals[1], content_totals[2]
-
-    # connectedness
-    dead_ends = query_db_results("COUNT(*)",
-                     where_clause=f"{CF} AND link_count=0", path_to_db=path_to_db)[0][0]
 
     content_pids = [res[0] for res in query_db_results("id", where_clause=CF, path_to_db=path_to_db)]
     orphans = find_orphaned_pages(pids=content_pids, path_to_db=path_to_db)
 
-    # page quality
-    pages_w_good_lead_paras = query_db_results("COUNT(*)",
-                     where_clause=f"{CF} AND eval_notes like '%{NOTES_LEAD_PARA_GOOD}%'", path_to_db=path_to_db)[0][0]
-    pages_w_excerpts = query_db_results("COUNT(*)",
-                     where_clause=f"{CF} AND excerpts like '%{EXCERPT_FLAG}:%'", path_to_db=path_to_db)[0][0]
-    pages_w_duplicates = query_db_results("COUNT(*)",
-                     where_clause=f"{CF} AND duplicate_list != '[]' AND duplicate_list is not null", path_to_db=path_to_db)[0][0]
-    pages_empty = query_db_results("COUNT(*)",
-                    where_clause=f"{CF} AND word_count < {THRESH_PAGE_EMPTY}", path_to_db=path_to_db)[0][0]
+    with sqlite3.connect(path_to_db) as conn:
+        conn.row_factory = sqlite3.Row  # enables stats["content_pages"] etc.
+        params = {
+            "lead_flag": f"%{NOTES_LEAD_PARA_GOOD}%",
+            "excerpt_flag": f"%{EXCERPT_FLAG}:%",
+            "navbox_flag": f"%{NAVBOX_FLAG}:%",
+            "empty_thresh": THRESH_PAGE_EMPTY,
+        }
+        cur = conn.cursor()
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                    AS content_pages,
+                SUM(word_count)                                             AS content_words,
+                SUM(link_count)                                             AS content_links,
+                COUNT(*) FILTER (WHERE link_count = 0)                     AS dead_ends,
+                COUNT(*) FILTER (WHERE eval_notes LIKE :lead_flag)         AS good_lead_paras,
+                COUNT(*) FILTER (WHERE excerpts   LIKE :excerpt_flag)      AS excerpts_reused,
+                COUNT(*) FILTER (WHERE excerpts   LIKE :navbox_flag)       AS navboxes,
+                COUNT(*) FILTER (WHERE duplicate_list NOT IN ('[]', '')
+                                   AND duplicate_list IS NOT NULL)         AS duplicates,
+                COUNT(*) FILTER (WHERE word_count < :empty_thresh)         AS empty_pages,
+                COUNT(*) FILTER (WHERE page_type = 'canonical_intro')      AS canonical_intros,
+                COUNT(*) FILTER (WHERE page_type = 'landing_page')         AS landing_pages
+            FROM pages
+            WHERE {CF}
+            """, params  # dict goes in directly, no wrapping tuple needed
+                    )
+        stats = cur.fetchone()  # fetchone() since it's a single aggregation row
 
-    # advanced nav elements
-    pages_w_navboxes = query_db_results("COUNT(*)",
-                    where_clause=f"{CF} AND excerpts like '%{NAVBOX_FLAG}:%'", path_to_db=path_to_db)[0][0]
-    canonical_intros = query_db_results("COUNT(*)",
-                    where_clause=f"{CF} AND page_type='canonical_intro'", path_to_db=path_to_db)[0][0]
-    landing_pages = query_db_results("COUNT(*)",
-                    where_clause=f"{CF} AND page_type='landing_page'", path_to_db=path_to_db)[0][0]
-
+    cp = stats["content_pages"]
+    cw = stats["content_words"]
 
     return {
-        'total_pages': totals[0],
-        'total_words': totals[1],
-        'content_pages': content_totals[0],
-        'content_words': content_words,
-        # connectedness
-        'dead_ends_share': dead_ends / content_pages,
-        'orphans_share': orphans['total'] / content_pages,
-        'link_density': content_links / content_words,
-        # page quality
-        'lead_paras_good_share': pages_w_good_lead_paras / content_pages,
-        'excerpts_and_reuse_share': pages_w_excerpts / content_pages,
-        'junk_pages_share': (pages_w_duplicates + pages_empty) / content_pages,
-        # advanced nav elements
-        'landing_page_coverage': landing_pages / content_pages,
-        'navbox_coverage': pages_w_navboxes / content_pages,
-        'hub_coverage': canonical_intros / content_pages,
+        "total_pages":              totals[0],
+        "total_words":              totals[1],
+        "content_pages":            cp,
+        "content_words":            cw,
+        # topology
+        "dead_ends_share":          share(stats["dead_ends"], cp),
+        "orphans_share":            share(orphans["total"], cp),
+        "link_density":             share(stats["content_links"], cw),
+        # quality
+        "lead_paras_good_share":    share(stats["good_lead_paras"], cp),
+        "excerpts_and_reuse_share": share(stats["excerpts_reused"], cp),
+        "junk_pages_share":         share((stats["duplicates"] + stats["empty_pages"]), cp),
+        # navigation
+        "landing_page_coverage":    share(stats["landing_pages"], cp),
+        "navbox_coverage":          share(stats["navboxes"], cp),
+        "hub_coverage":             share(stats["canonical_intros"], cp),
     }
 
 def print_page_types(space_id):
     return 0
 
-
-
-def build_stat_view(space_stats, quiet=False):
-    grouped = {g: [] for g in STATS_GROUPS}
-
-    for stat_name, value in space_stats.items():
-        cfg = STATS_KEYS.get(stat_name)
-        if not cfg:
-            continue
-
-        item = {
-            "key": stat_name,
-            "title": cfg["title"],
-            "value": value,
-            "goal": cfg.get("goal"),
-            "hint": None if quiet else cfg.get("hint"),
-        }
-
-        grouped[cfg["group"]].append(item)
-
-    return grouped
-
-def print_grouped_stats(grouped_stats):
+def print_grouped_stats(space_stats, quiet=False):
     for group in STATS_GROUPS:
-        items = grouped_stats.get(group, [])
+        items = [(key, cfg) for key, cfg in STATS_KEYS.items() if cfg.group == group]
         if not items:
             continue
 
         print(f"\n{STATS_GROUP_TITLES[group]}")
         print("-" * WIDTH_NICE)
 
-        for item in items:
-            line = f"{item['title']:<27}: {(item['value'] * 100):5.1f} %"
-            if item["goal"] is not None:
-                line += f" | goal: {item['goal']:5.1f}"
-            if item["hint"] is not None:
-                line += f"  {DIM}→ {item['hint']}{RESET}"
+        for key, cfg in items:
+            value = space_stats.get(key)
+            if value is None:
+                continue
+            line = f"{cfg.title:<27}: {(value * 100):5.1f} %"
+            if cfg.goal is not None:
+                line += f" | goal: {cfg.goal:5.1f}"
+            if not quiet and cfg.hint:
+                line += f"  {DIM}→ {cfg.hint}{RESET}"
             print(line)
 
-
+def share(numerator, denominator):
+    return numerator / denominator if denominator else 0.0
