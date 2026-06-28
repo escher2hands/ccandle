@@ -1,28 +1,60 @@
+from analysis.stats_link_info import find_incoming_links
 from config.config_db import PATH_DB, TABLE_PAGES
 from db.db_query_utils import query_db_results
-from collections import deque
+from collections import deque, defaultdict
 import sqlite3, json
 
 def make_maps(space_id, path_to_db=PATH_DB, limit=20):
-    rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
-    pid_to_child_list_map = {pid: json.loads(child_list_json) for pid, child_list_json in rows}
+    rows = query_db_results(
+        "id, child_list, links_list",
+        where_clause=f"space_id = {space_id}",
+        path_to_db=path_to_db,
+    )
 
-    parent_map = build_parent_map(pid_to_child_list_map)
-    depth_map = compute_depths(pid_to_child_list_map, parent_map)
-    subtree_sizes, descendant_map = build_all_subtree_metrics(pid_to_child_list_map)
+    pid_to_info = {}
+    incoming_counts = defaultdict(int)
 
-    results = [
-        {
-            "pid": pid,
-            "direct_children": len(children),
-            "descendants": subtree_sizes.get(pid, 0),
-            "depth": interpret_depth(depth_map.get(pid, 0)),
+    for pid, child_json, links_json in rows:
+        links = json.loads(links_json)
+        pid_to_info[pid] = {
+            "children": json.loads(child_json),
+            "outgoing_links": len(links),
         }
-        for pid, children in pid_to_child_list_map.items()
-        if len(children) > 2 and subtree_sizes.get(pid, 0) > 0
-    ]
 
-    results.sort(key=lambda x: x["descendants"], reverse=True)
+        for target in links:
+            target_id = target.partition(":")[2]
+            incoming_counts[target_id] += 1
+
+    parent_map = build_parent_map(pid_to_info)
+    depth_map = compute_depths(pid_to_info, parent_map)
+    subtree_sizes, descendant_map = build_all_subtree_metrics(pid_to_info)
+
+    results = []
+    for pid, info in pid_to_info.items():
+        children = info["children"]
+        outgoing_links = info["outgoing_links"]
+        incoming_links = incoming_counts.get(pid, 0)
+
+        if (len(children) > 2 and subtree_sizes.get(pid, 0) > 0) or outgoing_links + incoming_links > 10:
+            results.append(
+                {
+                    "pid": pid,
+                    "direct_children": len(children),
+                    "descendants": subtree_sizes.get(pid, 0),
+                    "outgoing_links": outgoing_links,
+                    "incoming_links": incoming_links,
+                    "depth": depth_map.get(pid, 0),
+                }
+            )
+
+    def score(node):
+        return (
+                node["direct_children"]
+                + node["descendants"] * 0.1
+                + node["incoming_links"]
+                + node["outgoing_links"]
+        )
+    results.sort(key=score, reverse=True)
     results = results[:limit]
 
     with sqlite3.connect(path_to_db) as conn:
@@ -35,6 +67,7 @@ def make_maps(space_id, path_to_db=PATH_DB, limit=20):
             result["avg_word_count"] = round(conn.execute(
                 f"SELECT AVG(word_count) FROM {TABLE_PAGES} WHERE id IN ({placeholders})", ids
             ).fetchone()[0] or 0, -1)
+            result['subtree_words'] = result['avg_word_count'] * result['descendants']
 
             result["most_common_type"] = (conn.execute(
                 f"SELECT page_type FROM {TABLE_PAGES} WHERE id IN ({placeholders}) AND page_type IS NOT NULL "
@@ -47,18 +80,18 @@ def make_maps(space_id, path_to_db=PATH_DB, limit=20):
 
     return results
 
-def build_parent_map(pid_to_child_list_map):
-    parent_map = {
+def build_parent_map(pid_to_info):
+    return {
         child: parent
-        for parent, children in pid_to_child_list_map.items()
-        for child in children
+        for parent, info in pid_to_info.items()
+        for child in info["children"]
     }
-    return parent_map
 
-def compute_depths(pid_to_child_list_map, parent_map):
-    all_nodes = set(pid_to_child_list_map.keys())
-    for children in pid_to_child_list_map.values():
-        all_nodes.update(children)
+def compute_depths(pid_to_info, parent_map):
+    all_nodes = set(pid_to_info.keys())
+
+    for info in pid_to_info.values():
+        all_nodes.update(info["children"])
 
     roots = [n for n in all_nodes if n not in parent_map]
     depth = {r: 0 for r in roots}
@@ -67,34 +100,47 @@ def compute_depths(pid_to_child_list_map, parent_map):
     while q:
         node = q.popleft()
         node_depth = depth[node]
-        for child in pid_to_child_list_map.get(node, []):
-            if child not in depth or node_depth + 1 < depth[child]: # only set if not already set or if we find a shorter path
+
+        children = pid_to_info.get(node, {}).get("children", [])
+        for child in children:
+            if child not in depth or node_depth + 1 < depth[child]:
                 depth[child] = node_depth + 1
                 q.append(child)
 
     return depth
 
-def build_all_subtree_metrics(pid_to_child_list_map):
+def build_all_subtree_metrics(pid_to_info):
     subtree_size = {}
     descendant_set = {}
 
-    for node in pid_to_child_list_map:
+    for node in pid_to_info:
         if node not in subtree_size:
-            compute_subtree_metrics(node, pid_to_child_list_map, subtree_size, descendant_set)
+            compute_subtree_metrics(
+                node,
+                pid_to_info,
+                subtree_size,
+                descendant_set,
+            )
 
     return subtree_size, descendant_set
 
-def compute_subtree_metrics(node, pid_to_child_list_map, subtree_size, descendant_set):
-    children = pid_to_child_list_map.get(node, [])
+def compute_subtree_metrics(node, pid_to_info, subtree_size, descendant_set):
+    children = pid_to_info.get(node, {}).get("children", [])
     all_descendants = set()
 
     for child in children:
         all_descendants.add(child)
-        child_descendants = compute_subtree_metrics(child, pid_to_child_list_map, subtree_size, descendant_set)
+        child_descendants = compute_subtree_metrics(
+            child,
+            pid_to_info,
+            subtree_size,
+            descendant_set,
+        )
         all_descendants.update(child_descendants)
 
     subtree_size[node] = len(all_descendants)
     descendant_set[node] = all_descendants
+
     return all_descendants
 
 def get_descendant_metrics(desc_ids, conn):
