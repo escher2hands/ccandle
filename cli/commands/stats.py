@@ -52,6 +52,8 @@ def register(subparsers):
 
     sub_duplicates = stats_sub.add_parser("duplicates", help="Find likely duplicate pages")
     _add_common_args(sub_duplicates)
+    sub_duplicates.add_argument("--fuzziness", type=float, default=1.0,
+                                help="Finetune the threshold for considering pages as duplicates. E.g. 1.0 is default, 1.1 is less precise,...")
 
     # -- coming soon --
     sub_children = stats_sub.add_parser("children", help="See page hierarchy / child-count stats")
@@ -192,9 +194,13 @@ def run(args):
             return 0
 
     if args.stats_cmd == "duplicates":
-        from analysis.stats_duplicates import fetch_unique_duplicate_groups
-
-        dup_groups = fetch_unique_duplicate_groups(space_id=args.space_id)
+        from analysis.stats_duplicates import fetch_unique_duplicate_groups, scan_for_duplicates_in_corpus
+        if args.fuzziness != 1.0:
+            print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
+                  f"This may take a while, especially if you set a high fuzziness score...")
+            dup_groups = scan_for_duplicates_in_corpus(args.fuzziness)
+        else:
+            dup_groups = fetch_unique_duplicate_groups(space_id=args.space_id)
         if args.ids_only:
             page_ids = [page_id
                 for group in dup_groups

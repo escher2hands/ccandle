@@ -52,11 +52,15 @@ JaccardDuplicate = namedtuple(
     ["page_id_a", "page_id_b", "jaccard_similarity", "signal_distance"],
 )
 
-def scan_for_duplicates_in_corpus():
-    pairs = find_duplicate_pages(epsilon=0.7, jaccard_threshold=0.85)
+def scan_for_duplicates_in_corpus(fuzziness=1.0):
+    pre_filter_sensitivity = 0.7 / fuzziness
+    duplicate_threshold = 0.85 / fuzziness
+    pairs = find_duplicate_pages(epsilon=pre_filter_sensitivity, jaccard_threshold=duplicate_threshold)
     groups = group_jaccard_duplicates(pairs)
     mapping = build_duplicate_mapping(groups)
-    _store_duplicate_lists(mapping)
+    if fuzziness == 1.0:            # only store duplicate mapping when fuzziness is a stable score.
+        _store_duplicate_lists(mapping)
+    return duplicate_mapping_to_groups(mapping)
 
 # Full pipeline, start to finish: type-signal nearest-neighbor candidate
 # generation, then Jaccard shingle comparison restricted to those
@@ -243,16 +247,19 @@ def group_jaccard_duplicates(jaccard_duplicates):
         if len(group) > 1
     ]
 
-
+# Serialize at build time so stored values are independent strings,
+# not aliased references to the same live list.
 def build_duplicate_mapping(groups):
-    # Serialize at build time so stored values are independent strings,
-    # not aliased references to the same live list.
     return {
         pid: json.dumps(group)
         for group in groups
         for pid in group
     }
-
+def duplicate_mapping_to_groups(duplicate_mapping):
+    return [
+        json.loads(dup_json)
+        for dup_json in set(duplicate_mapping.values())
+    ]
 
 class UnionFind:
     def __init__(self):
