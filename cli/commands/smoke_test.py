@@ -1,7 +1,7 @@
 # Basic sanity check on cli commands.
 
 def register(subparsers):
-    p = subparsers.add_parser("smoke-test", help="Run a quick sanity check on the commands and functionality")
+    p = subparsers.add_parser("smoke-test", help="Run a quick sanity check on the CLI commands and functionality")
 
 def run(args):
     from sanity.smoke_tester import interactive_smoke_test
