@@ -1,6 +1,8 @@
 # ccandle
 Confluence toolset to shine light on the quality and navigability of technical documentation
 
+<img src="docs/images/light_in_cave.png" width="700" alt="Overview">
+
 ## goals
 - CLI tool to sync user local offline db with their Confluence Cloud instance
 - processor to strip plain text from HTML, get analytics (word count, page type), and add other useful metadata
