@@ -2,7 +2,8 @@ import requests
 from config.config_app import APP_HANDLE
 from presentation.theme import WIDTH_NICE, RED, BLUE, DIM, RESET
 from requests.auth import HTTPBasicAuth
-from config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE, CONFLUENCE_BASE_URL_V1
+from config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE, CONFLUENCE_BASE_URL_V1, \
+    ENDPOINT_SPACES
 from config.confluence_auth import fetch_conf_details
 import subprocess, platform, re, time
 from collections.abc import Iterable
@@ -26,6 +27,7 @@ def _get(endpoint, params=None, quiet=False):
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
     except requests.exceptions.RequestException as e:
         print(f"Connection failed: {e}")
+        return None
 
     if not quiet:
         if response.status_code == 404:
@@ -156,24 +158,19 @@ def request_users_metadata(account_ids, batch_size=250):
         all_results.extend(data.get("results", []))
     return all_results
 
-def check_network_connection(host="8.8.8.8", timeout=3):
-    param = "-n" if platform.system().lower() == "windows" else "-c"
-    command = ["ping", param, "1", "-W", str(timeout), host]
+def check_network_connection():
     try:
-        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if result.returncode == 0:
-            return True
-        else:
-            print(f"{RED}"
-                  "\n   (\\ "
-                  "\n   .'.       You are not connected to the internet."
-                  "\n   | |       The function you requested requires a connection."
-                  "\n   | | "
-                  "\n   |_|       Please check your connection and try again."
-                  f"\n{RESET}")
-            return False
-
-    except OSError:
+        url = f"{CONFLUENCE_BASE_URL}{ENDPOINT_SPACES}"
+        response = SESSION.get(url, timeout=TIMEOUT)
+        return True             # Any HTTP response means we reached Atlassian.
+    except OSError or requests.ConnectionError or requests.Timeout:
+        print(f"{RED}"
+              "\n   (\\ "
+              "\n   .'.       You are not connected to the internet."
+              "\n   | |       The function you requested requires a connection."
+              "\n   | | "
+              "\n   |_|       Please check your connection and try again."
+              f"\n{RESET}")
         return False
 
 def _print_message_404(response_status_code):
