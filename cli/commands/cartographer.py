@@ -5,7 +5,7 @@ from spaces.space_utils import get_space_attribute
 
 
 def register(subparsers):
-    p = subparsers.add_parser("cartographer", help="Learn quick stats on your configured Confluence spaces")
+    p = subparsers.add_parser("cartographer", help="Discover the layout and distribution of content in your Confluence spaces")
     p.add_argument("--space-id", help="Narrow overview to just one space")
     p.add_argument("--quiet", "-q", action="store_true", default=False,
                         help="Mute verbose explanations")
