@@ -11,8 +11,10 @@ def register(subparsers):
 
 
 def run(args):
-    from analysis.sql_queries import query_via_cli, print_column_names
+    from analysis.sql_queries import query_via_cli, get_column_names
     if args.sql_cmd == "columns":
-        print_column_names()
+        columns = get_column_names()
+        for column in columns:
+            print(column)
         return 0
     return query_via_cli(args.query, force_table=args.force_table)

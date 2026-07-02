@@ -26,9 +26,12 @@ def query_via_cli(your_query, path_to_db=PATH_DB, force_table=False):
     render_results(results, columns, force_table=force_table)
     return 0
 
-def print_column_names(path_to_db=PATH_DB):
+def get_column_names(your_table=TABLE_PAGES, path_to_db=PATH_DB):
+    columns = []
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
-        cur.execute(f"SELECT name FROM PRAGMA_TABLE_INFO('{TABLE_PAGES}')")
+        cur.execute(f"SELECT name FROM PRAGMA_TABLE_INFO('{your_table}')")
         for (name,) in cur:
-            print(name)
+            columns.append(name)
+
+    return columns
