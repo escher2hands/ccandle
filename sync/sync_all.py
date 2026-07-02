@@ -8,6 +8,8 @@ VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "co
                "assign_type", "find_duplicates"]
 
 def sync(hard_refresh=False, resume_at=None):
+    pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)
+
     if not resume_at:
         delta_pages = sync_pages(hard_refresh=hard_refresh)               # run our first page scraping from the CC
     else:
@@ -43,12 +45,14 @@ def sync(hard_refresh=False, resume_at=None):
             continue
         resume_at = None  # clear once reached
         step_start_time = datetime.datetime.now(datetime.timezone.utc)
-        print(f"--------------------------------")
+        print(f"-" * WIDTH_NICE)
         print(f"Running step: {name}")
         fn()
         _print_step_duration(step_start_time, name)
 
     set_all_pages_as_processed(delta_pages)
+
+    _print_total_pipeline_duration(pipeline_start_time, delta_pages)
 
 
 def sync_pages(hard_refresh=False):
@@ -140,4 +144,11 @@ def _print_step_duration(step_start_time, name):
     duration_str = str(step_duration).split('.')[0]                 # Format duration as H:MM:SS
     print(f"Finished step {name} in {duration_str} (H:MM:SS).")
 
+def _print_total_pipeline_duration(pipeline_start_time, delta_pages):
+    from spaces.space_utils import list_configured_space_ids
+    step_duration = datetime.datetime.now(datetime.timezone.utc) - pipeline_start_time
+    duration_str = str(step_duration).split('.')[0]                 # Format duration as H:MM:SS
+    count_spaces = len(list_configured_space_ids())
+    print(f"-" * WIDTH_NICE)
+    print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} configured spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
 
