@@ -87,9 +87,13 @@ def present_all_space_overviews(quiet=False, path_to_db=PATH_DB):
     for space_id in space_ids:
         present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db)
 
-def present_space_overview(space_id, quiet=False, path_to_db=PATH_DB):
-    space_alias = get_space_attribute(space_id, 'id', 'alias')
-    space_shid = get_space_attribute(space_id, 'id', 'short_id')
+def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB):
+    if not space_id:
+        space_alias = "ALL CONFIGURED SPACES"
+        space_shid = ""
+    else:
+        space_alias = get_space_attribute(space_id, 'id', 'alias')
+        space_shid = get_space_attribute(space_id, 'id', 'short_id')
 
     print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
     print(f"{BOLD}OVERVIEW FOR SPACE {BLUE}{space_alias}{RESET} {DIM}({space_id}, {space_shid}){RESET}:")
