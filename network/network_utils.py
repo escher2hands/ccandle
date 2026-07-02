@@ -158,6 +158,57 @@ def request_users_metadata(account_ids, batch_size=250):
         all_results.extend(data.get("results", []))
     return all_results
 
+# Update a Confluence page.
+# DANGER! This overwrites an existing page! Handle with care!
+# target_page dict must contain:
+#         pid
+#         title
+#         version
+def request_put_page(target_page, html):
+    url = f"{CONFLUENCE_BASE_URL}/pages/{target_page['pid']}"
+
+    payload = {
+        "id": str(target_page["pid"]),
+        "status": "current",
+        "title": target_page["title"],
+        "body": {
+            "representation": "storage",
+            "value": html,
+        },
+        "version": {
+            "number": target_page["version"] + 1
+        },
+    }
+
+    try:
+        response = SESSION.put(url, json=payload, timeout=30)
+    except requests.exceptions.RequestException as e:
+        print(f"Connection failed: {e}")
+        return {
+            "status": "no_connection",     # success | error
+            "http_status": 503,            # service unavailable? Can't connect
+            "version": 0,
+            "html": None,
+        }
+
+    if response.status_code not in (200, 202):
+        print(f"PUT failed ({response.status_code})")
+        print(response.text)
+        return {
+            "status": "error",    # success | error
+            "http_status": response.status_code,
+            "version": response.json().get('version').get('number'),
+            "html": response.json().get('body').get('storage').get('value'),
+        }
+
+    response_json = response.json()
+    return {
+        "status": "success",    # success | error
+        "http_status": response.status_code,
+        "version": response_json.get('version').get('number'),
+        "html": response_json.get('body').get('storage').get('value'),
+    }
+
 def check_network_connection():
     try:
         url = f"{CONFLUENCE_BASE_URL}{ENDPOINT_SPACES}"
