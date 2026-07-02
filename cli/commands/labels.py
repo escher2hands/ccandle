@@ -22,6 +22,7 @@ def run(args):
     from presentation.page_previews import get_pages_preview
     from presentation.page_previews import render_table
     from presentation.theme import BOLD, RED, RESET, DIM
+    from pages.excerpt_bulk_actions import exit_if_not_all_ids_are_in_db
 
     if not check_network_connection():
         return 1
@@ -46,6 +47,7 @@ def run(args):
         operation, preposition, fn = ops[args.labels_cmd]
 
         pids = parse_pids_from_terminal(args.page_ids)
+        exit_if_not_all_ids_are_in_db(pids)
         label = check_and_clean_label(args.label)
         results = get_pages_preview(pids, "labels", "space_id", "title")
         print(
