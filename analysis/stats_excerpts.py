@@ -81,12 +81,14 @@ def find_excerpt_sources_in_html(html):
                 'type': NAVBOX_FLAG,
                 'name': _normalize_name(name_text),
                 'is_source': SOURCE_FLAG,
+                'unnormalized_name': name_text,
             })
         else:
             excerpts.append({
                 'type': EXCERPT_FLAG,
                 'name': _normalize_name(name_text),
                 'is_source': SOURCE_FLAG,
+                'unnormalized_name': name_text,
             })
     return excerpts
 
