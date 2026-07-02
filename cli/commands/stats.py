@@ -59,9 +59,6 @@ def register(subparsers):
     sub_children = stats_sub.add_parser("children", help="See page hierarchy / child-count stats")
     _add_common_args(sub_children)
 
-    sub_gold_veins = stats_sub.add_parser("gold-veins", help="Surface high-value page clusters")
-    _add_common_args(sub_gold_veins)
-
 
 def run(args):
     from presentation.page_previews import render_table, render_results
@@ -268,8 +265,4 @@ def run(args):
 
     if args.stats_cmd == "children":
         print("stats children: not yet implemented")
-        return 0
-
-    if args.stats_cmd == "gold-veins":
-        print("stats gold-veins: not yet implemented")
         return 0
