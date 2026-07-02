@@ -12,6 +12,15 @@ def id_exists_in_table(pid, table=TABLE_PAGES, path_to_db=PATH_DB):
     results = query_db_results("id", table=table, where_clause=f"id={pid}", path_to_db=path_to_db)
     return len(results) > 0
 
+def ids_multi_exist_in_table(pids_list, table=TABLE_PAGES, path_to_db=PATH_DB):
+    pids_string = ",".join(pid for pid in pids_list)
+    raw_results = query_db_results("id", table=table, where_clause=f"id in ({pids_string})", path_to_db=path_to_db)
+    results = [res[0] for res in raw_results]
+    return {
+        'all_exist': len(results) == len(pids_list),
+        'failed_ids': set(pids_list) - set(results),
+    }
+
 def random_pid_in_pages(count=1):
     import random
     all_ids = get_all_ids_in_pages()
