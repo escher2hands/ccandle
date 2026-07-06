@@ -1,12 +1,10 @@
 from analysis.stats_excerpts import find_and_store_excerpt_info
-from config.config_app import APP_HANDLE
 from db.db_query_utils import query_field_multi_in_pages, query_db_results
-from db.db_utils import update_field, ids_multi_exist_in_table
+from db.db_utils import update_field
 from network.network_utils import request_put_page
 from pages.scrape_page_htmls import scrape_page_contents_from_server
 from presentation.theme import *
 from excerpts.excerpt_utils import *
-
 
 def insert_excerpts_to_pages_in_bulk(excerpt_source_pid, target_pids):
     failures = _do_excerpt_bulk_action(insert_excerpt_include_via_api, excerpt_source_pid, target_pids)
@@ -146,17 +144,3 @@ def _resync_page_htmls_in_case_of_drift(target_pids):
                   f"Re-syncing page excerpt info...{RESET}")
             find_and_store_excerpt_info(target_pids, quiet=True)
             break
-
-def exit_if_not_all_ids_are_in_db(target_pids):
-    id_list_existence = ids_multi_exist_in_table(target_pids)
-    if not id_list_existence['all_exist']:
-        print(f"{RED}" + "-" * WIDTH_NICE + "\n" +
-              f"Invalid page IDs.\n"
-              f"{DIM}Some ({RESET}{BOLD}{len(id_list_existence['failed_ids'])}{RESET}{RED}{DIM}) of the ids you specified does not seem \n"
-              f"to be in your local scraped Confluence pages:\n"
-              f"{RESET}- {id_list_existence['failed_ids']}\n\n"
-              f"{RED}{DIM}Try running \n"
-              f"   {RESET}{BLUE}{APP_HANDLE} sync{RESET}\n"
-              f"{RED}{DIM}to fetch the latest pages in Confluence, or double check \n"
-              f"that the pages you listed belong to Confluence spaces you track.")
-        exit(1)

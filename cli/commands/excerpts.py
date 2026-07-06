@@ -1,6 +1,6 @@
 from analysis.stats_excerpts import deserialize_excerpt
 from db.db_query_utils import query_field_multi_in_pages
-from pages.excerpt_bulk_actions import exit_if_not_all_ids_are_in_db
+from presentation.user_communication import exit_if_not_all_ids_are_in_db
 from presentation.theme import *
 import json
 
@@ -22,7 +22,7 @@ def run(args):
     from network.network_utils import check_network_connection
     from presentation.formatting_utils import parse_pids_from_terminal
     from presentation.page_previews import render_table
-    from presentation.user_input import get_confirmation_to_continue
+    from presentation.user_communication import get_confirmation_to_continue
 
     if not check_network_connection():
         return 1
