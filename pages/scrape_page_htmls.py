@@ -9,11 +9,13 @@ import sqlite3
 # we could have 10K pages scraped, and if the network gets disconnected near the end,
 # that could be painful.
 def scrape_page_contents_from_server(pid_list, chunk_size=100):
+    all_stored_pages = []
     for pids in _chunked(pid_list, chunk_size):
         results = request_page_contents(pids, strip_to_html=False)
         pages = [
             {
                 "id": result.get("id"),
+                'version': int(result.get("version", {}).get('number')),
                 "title": result.get("title"),
                 "last_modified": result.get("version", {}).get("createdAt"),
                 "html": result.get("body", {}).get("storage", {}).get("value", ""),
@@ -21,12 +23,15 @@ def scrape_page_contents_from_server(pid_list, chunk_size=100):
             for result in results
         ]
         _store_page_contents(pages)
+        all_stored_pages.extend(pages)
+    return all_stored_pages
 
 def _store_page_contents(pages_data):
     conn = sqlite3.connect(PATH_DB)
     cur = conn.cursor()
     params = [(
         page["id"],
+        page["version"],
         page["title"],
         page["last_modified"],
         page["html"],)
@@ -34,9 +39,10 @@ def _store_page_contents(pages_data):
     ]
     sql = f"""
         INSERT INTO {TABLE_PAGES}
-            (id, title, last_modified, html)
-        VALUES (?, ?, ?, ?)
+            (id, version, title, last_modified, html)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
+            version = excluded.version,
             title = excluded.title,
             last_modified = excluded.last_modified,
             html = excluded.html
