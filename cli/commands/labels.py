@@ -5,7 +5,7 @@ def register(subparsers):
 
     for name, help_text in [
         ("add",        "Add specified label to the list of page IDs"),
-        ("delete",     "Delete specified label from the list of page IDs"),
+        ("remove",     "Remove specified label from the list of page IDs"),
     ]:
         sub = labels_sub.add_parser(name, help=help_text)
         sub.add_argument("label", help="Your chosen label")
@@ -41,7 +41,7 @@ def run(args):
 
     ops = {
         "add": ("add", "to", add_label_to_pages),
-        "delete": ("delete", "from", delete_label_from_pages),
+        "remove": ("remove", "from", delete_label_from_pages),
     }
     if args.labels_cmd in ops:
         operation, preposition, fn = ops[args.labels_cmd]
