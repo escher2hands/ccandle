@@ -42,7 +42,7 @@ def run(args):
         operation, preposition, fn = ops[args.excerpts_cmd]
 
         pids = parse_pids_from_terminal(args.page_ids)
-        exit_if_not_all_ids_are_in_db(pids + [args.excerpt_source_id])  # ensure all are valid pids in our local
+        exit_if_not_all_ids_are_in_db(pids, source_pid=args.excerpt_source_id)  # ensure all are valid pids in our local
         excerpt_source_data = extract_excerpt_data(args.excerpt_source_id)
         print(f"Are you sure you'd like to {operation} the excerpt: \n"
               f"- '{BLUE}{excerpt_source_data['name']}{RESET}' from page '{BLUE}{excerpt_source_data['title']}{RESET}'\n"
@@ -63,7 +63,7 @@ def run(args):
                 http_status = f"| http status: {failure['http_status']}" if failure['status'] == 'error' else ""
                 print(f"{RED}-   {failure['id']} | {failure['status']}{vers}{http_status}{RESET}")
             print(f"\nPlease double check these manually.")
-        print("\nResults:")
+        print("\nResults:\n")
         new_results = _get_preview_of_pages(pids)
         render_table(new_results, COLUMNS)
         return 0
@@ -80,10 +80,10 @@ def _get_preview_of_pages(pids):
             "excerpt_names": "",
             "title": title,
         }
-        excerpt_data = json.loads(excerpt_data)
+        excerpt_data = json.loads(excerpt_data) if excerpt_data else {}
         for excerpt in excerpt_data:
             excerpt = deserialize_excerpt(excerpt)
             exc_string = f"{excerpt['name']}:{excerpt['type']}"
-            result['excerpt_names'] += exc_string
+            result['excerpt_names'] += exc_string + " | "
         results.append(result)
     return results
