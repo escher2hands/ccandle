@@ -164,7 +164,7 @@ def request_users_metadata(account_ids, batch_size=250):
 #         pid
 #         title
 #         version
-def request_put_page(target_page, html):
+def request_put_page(target_page, new_html):
     url = f"{CONFLUENCE_BASE_URL}/pages/{target_page['pid']}"
 
     payload = {
@@ -173,7 +173,7 @@ def request_put_page(target_page, html):
         "title": target_page["title"],
         "body": {
             "representation": "storage",
-            "value": html,
+            "value": new_html,
         },
         "version": {
             "number": target_page["version"] + 1
@@ -185,7 +185,7 @@ def request_put_page(target_page, html):
     except requests.exceptions.RequestException as e:
         print(f"Connection failed: {e}")
         return {
-            "status": "no_connection",     # success | error
+            "status": "no connection",     # success | error
             "http_status": 503,            # service unavailable? Can't connect
             "version": 0,
             "html": None,
@@ -197,8 +197,8 @@ def request_put_page(target_page, html):
         return {
             "status": "error",    # success | error
             "http_status": response.status_code,
-            "version": response.json().get('version').get('number'),
-            "html": response.json().get('body').get('storage').get('value'),
+            "version": None,
+            "html": None,
         }
 
     response_json = response.json()
