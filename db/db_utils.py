@@ -19,6 +19,7 @@ def ids_multi_exist_in_table(pids_list, table=TABLE_PAGES, path_to_db=PATH_DB):
     return {
         'all_exist': len(results) == len(pids_list),
         'failed_ids': set(pids_list) - set(results),
+        'duplicates': [x for x in pids_list if pids_list.count(x) >= 2],
     }
 
 def random_pid_in_pages(count=1):
