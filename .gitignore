@@ -3,5 +3,5 @@
 /todo.txt
 
 # user config
-/config/config_spaces.json
+/src/ccandle/config/config_spaces.json
 /confluence_details.json
