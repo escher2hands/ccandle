@@ -21,7 +21,7 @@ def run(args):
     from pages.excerpt_bulk_actions import remove_excerpts_from_pages_in_bulk, insert_excerpts_to_pages_in_bulk, extract_excerpt_data
     from network.network_utils import check_network_connection
     from presentation.formatting_utils import parse_pids_from_terminal
-    from presentation.page_previews import get_pages_preview, render_table
+    from presentation.page_previews import render_table
     from presentation.user_input import get_confirmation_to_continue
 
     if not check_network_connection():
@@ -33,16 +33,10 @@ def run(args):
         {"key": "version", "label": "VERS", "width": 5},
         {"key": "title", "label": "TITLE"},
     ]
-    CONFIRMATION_COLUMNS = [
-        {"key": "id", "label": "PAGE ID", "width": 11},
-        {"key": "excerpts", "label": "UPDATED EXCERPTS", "width": 50},
-        {"key": "version", "label": "VERS", "width": 5},
-        {"key": "title", "label": "TITLE"},
-    ]
 
     ops = {
         "add": ("add", "to", insert_excerpts_to_pages_in_bulk),
-        "delete": ("delete", "from", remove_excerpts_from_pages_in_bulk),
+        "remove": ("remove", "from", remove_excerpts_from_pages_in_bulk),
     }
     if args.excerpts_cmd in ops:
         operation, preposition, fn = ops[args.excerpts_cmd]
@@ -80,14 +74,16 @@ def _get_preview_of_pages(pids):
     results = []
     for pid in pids:
         excerpt_data, version, title = query_field_multi_in_pages(pid, "excerpts", "version", "title")
+        result = {
+            "id": pid,
+            "version": version,
+            "excerpt_names": "",
+            "title": title,
+        }
         excerpt_data = json.loads(excerpt_data)
         for excerpt in excerpt_data:
             excerpt = deserialize_excerpt(excerpt)
-            result = {
-                "id": pid,
-                "excerpt_names": f"{excerpt['name']}:{excerpt['type']}",
-                "version": version,
-                "title": title,
-            }
-            results.append(result)
+            exc_string = f"{excerpt['name']}:{excerpt['type']}"
+            result['excerpt_names'] += exc_string
+        results.append(result)
     return results
