@@ -9,32 +9,30 @@ from excerpts.excerpt_utils import *
 
 
 def insert_excerpts_to_pages_in_bulk(excerpt_source_pid, target_pids):
+    failures = _do_excerpt_bulk_action(insert_excerpt_include_via_api, excerpt_source_pid, target_pids)
+    return failures
+
+def remove_excerpts_from_pages_in_bulk(target_pids):
+    failures = _do_excerpt_bulk_action(remove_excerpt_include_via_api, None, target_pids)
+    return failures
+
+def _do_excerpt_bulk_action(fn, excerpt_source_pid, target_pids):
     _resync_page_htmls_in_case_of_drift(target_pids)
 
     failures = []
     for target_pid in target_pids:
-        status = insert_excerpt_include_via_api(excerpt_source_pid, target_pid)
-        print('-' * 80)
-        print(f"CLOUD RESPONSE FOR: {target_pid}")
-        print(status)
+        if fn == remove_excerpt_include_via_api:
+            status = fn(target_pid)
+        elif fn == insert_excerpt_include_via_api:
+            status = fn(excerpt_source_pid, target_pid)
+        else:
+            raise ValueError("used this function wrong")
         if status['status'] != 'success':
             status['id'] = target_pid
             failures.append(status)
 
-    return failures
-
-def remove_excerpts_from_pages_in_bulk(target_pids):
-    _resync_page_htmls_in_case_of_drift(target_pids)
-
-    failures = []
-    for target_pid in target_pids:
-        status = remove_excerpt_include_via_api(target_pid)
-        print('-' * 80)
-        print(f"CLOUD RESPONSE FOR: {target_pid}")
-        print(status)
-        if status['status'] != 'success':
-            failures.append(status)
-
+    if len(failures) < len(target_pids):        # if we had even a single success, let's update our navbox info in db
+        find_and_store_excerpt_info(target_pids, quiet=True)
     return failures
 
 
@@ -144,10 +142,10 @@ def _resync_page_htmls_in_case_of_drift(target_pids):
     new_data = scrape_page_contents_from_server(target_pids)   # scrape and store html, version, etc.
     for page in new_data:
         if old_versions.get(page["id"]) != page["version"]:
-            print(f"At least one of your pages ({page['id']}) is stale. Re-syncing page excerpt info...")
+            print(f"{DIM}At least one of your pages ({BOLD}{page['id']}{RESET}{DIM}) is stale. \n"
+                  f"Re-syncing page excerpt info...{RESET}")
             find_and_store_excerpt_info(target_pids, quiet=True)
             break
-
 
 def exit_if_not_all_ids_are_in_db(target_pids):
     id_list_existence = ids_multi_exist_in_table(target_pids)
