@@ -35,6 +35,9 @@ def find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB, quiet=False):
     serialized_pre_existing = serialize_loaded_excerpts(pre_existing_excerpt_sources)
 
     all_excerpts_info = _merge_excerpt_indexes(excerpt_sources, serialized_pre_existing, excerpt_includes)
+    for pid in delta_pages:
+        all_excerpts_info.setdefault(pid, [])   # set a default
+
     _store_excerpts(all_excerpts_info)
     if not quiet: print(f"{DIM}Finished computing excerpt info for all pages.\n{RESET}")
 
