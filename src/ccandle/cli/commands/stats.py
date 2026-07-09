@@ -11,6 +11,7 @@ from ccandle.config.config_app import FRIENDLY_APP_NAME
 from ccandle.config.config_db import PATH_DB
 from ccandle.spaces.space_utils import get_space_attribute, display_friendly_space_info
 from ccandle.presentation.theme import *
+from datetime import datetime, timedelta
 
 
 def _add_common_args(sub):
@@ -59,6 +60,7 @@ def register(subparsers):
     for sub in empty_subcommands:
         _add_common_args(sub)
         sub.add_argument("--min-age", type=int, default=0, help="Show only pages not edited in N days")
+        sub.add_argument("--no-structural-value", "-nsv", action="store_true", help="Show only pages without a structural purpose, insufficient children, no links; the network and page tree won't notice if you kill it")
 
     # -- coming soon --
     sub_children = stats_sub.add_parser("children", help="See page hierarchy / child-count stats")
@@ -234,35 +236,39 @@ def run(args):
 
     if args.stats_cmd == "empty":
         from ccandle.analysis.stats_empty import find_blank_pages, find_stubs, find_wordless_pages, LANDING_PAGE_TYPES
-        # TODO: filter out pages that have children / child macros
         explanations = {
             "blanks": "zero content, zero words — safe to directly delete",
             "wordless": "zero words, but with image/diagram/codeblock — extract asset and roll up into another page (maybe its parent?)",
-            "stubs": "some words, but don't deserve to stand on its own as a page — roll up into another page (maybe its parent?) and edit to fit",
+            "stubs": "some words, but don't deserve to stand on their own as a page — roll up into another page (maybe its parent?) and edit to fit",
         }
         COLUMNS = [
             {"key": "id", "label": "PAGE ID", "width": 11},
-            {"key": "space_id", "label": "SPACE ID", "width": 10},
+            {"key": "space_shid", "label": "SPACE", "width": 10},
             {"key": "word_count", "label": "# WORDS", "width": 7},
-            {"key": "landing_page_status", "label": "LANDING PAGE?", "width": 15},
+            {"key": "last_modified", "label": "LAST MODIFIED", "width": 13},
+            {"key": "landing_page_status", "label": "STRUCTURAL VAL?", "width": 15},
             {"key": "title", "label": "TITLE"},
         ]
         results = []
         if args.empty_cmd == "blanks":
-            results = find_blank_pages(args.space_id, args.db_path)
+            results = find_blank_pages(space_id=args.space_id, path_to_db=args.db_path)
         elif args.empty_cmd == "wordless":
-            results = find_wordless_pages(args.space_id, args.db_path)
+            results = find_wordless_pages(space_id=args.space_id, path_to_db=args.db_path)
         elif args.empty_cmd == "stubs":
-            results = find_stubs(args.space_id, args.db_path)
+            results = find_stubs(space_id=args.space_id, path_to_db=args.db_path)
 
+        if args.no_structural_value:
+            results = [res for res in results if res['landing_page_status'] == '-']
+        if args.min_age != 0:
+            results = [res for res in results if _stale_enough(res['last_modified'], args.min_age)]
 
         if args.ids_only:
             print([res['id'] for res in results[:args.limit]])
         else:
-            print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages are {explanations[args.empty_cmd]}{RESET}\n")
+            print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
             print(f"{DIM}Legend of 'landing page' statuses:{RESET}")
             for label, desc in LANDING_PAGE_TYPES.items():
-                print(f"   {label:<18}{DIM} : {desc}{RESET}")
+                print(f"   {label:<17}{DIM} :  {desc}{RESET}")
             print()
 
             render_table(results[:args.limit], COLUMNS)
@@ -278,5 +284,9 @@ def run(args):
     return 1
 
 def _print_total_and_limit_info(total, limit):
-    print(f"{DIM}Showing ({RESET}{BOLD}{limit} / {total}{RESET}{DIM}) results.\n"
+    print(f"{DIM}Showing ({RESET}{BOLD}{min(limit, total)} / {total}{RESET}{DIM}) results.\n"
           f"Use {RESET}{BLUE}--limit L{RESET}{DIM} to set how many results max to display{RESET}")
+
+def _stale_enough(date_str, min_age_in_days):
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    return datetime.utcnow() - dt >= timedelta(days=min_age_in_days)
