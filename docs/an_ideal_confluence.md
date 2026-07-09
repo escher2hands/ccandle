@@ -27,7 +27,7 @@ Wikipedia uses *categories*, but in Confluence the closest analogue I've found i
 of *labels*. With ccandle, you can use a finely-tuned search via sql query, then bulk edit 
 labels. 
 
-## Wikipedia-style navboxes make guiding readers guide users along a topic
+## Wikipedia-style navboxes guide readers along a topic
 <img src="docs/images/wikipedia_navboxes_and_categories.png" width="500" alt="Wikipedia leverages sets of curated links to guide readers through a topic">
 
 Wikipedia has over 7 million articles on its English encyclopedia. Nowhere will you find a 
