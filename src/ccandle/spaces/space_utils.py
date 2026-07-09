@@ -179,3 +179,7 @@ def resolve_space_fuzzy(input_space) -> dict:
                      f"{RESET}{RED}" + "-" * WIDTH_NICE +
                      f"{RESET}")
 
+def display_friendly_space_info(space_id, color=False):
+    if color:
+        return f"{RESET}{BLUE}{get_space_attribute(space_id, 'id', 'alias')} {RESET}{DIM}({space_id}){RESET}"
+    return f"{get_space_attribute(space_id, 'id', 'alias')} ({space_id})"
