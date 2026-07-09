@@ -12,7 +12,7 @@ Instead of outlining content goals, we'll outline here *structural* goals for an
 Confluence.  
 
 ## Breaking out of single parent hierarchy makes navigation more intuitive
-<img src="docs/images/page_network_topology.png" width="700" alt="Two approaches to Confluence page graphs">
+<img src="images/page_network_topology.png" width="700" alt="Two approaches to Confluence page graphs">
 
 Typical Confluence instances rely on a single parent hierarchy of pages, but knowledge 
 doesn't work like that. Yes, we can force anything into such a graph using the Dewey-Decimal 
@@ -21,14 +21,14 @@ overlapping categories. For example, the RS-25 rocket shuttle engines on Wikiped
 the categories of 'space shuttle program,' 'rocket engines,' 'space launch system', 'rocket 
 engines using the staged combustion cycle,' and still others.  
 
-<img src="docs/images/overlapping_categories.png" width="500" alt="Overlapping categories more closely matches our brain's way of classifying knowledge">
+<img src="images/overlapping_categories.png" width="500" alt="Overlapping categories more closely matches our brain's way of classifying knowledge">
 
 Wikipedia uses *categories*, but in Confluence the closest analogue I've found is the use 
 of *labels*. With ccandle, you can use a finely-tuned search via sql query, then bulk edit 
 labels. 
 
 ## Wikipedia-style navboxes guide readers along a topic
-<img src="docs/images/wikipedia_navboxes_and_categories.png" width="500" alt="Wikipedia leverages sets of curated links to guide readers through a topic">
+<img src="images/wikipedia_navboxes_and_categories.png" width="500" alt="Wikipedia leverages sets of curated links to guide readers through a topic">
 
 Wikipedia has over 7 million articles on its English encyclopedia. Nowhere will you find a 
 Confluence-style page tree. One structural feature Wikipedia leverages to improve self-
@@ -40,7 +40,7 @@ Our approach to recreate this in Confluence is with the use of an *excerpt*
 (reusable across pages) having a *filter by label* widget inside. This excerpt can then be 
 'included' into other pages via an *excerpt-include* widget. 
 
-<img src="docs/images/navboxes_in_confluence.png" width="500" alt="an example showing how to create a navbox in Confluence.">
+<img src="images/navboxes_in_confluence.png" width="500" alt="an example showing how to create a navbox in Confluence.">
 
 To help you get started leveraging navboxes in your documentation, ccandle provides a 
 bulk workflow for clearing and inserting navbox excerpts from a given page, along with 

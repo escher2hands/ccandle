@@ -2,7 +2,7 @@
 
 ## Measure Confluence quality with a single command
 
-<img src="docs/images/overview_sample.jpg" width="500" alt="Overview">
+<img src="images/overview_sample.jpg" width="500" alt="Overview">
 
 Run one command: `ccandle overview`, out pops data.
 
