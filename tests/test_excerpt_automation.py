@@ -10,7 +10,7 @@ Focus (per requirements):
 """
 import pytest
 from unittest.mock import patch
-import ccandle.pages.excerpt_bulk_actions as em  # <-- adjust to actual module name/path
+import ccandle.excerpts.excerpt_bulk_actions as em  # <-- adjust to actual module name/path
 from tests.test_fixtures_excerpt_pages import *
 
 TARGET_PID = "TARGET1"

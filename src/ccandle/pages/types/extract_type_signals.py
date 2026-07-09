@@ -1,13 +1,17 @@
 # extract page characteristic signals so we can distinguish what
 # kind of page this smells like
-
 from bs4 import BeautifulSoup
-import re
 from copy import copy
 from ccandle.config.confluence_auth import load_conf_url, fetch_conf_details
 from ccandle.pages.evaluation.page_scoring_defs import LEAD_PARA_MIN_WORDS, LEAD_PARA_MAX_WORDS, LEAD_PARA_MIN_LINKS
 from ccandle.pages.types.type_keyword_defs import TITLE_KEYWORD_LISTS, HEADERS_KEYWORD_LISTS, BODY_KEYWORD_LISTS
 from ccandle.pages.parsing.paragraph_parser import extract_prose_paragraphs, extract_lead_paragraph_from_soup
+import re
+from collections import Counter
+from wordfreq import zipf_frequency
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+WORD_RE = re.compile(r"[A-Za-z][A-Za-z\-_/0-9]*")
 
 JIRA_URL = load_conf_url()+'browse/'
 LINK_PREFIX = r'<a href="'
@@ -228,12 +232,6 @@ def digit_to_letter_ratio_from_text(plain_text):
     return letter_count / (digit_count + 1)
 
 # ——— LEXICOGRAPHIC SIGNALS —————————————————————————————————
-import re
-from collections import Counter
-from wordfreq import zipf_frequency
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-
-WORD_RE = re.compile(r"[A-Za-z][A-Za-z\-_/0-9]*")
 
 def word_not_in_dictionary(word: str) -> bool:
     z = zipf_frequency(word, "en")
