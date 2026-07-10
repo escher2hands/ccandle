@@ -46,14 +46,14 @@ def register(subparsers):
     sub_duplicates = stats_sub.add_parser("duplicates", help="Find likely duplicate pages")
     _add_common_args(sub_duplicates)
     sub_duplicates.add_argument("--fuzziness", type=float, default=1.0,
-                                help="Finetune the threshold for considering pages as duplicates. E.g. 1.0 is default, 1.1 is less precise,...")
+                                                        help="Finetune the threshold for considering pages as duplicates. E.g. 1.0 is default, 1.1 is less precise,...")
 
-    sub_empty = stats_sub.add_parser("empty", help="Find pages in degrees of emptiness, to identify pages to delete or clean up")
+    sub_empty = stats_sub.add_parser("empty",           help="Find pages in degrees of emptiness, to identify pages to delete or clean up")
     empty_sub = sub_empty.add_subparsers(dest="empty_cmd")
 
-    sub_blanks = empty_sub.add_parser("blanks",       help="See truly blank pages. No words, no macros, empty html or at most some blank paragraph tags")
-    sub_wordless = empty_sub.add_parser("wordless", help="See pages with zero word count. Often, these have a diagram or image, but don't deserve to be their own pages")
-    sub_stubs = empty_sub.add_parser("stubs",         help="See stubs: short pages with very few words that would be better off incorporated into other pages")
+    sub_blanks = empty_sub.add_parser("blanks",         help="See truly blank pages. No words, no macros, empty html or at most some blank paragraph tags")
+    sub_wordless = empty_sub.add_parser("wordless",     help="See pages with zero word count. Often, these have a diagram or image, but don't deserve to be their own pages")
+    sub_stubs = empty_sub.add_parser("stubs",           help="See stubs: short pages with very few words that would be better off incorporated into other pages")
 
     empty_subcommands = [sub_blanks, sub_wordless, sub_stubs]
     for sub in empty_subcommands:
@@ -61,8 +61,10 @@ def register(subparsers):
         sub.add_argument("--min-age", type=int, default=0, help="Show only pages not edited in N days")
         sub.add_argument("--no-structural-value", "-nsv", action="store_true", help="Show only pages without a structural purpose, insufficient children, no links; the network and page tree won't notice if you kill it")
 
-    # -- coming soon --
-    sub_children = stats_sub.add_parser("children", help="See page hierarchy / child-count stats")
+    # ——— CHILD STUFF ———————————————————————————————
+    sub_children = stats_sub.add_parser("children",     help="See direct children and also deep descendants of a specified page")
+    sub_children.add_argument("page_id", help="The page to find descendants of")
+    sub_children.add_argument("--max-depth", type=int, help="Show only page descendants up to a specified depth")
     _add_common_args(sub_children)
 
 
@@ -283,7 +285,29 @@ def run(args):
         return 0
 
     if args.stats_cmd == "children":
-        print("stats children: not yet implemented")
+        from ccandle.analysis.stats_cartography import get_descendants
+        from ccandle.db.db_utils import get_field_in_pages
+        from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db
+
+        exit_if_not_all_ids_are_in_db([args.page_id])
+
+        if space_id is None:
+            space_id = get_field_in_pages(args.page_id, 'space_id')
+        results = get_descendants(space_id=space_id, page_id=args.page_id, path_to_db=args.db_path)
+        if args.max_depth is not None:
+            results = [res for res in results if res['depth'] <= args.max_depth]
+
+        if args.ids_only:
+            results = [res['pid'] for res in results]
+            print(results[:args.limit])
+            return 0
+
+        COLUMNS = [
+            {"key": "pid", "label": "PAGE ID", "width": 11},
+            {"key": "depth", "label": "DEPTH", "width": 6},
+            {"key": "title", "label": "TITLE"},
+        ]
+        render_table(results[:args.limit], COLUMNS)
         return 0
 
     return 1
