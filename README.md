@@ -37,7 +37,7 @@ mirror
 - run `ccandle excerpts add SOURCE_PAGE_ID TO_PAGE_ID_LIST` to add navbox excerpts to a bulk 
 set of pages, and `... remove PAGE_ID_LIST` to remove
 
-See more info on the [brief features overview](docs/what_does_candle_do.md).
+See more info on the [brief features overview](docs/what_does_ccandle_do.md).
 Is that it? For now, it is! This is a rebuild I am making on my own time. In the next few 
 weeks, I plan to introduce some stronger features:
 
