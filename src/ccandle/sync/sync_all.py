@@ -1,5 +1,6 @@
 # currently we only scrape pages metadata and html...
 # later we'll add more steps.
+from ccandle.config.config_app import APP_HANDLE
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.presentation.theme import *
 import datetime
@@ -12,6 +13,13 @@ def sync(hard_refresh=False, resume_at=None):
 
     if not resume_at:
         delta_pages = sync_pages(hard_refresh=hard_refresh)               # run our first page scraping from the CC
+        if delta_pages is None or delta_pages == []:
+            print(f"\n" + "-" * WIDTH_NICE + "\n"
+                  f"{BOLD}No changed pages found. There's nothing to process!\n"
+                  f"{RESET}{DIM}You can still choose to process from any step using:\n"
+                  f"   {RESET}{APP_HANDLE} sync --from-step STEP\n"
+                  f"{DIM}and process your entire corpus, even though nothing has changed since the last scrape.{RESET}")
+            return 0
     else:
         print(f"{DIM}Skipping step {RESET}scrape{DIM} pages from Confluence\n"
               f"{DIM}Processing all ids from local database{RESET}")

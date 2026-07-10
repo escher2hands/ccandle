@@ -41,16 +41,31 @@ def interactive_smoke_test():
         BASE_CMD + ["labels", "remove", "smoke-test-label", "2622718175", "2455404674"],
 
 
-        BASE_CMD + ["stats", "authors", "--space-id", f"{test_space_id}", "--limit", f"{10}"],
+        BASE_CMD + ["stats", "authors", "--space", f"{test_space_id}", "--limit", f"{10}"],
 
-        BASE_CMD + ["stats", "links", "popular", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
-        BASE_CMD + ["stats", "links", "orphans", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "popular", "--space", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "orphans", "--space", f"{test_space_id}", "--limit", f"{5}"],
         BASE_CMD + ["stats", "links", "incoming", f"{test_pid}", "--limit", f"{5}"],
-        BASE_CMD + ["stats", "links", "cross-space", "--space-id", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--ids-only"],
+
+        BASE_CMD + ["stats", "empty", "blanks", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "wordless", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "stubs", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "blanks", "--no-structural-value", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "stubs", "--ids-only", "-l", f"{5}"],
 
 
-        BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 15"],
+        BASE_CMD + ["cartographer", "--space", f"{test_space_id}", "-l", f"{5}"],
+
+
+        BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 10"],
         BASE_CMD + ["sql", "columns"],
+
+        BASE_CMD + ["overview"],
+        BASE_CMD + ["overview", "--space", f"{test_space_id}"],
+        BASE_CMD + ["overview", "--corpus"],
     ]
 
     return smoke_test(test_commands=TEST_COMMANDS)
