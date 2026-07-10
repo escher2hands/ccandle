@@ -10,7 +10,8 @@ other useful metadata
 - statistical analyzer of spaces, to give visibility on quality and basic dimensions
 
 A toolset for [Confluence power users](docs/who_is_this_for.md) to coax their Confluence 
-pages to be more [findable and maintainable](docs/an_ideal_confluence.md). 
+pages to be more [findable and maintainable](docs/an_ideal_confluence.md). See also some 
+info on [how it works](docs/how_does_ccandle_work.md). 
 
 ## getting started
 ### installation
@@ -36,12 +37,13 @@ mirror
 - run `ccandle excerpts add SOURCE_PAGE_ID TO_PAGE_ID_LIST` to add navbox excerpts to a bulk 
 set of pages, and `... remove PAGE_ID_LIST` to remove
 
+See more info on the [brief features overview](docs/what_does_candle_do.md).
 Is that it? For now, it is! This is a rebuild I am making on my own time. In the next few 
 weeks, I plan to introduce some stronger features:
 
 ## roadmap
 - Link and label suggestions (via fancy embeddings and statistical methods)
-
-## more to-dos:
-- reach feature parity with my company's internal tool (gap explorer, space content 
-distribution explorer,...)
+- Gap explorer (find topics mentioned across pages, but for which no authoritative page 
+exists)
+- Space content distribution explorer (find parts of the page tree with unexpectedly dense 
+documentation, and filter out those parts with mostly template and blank pages)
