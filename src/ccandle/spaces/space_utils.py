@@ -1,14 +1,11 @@
 # a helper for Confluence space configuration
-
-import json
-import os
-
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.config_network import ENDPOINT_SPACES
 from ccandle.network.network_utils import request_paginated_results, request_one_result
 from ccandle.config.config_db import PATH_SPACES_CONFIG
 from ccandle.presentation.theme import *
-
+import json
+import os
 
 # allows the user to list the spaces they have access to, printing valuable
 # info like the space id, short name, and description
@@ -114,16 +111,20 @@ def get_space_attribute(space_identifier, id_type, attribute):
     return None
 
 # takes in any type of identifier, and still returns the space id
-def get_space_id_fuzzy(input_space):
+def get_space_attribute_fuzzy(input_space, output_field="id", quiet=True):
     data = _load_config_spaces()
     input_str = str(input_space)
+    valid_fields = ["id", "short_id", "alias"]
+    if output_field not in valid_fields:
+        raise ValueError(f"Invalid field name. Use one of: {valid_fields}")
 
-    for id_type in ("id", "short_id", "alias"):
+    for id_type in valid_fields:
         for space_info in data.values():
-            if space_info.get(id_type) == input_str:
-                return space_info.get("id")
+            if space_info.get(id_type).upper() == input_str.upper():
+                return space_info.get(output_field)
 
-    return None
+
+    return "INVALID"
 
 def _load_config_spaces():
     # ensure our config directory exists
@@ -179,7 +180,10 @@ def resolve_space_fuzzy(input_space) -> dict:
                      f"{RESET}{RED}" + "-" * WIDTH_NICE +
                      f"{RESET}")
 
-def display_friendly_space_info(space_id, color=False):
+def display_friendly_space_info(space_id, color=False, long=False):
+    alias_str = get_space_attribute(space_id, 'id', 'alias')
+    id_str = str(space_id)
+    shid_str = ", " + get_space_attribute(space_id, 'id', 'short_id') if long else ""
     if color:
-        return f"{RESET}{BLUE}{get_space_attribute(space_id, 'id', 'alias')} {RESET}{DIM}({space_id}){RESET}"
-    return f"{get_space_attribute(space_id, 'id', 'alias')} ({space_id})"
+        return f"{RESET}{BLUE}{alias_str} {RESET}{DIM}({space_id}{shid_str}){RESET}"
+    return f"{alias_str} ({id_str}{shid_str})"

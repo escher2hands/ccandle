@@ -7,7 +7,7 @@ from ccandle.config.config_types import TYPE_ADMIN_FILTER, TYPE_LIST
 from ccandle.pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
 from ccandle.pages.types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.presentation.theme import *
-from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute
+from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute, display_friendly_space_info
 import sqlite3
 from dataclasses import dataclass
 
@@ -88,15 +88,10 @@ def present_all_space_overviews(quiet=False, path_to_db=PATH_DB):
         present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db)
 
 def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB):
-    if not space_id:
-        space_alias = "ALL CONFIGURED SPACES"
-        space_shid = ""
-    else:
-        space_alias = get_space_attribute(space_id, 'id', 'alias')
-        space_shid = get_space_attribute(space_id, 'id', 'short_id')
+    space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
 
     print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
-    print(f"{BOLD}OVERVIEW FOR SPACE {BLUE}{space_alias}{RESET} {DIM}({space_id}, {space_shid}){RESET}:")
+    print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
     print()
 
     sdata = gather_relevant_space_data(space_id, path_to_db)

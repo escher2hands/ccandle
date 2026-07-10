@@ -1,9 +1,9 @@
-from ccandle.analysis.stats_excerpts import deserialize_excerpt
-from ccandle.db.db_query_utils import query_field_multi_in_pages
-from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db
+
 from ccandle.presentation.theme import *
 from ccandle.config.config_db import PATH_DB
 from ccandle.config.config_app import FRIENDLY_APP_NAME
+from ccandle.analysis.stats_excerpts import deserialize_excerpt
+from ccandle.db.db_query_utils import query_field_multi_in_pages
 import json
 
 def register(subparsers):
@@ -14,7 +14,7 @@ def register(subparsers):
     sub_list = excerpts_sub.add_parser("list", help="List all excerpts in your corpus")
     sub_list.add_argument("--sources-only", "-s", action="store_true", help="Show only sources")
     sub_list.add_argument("--navboxes-only", "-n", action="store_true", help="Show only navboxes")
-    sub_list.add_argument("--space-id", help="Limit search to only within a particular space")
+    sub_list.add_argument("--space", help="Limit search to only within a particular space")
     sub_list.add_argument("--limit", "-l", type=int, default=50, help="Limit to top N results")
     sub_list.add_argument("--db-path", default=PATH_DB, help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
     sub_list.add_argument("--ids-only", action="store_true", help="Print only IDs, one line, comma-separated")
@@ -30,11 +30,13 @@ def register(subparsers):
 
 
 def run(args):
-    from ccandle.excerpts.excerpt_bulk_actions import remove_excerpts_from_pages_in_bulk, insert_excerpts_to_pages_in_bulk, extract_excerpt_data
+    from ccandle.excerpts.excerpt_bulk_actions import (remove_excerpts_from_pages_in_bulk,
+                                                       insert_excerpts_to_pages_in_bulk, extract_excerpt_data)
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.formatting_utils import parse_pids_from_terminal
     from ccandle.presentation.page_previews import render_table
-    from ccandle.presentation.user_communication import get_confirmation_to_continue
+    from ccandle.presentation.user_communication import (get_confirmation_to_continue, exit_if_not_all_ids_are_in_db,
+                                                         print_total_and_limit_info)
 
     if not check_network_connection():
         return 1
@@ -86,8 +88,11 @@ def run(args):
         from ccandle.db.db_query_utils import query_db_results
         from ccandle.analysis.stats_excerpts import deserialize_excerpt
         from ccandle.spaces.space_utils import get_space_attribute
+        from ccandle.presentation.user_communication import clean_user_space_id_or_exit
         import json
-        space_query = f"space_id={args.space_id}" if args.space_id else "1=1"
+
+        space_id = clean_user_space_id_or_exit(args.space)
+        space_query = f"space_id={space_id}" if space_id else "1=1"
         excerpts_filter = "excerpts is not null"
         select_query = "id, space_id, title, excerpts"
         path_db = args.db_path if args.db_path else PATH_DB
@@ -123,8 +128,9 @@ def run(args):
             {"key": "title", "label": "PAGE TITLE"},
         ]
         render_table(excerpt_data[:args.limit], COLUMNS)
-        print(f"\n{DIM}There are {RESET}{len(excerpt_data)}{DIM} excerpts in total. \n"
-              f"Use {RESET}{BLUE} --limit L{RESET}{DIM} to set how many results to display.")
+        print(f"\n{DIM}There are {RESET}{len(excerpt_data)}{DIM} excerpts in total.")
+        print_total_and_limit_info(len(excerpt_data), args.limit)
+        return 0
 
     return 1
 
