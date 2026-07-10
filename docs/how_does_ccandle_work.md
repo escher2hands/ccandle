@@ -34,7 +34,7 @@ The full schema of what's stored in the pages table can be found by running `cca
 We frontload most heavy processing work into the processing pipeline, part of `sync`. This means 
 most stats, clustering, etc. are then just lookups in sql. This also means you as a power user 
 have fine grained information about pages, and can get very targeted lists of page ids to then 
-pass into actions like [bulk label editing or navbox management](what_does_candle_do.md#taming_structure_by_managing_labels_and_navboxes_in_bulk).
+pass into actions like [bulk label editing or navbox management](what_does_ccandle_do.md#taming-structure-by-managing-labels-and-navboxes-in-bulk).
 
 And if you want to pump documentation into an LLM or RAG pipeline, you already have a local DB of 
 pages...which also are already tagged by type. You can filter out administrative pages (meeting 
