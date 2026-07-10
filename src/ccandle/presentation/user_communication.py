@@ -47,3 +47,7 @@ def clean_user_space_id_or_exit(iffy_space_id):
               f"{RED}{DIM}to see a list of Confluence spaces you are tracking.{RESET}")
         exit(1)
     return space_id
+
+def print_total_and_limit_info(total, limit):
+    print(f"{DIM}Showing ({RESET}{BOLD}{min(limit, total)} / {total}{RESET}{DIM}) results.\n"
+          f"Use {RESET}{BLUE}--limit L{RESET}{DIM} to set how many results max to display{RESET}")
