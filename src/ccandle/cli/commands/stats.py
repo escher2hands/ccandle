@@ -9,14 +9,15 @@
 # -   ...
 from ccandle.config.config_app import FRIENDLY_APP_NAME
 from ccandle.config.config_db import PATH_DB
-from ccandle.spaces.space_utils import get_space_attribute, display_friendly_space_info
+from ccandle.spaces.space_utils import display_friendly_space_info
 from ccandle.presentation.theme import *
+from ccandle.presentation.user_communication import clean_user_space_id_or_exit
 from datetime import datetime, timedelta
 
 
 def _add_common_args(sub):
     # args shared by every stats subcommand.
-    sub.add_argument("--space-id", help="Limit search to only within a particular space")
+    sub.add_argument("--space", help="Limit search to only within a particular space")
     sub.add_argument("--limit", "-l", type=int, default=100, help="Limit to top L results")
     sub.add_argument("--db-path", default=PATH_DB, help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
     sub.add_argument("--ids-only", action="store_true", help="Print only IDs, one line, comma-separated")
@@ -72,6 +73,9 @@ def run(args):
     from collections import Counter
     from ccandle.db.db_utils import get_all_ids_in_pages
     from ccandle.db.db_query_utils import query_field_multi_in_pages
+    from ccandle.spaces.space_utils import get_space_attribute
+
+    space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
 
     if args.stats_cmd == "authors":
         from ccandle.analysis.stats_authors import find_top_authors_across_pages
@@ -80,7 +84,7 @@ def run(args):
             {"key": "edits", "label": "EDITS", "width": 8},
             {"key": "name", "label": "AUTHOR", "width": 32},
         ]
-        results = find_top_authors_across_pages(space_id=args.space_id, path_to_db=args.db_path, limit=args.limit)
+        results = find_top_authors_across_pages(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
         if args.ids_only:   print([res['name'] for res in results[:args.limit]])
         else:
             render_table(results, COLUMNS)
@@ -90,16 +94,17 @@ def run(args):
         from ccandle.analysis.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
                                                           find_cross_space_links)
         if args.links_cmd == "orphans":
-            print("Finding orphaned pages...")
+            if not args.ids_only:
+                print(f"{DIM}Finding orphaned pages...{RESET}")
 
-            if args.space_id is not None:
-                print(f"Filtering by your chosen space_id = {args.space_id}")
-            else:
-                print("Using all configured spaces, as you didn't specify a space to search within. "
-                      "\nUse the flag --space-id SPACEID to specify a space next time.")
+                if space_id is not None:
+                    print(f"{DIM}Filtering by your chosen space: {RESET}{display_friendly_space_info(space_id, color=True)}")
+                else:
+                    print("Using all configured spaces, as you didn't specify a space to search within. "
+                          "\nUse the flag --space-id SPACEID to specify a space next time.")
 
-            results = find_orphaned_pages(space_id=args.space_id, path_to_db=args.db_path)
-            print(f"\nTotal orphaned pages: {results['total']}\n")
+            results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
+            if not args.ids_only: print(f"\nTotal orphaned pages: {results['total']}\n")
 
             orphan_rows = results['detailed_rows']
 
@@ -157,7 +162,7 @@ def run(args):
 
         # python cli.py stats links popular
         if args.links_cmd == "popular":
-            results = find_max_linked_to_stats(space_id=args.space_id, path_to_db=args.db_path, limit=args.limit)
+            results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
             if args.ids_only:
                 print(", ".join(r["pid"] for r in results[:args.limit]))
@@ -179,12 +184,12 @@ def run(args):
             return 0
 
         if args.links_cmd == "cross-space":
-            if args.space_id is None:
+            if space_id is None:
                 print(f"{RED}You must specify a space ID, to see which spaces it links to.{RESET}")
                 return 1                        # exit immediately
-            if not args.ids_only: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(args.space_id, color=True)}")
+            if not args.ids_only: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
             self_link_count, cross_link_count, results = find_cross_space_links(
-                input_space=args.space_id, path_to_db=args.db_path)
+                input_space=space_id, path_to_db=args.db_path)
             if args.ids_only:
                 print(", ".join(r["space_alias"] for r in results[:args.limit]))
                 return 0                        # exit immediately
@@ -207,11 +212,11 @@ def run(args):
     if args.stats_cmd == "duplicates":
         from ccandle.analysis.stats_duplicates import fetch_unique_duplicate_groups, scan_for_duplicates_in_corpus
         if args.fuzziness != 1.0:
-            print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
+            if not args.ids_only: print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
                   f"This may take a while, especially if you set a high fuzziness score...")
             dup_groups = scan_for_duplicates_in_corpus(args.fuzziness)
         else:
-            dup_groups = fetch_unique_duplicate_groups(space_id=args.space_id)
+            dup_groups = fetch_unique_duplicate_groups(space_id=space_id)
         if args.ids_only:
             page_ids = [page_id
                 for group in dup_groups
@@ -225,8 +230,8 @@ def run(args):
             print(f"{BOLD}Duplicate group {RED}{group_num}{RESET} {DIM}({len(dup_group)} members):{RESET}")
             for page_id in dup_group:
                 title, space_id = query_field_multi_in_pages(page_id, "title", "space_id")
-                space_alias = get_space_attribute(space_id, "id", "alias")
-                print(f"{page_id:<12}  {DIM}|{RESET}  {space_alias:<20}  {DIM}|{RESET}  {title}")
+                space_string = display_friendly_space_info(space_id, color=False)
+                print(f"{page_id:<12}  {DIM}|{RESET}  {space_string:<20}  {DIM}|{RESET}  {title}")
             print()             # add a new line for visual break from next group
             group_num += 1
 
@@ -251,11 +256,11 @@ def run(args):
         ]
         results = []
         if args.empty_cmd == "blanks":
-            results = find_blank_pages(space_id=args.space_id, path_to_db=args.db_path)
+            results = find_blank_pages(space_id=space_id, path_to_db=args.db_path)
         elif args.empty_cmd == "wordless":
-            results = find_wordless_pages(space_id=args.space_id, path_to_db=args.db_path)
+            results = find_wordless_pages(space_id=space_id, path_to_db=args.db_path)
         elif args.empty_cmd == "stubs":
-            results = find_stubs(space_id=args.space_id, path_to_db=args.db_path)
+            results = find_stubs(space_id=space_id, path_to_db=args.db_path)
 
         if args.no_structural_value:
             results = [res for res in results if res['landing_page_status'] == '-']
@@ -272,7 +277,7 @@ def run(args):
             print()
 
             render_table(results[:args.limit], COLUMNS)
-            space_desc = f" across space {args.space_id}" if args.space_id else ""
+            space_desc = f" across space {space_id}" if space_id else ""
             print(f"\n{DIM}There are {RESET}{BOLD}{len(results)}{RESET}{DIM} empty ({RESET}{BLUE}{args.empty_cmd.upper()}{RESET}{DIM}) pages in total{space_desc}.{RESET}")
             _print_total_and_limit_info(len(results), args.limit)
         return 0
