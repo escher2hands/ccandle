@@ -1,6 +1,8 @@
 from ccandle.presentation.theme import *
 from ccandle.db.db_utils import ids_multi_exist_in_table
 from ccandle.config.config_app import APP_HANDLE
+from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+
 
 def get_confirmation_to_continue(msg=None, acceptable_confirmations=None):
     msg = msg or "Type yes or no. Y/n"
@@ -32,3 +34,16 @@ def exit_if_not_all_ids_are_in_db(target_pids, source_pid=None):
                   f"{RED}{DIM}to fetch the latest pages in Confluence, or double check \n"
                   f"that the pages you listed belong to Confluence spaces you track.")
         exit(1)
+
+def clean_user_space_id_or_exit(iffy_space_id):
+    space_id = get_space_attribute_fuzzy(iffy_space_id, 'id',
+                                         quiet=False) if iffy_space_id else None  # clean the input data
+    if space_id == "INVALID":
+        print(f"{RED}" + "-" * 80)
+        print(f"Not a valid space.\n"
+              f"{DIM}Could not find a matching space for {RESET}{BLUE}{iffy_space_id}{RESET}{DIM}{RED} in your local spaces list.\n"
+              f"try:\n"
+              f"   {RESET}{APP_HANDLE} spaces configured\n"
+              f"{RED}{DIM}to see a list of Confluence spaces you are tracking.{RESET}")
+        exit(1)
+    return space_id
