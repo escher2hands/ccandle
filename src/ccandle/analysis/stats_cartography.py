@@ -128,3 +128,31 @@ def interpret_depth(depth):
     else:               interpretation = "deep"
     return interpretation + " " * (10-len(interpretation)) + f" ({depth})"
 
+def get_descendants(space_id, page_id, path_to_db=PATH_DB):
+    rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
+    pid_to_child_list_map = {pid: json.loads(child_list_json) for pid, child_list_json in rows}
+
+    parent_map = build_parent_map(pid_to_child_list_map)
+    depth_map = compute_depths(pid_to_child_list_map, parent_map)
+    _, descendant_map = build_all_subtree_metrics(pid_to_child_list_map)
+
+    desc_ids = descendant_map.get(page_id, set())
+    if not desc_ids:
+        return []
+
+    base_depth = depth_map.get(page_id, 0)
+
+    with sqlite3.connect(path_to_db) as conn:
+        trunk_metrics = get_trunk_metrics(desc_ids, conn)
+
+    return sorted(
+        [
+            {
+                "pid": pid,
+                "title": trunk_metrics.get(pid, {}).get("title"),
+                "depth": depth_map.get(pid, base_depth) - base_depth,
+            }
+            for pid in desc_ids
+        ],
+        key=lambda x: (x["depth"], x["title"] or ""),
+    )
