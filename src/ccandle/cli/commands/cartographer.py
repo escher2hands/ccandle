@@ -1,19 +1,22 @@
-from ccandle.config.config_app import APP_HANDLE
-from ccandle.presentation.page_previews import render_table
 from ccandle.presentation.theme import *
-from ccandle.spaces.space_utils import get_space_attribute
 
 
 def register(subparsers):
     p = subparsers.add_parser("cartographer", help="Discover the layout and distribution of content in your Confluence spaces")
-    p.add_argument("--space-id", help="Narrow overview to just one space")
+    p.add_argument("--space", help="Narrow overview to just one space")
     p.add_argument("--quiet", "-q", action="store_true", default=False,
                         help="Mute verbose explanations")
     p.add_argument("--limit", "-l", type=int, default=25, help="Limit to top N results")
 
 def run(args):
     from ccandle.analysis.stats_cartography import make_maps
-    if args.space_id is None:
+    from ccandle.presentation.user_communication import clean_user_space_id_or_exit
+    from ccandle.config.config_app import APP_HANDLE
+    from ccandle.presentation.page_previews import render_table
+    from ccandle.spaces.space_utils import display_friendly_space_info
+
+    space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
+    if space_id is None:
         print(f"{RED}You must specify a space id.\n"
               f"{DIM}To map out structure and content distribution of a space, \n"
               f"specify the space first. Use a space's numerical id.\n\n"
@@ -30,9 +33,8 @@ def run(args):
         {"key": "most_common_type", "label": "COMMON DESC. TYPES", "width": 20},
         {"key": "title", "label": "TITLE"},
     ]
-    space_alias = get_space_attribute(args.space_id, 'id', 'alias')
-    print(f"\nFinding interesting entry points for space {BLUE}{space_alias}{RESET} {DIM}({args.space_id}){RESET}:\n")
-    cartography_results = make_maps(args.space_id, limit=args.limit)
+    print(f"\n{DIM}Finding interesting entry points for space {RESET}{display_friendly_space_info(space_id, color=True)}:\n")
+    cartography_results = make_maps(space_id, limit=args.limit)
 
     render_table(cartography_results, COLUMNS)
     return 0
