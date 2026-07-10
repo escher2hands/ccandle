@@ -48,6 +48,8 @@ def run(args):
         pids = parse_pids_from_terminal(args.page_ids)
         exit_if_not_all_ids_are_in_db(pids)
         label = check_and_clean_label(args.label)
+        if label is None:
+            return 0        # need to exit if there is no valid label to add
         results = get_pages_preview(pids, "labels", "space_id", "title")
         print(
             f"Are you sure you'd like to {operation} the label {BOLD}{label}{RESET} {preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
