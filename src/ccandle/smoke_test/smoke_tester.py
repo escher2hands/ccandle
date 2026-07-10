@@ -56,6 +56,8 @@ def interactive_smoke_test():
         BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "stubs", "--ids-only", "-l", f"{5}"],
 
+        BASE_CMD + ["stats", "children", f"{test_pid}", "--ids-only", "-l", f"{5}"],
+
 
         BASE_CMD + ["cartographer", "--space", f"{test_space_id}", "-l", f"{5}"],
 
