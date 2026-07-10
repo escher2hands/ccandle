@@ -38,8 +38,6 @@ mirror
 set of pages, and `... remove PAGE_ID_LIST` to remove
 
 See more info on the [brief features overview](docs/what_does_ccandle_do.md).
-Is that it? For now, it is! This is a rebuild I am making on my own time. In the next few 
-weeks, I plan to introduce some stronger features:
 
 ## roadmap
 - Link and label suggestions (via fancy embeddings and statistical methods)
