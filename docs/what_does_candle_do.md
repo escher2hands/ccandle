@@ -29,7 +29,7 @@ difficulties, ccandle focuses on *form* and not content.
 
 ## Taming structure by managing labels and navboxes in bulk
 While outdated information and junk pages are a menace, often spaces are most in need 
-of a more helpful structure. [Navboxes](docs/an_ideal_confluence.md#Wikipedia-style_navboxes_guide_readers_along_a_topic) 
+of a more helpful structure. [Navboxes](an_ideal_confluence.md#Wikipedia-style_navboxes_guide_readers_along_a_topic) 
 are one structural element we can add to Confluence pages to give more structure; to 
 *guide* readers to the next page in a topic. Creating trails requires work--but with 
 ccandle, that work is faster:
