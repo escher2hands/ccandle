@@ -6,7 +6,7 @@
 
 from ccandle.config.config_app import FRIENDLY_APP_NAME
 from ccandle.config.config_db import PATH_DB
-from ccandle.spaces.space_utils import get_space_attribute, get_space_id_fuzzy
+from ccandle.spaces.space_utils import get_space_attribute, get_space_attribute_fuzzy
 from ccandle.db.db_utils import get_all_ids_in_pages, id_exists_in_table
 from ccandle.db.db_query_utils import query_field_multi_in_pages, query_db_results
 from collections import Counter
@@ -120,7 +120,7 @@ def _extract_space_names(links_list: str) -> list[str]:
 def find_cross_space_links(input_space, path_to_db=PATH_DB):
     # Resolve input space to canonical dict
     input_space = input_space.strip().upper()
-    space_id = get_space_id_fuzzy(input_space)
+    space_id = get_space_attribute_fuzzy(input_space)
     if space_id is None:
         raise ValueError(f"Unknown space identifier: {input_space}")
 
