@@ -9,9 +9,7 @@
 # -   ...
 from ccandle.config.config_app import FRIENDLY_APP_NAME
 from ccandle.config.config_db import PATH_DB
-from ccandle.spaces.space_utils import display_friendly_space_info
 from ccandle.presentation.theme import *
-from ccandle.presentation.user_communication import clean_user_space_id_or_exit
 from datetime import datetime, timedelta
 
 
@@ -74,6 +72,8 @@ def run(args):
     from ccandle.db.db_utils import get_all_ids_in_pages
     from ccandle.db.db_query_utils import query_field_multi_in_pages
     from ccandle.spaces.space_utils import get_space_attribute
+    from ccandle.spaces.space_utils import display_friendly_space_info
+    from ccandle.presentation.user_communication import clean_user_space_id_or_exit, print_total_and_limit_info
 
     space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
 
@@ -279,7 +279,7 @@ def run(args):
             render_table(results[:args.limit], COLUMNS)
             space_desc = f" across space {space_id}" if space_id else ""
             print(f"\n{DIM}There are {RESET}{BOLD}{len(results)}{RESET}{DIM} empty ({RESET}{BLUE}{args.empty_cmd.upper()}{RESET}{DIM}) pages in total{space_desc}.{RESET}")
-            _print_total_and_limit_info(len(results), args.limit)
+            print_total_and_limit_info(len(results), args.limit)
         return 0
 
     if args.stats_cmd == "children":
@@ -287,10 +287,6 @@ def run(args):
         return 0
 
     return 1
-
-def _print_total_and_limit_info(total, limit):
-    print(f"{DIM}Showing ({RESET}{BOLD}{min(limit, total)} / {total}{RESET}{DIM}) results.\n"
-          f"Use {RESET}{BLUE}--limit L{RESET}{DIM} to set how many results max to display{RESET}")
 
 def _stale_enough(date_str, min_age_in_days):
     dt = datetime.strptime(date_str, "%Y-%m-%d")
