@@ -22,7 +22,7 @@ def _add_common_args(sub):
 
 
 def register(subparsers):
-    p = subparsers.add_parser("stats", help="Learn statistics from your Confluence pages")
+    p = subparsers.add_parser("stats", help="Learn deeper statistics from your Confluence pages")
     stats_sub = p.add_subparsers(dest="stats_cmd", required=True)
 
     sub_authors = stats_sub.add_parser("authors", help="See top authors for your corpus")
