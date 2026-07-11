@@ -1,7 +1,15 @@
+from ccandle.config.config_db import TABLE_PAGES, PATH_DB
+import sqlite3
 
 def register(subparsers):
     p = subparsers.add_parser("labels", help="Manage labels in bulk: add or delete labels from a list of page IDs")
     labels_sub = p.add_subparsers(dest="labels_cmd")
+    # Default to "status" if no subcommand is given.
+    p.set_defaults(labels_cmd="list", space=None, limit=50,)
+
+    list_sub = labels_sub.add_parser("list", help="List the labels used across your tracked Confluence spaces")
+    list_sub.add_argument("--space", help="Narrow results to a specific space")
+    list_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
 
     for name, help_text in [
         ("add",        "Add specified label to the list of page IDs"),
@@ -11,7 +19,7 @@ def register(subparsers):
         sub.add_argument("label", help="Your chosen label")
         sub.add_argument("page_ids", nargs="+", help="List of pages by id to apply the label change to")
 
-    sub_sync = labels_sub.add_parser("sync", help="Sync labels with Confluence")
+    sync_sub = labels_sub.add_parser("sync", help="Sync labels with Confluence")
 
 
 def run(args):
@@ -72,4 +80,28 @@ def run(args):
     elif args.labels_cmd == "sync":
         scrape_labels()
         return 0
+    elif args.labels_cmd == "list":
+        from ccandle.db.db_query_utils import query_db_results
+        from collections import Counter
+        from ccandle.presentation.user_communication import print_total_and_limit_info
+        from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+        import json
+
+        counter = Counter()
+        space_id = get_space_attribute_fuzzy(args.space)
+        space_filter = f"space_id='{space_id}'" if args.space else "1=1"
+        from_pages = query_db_results(select_query='labels', where_clause=space_filter)
+        for (labels_json,) in from_pages:
+            counter.update(json.loads(labels_json)) if labels_json else 0
+
+        results = [{"label": label, "page_count": count} for label, count in counter.most_common()]
+        COLUMNS = [
+            {"key": "label", "label": "LABEL NAME"},
+            {"key": "page_count", "label": "# PAGES"},
+        ]
+        render_table(results[:args.limit], COLUMNS)
+        print()
+        print_total_and_limit_info(len(counter), args.limit)
+        return 0
     return 1
+
