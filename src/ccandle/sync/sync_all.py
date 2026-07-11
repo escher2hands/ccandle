@@ -7,6 +7,7 @@ import datetime
 
 VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "excerpts",
                "assign_type", "find_duplicates"]
+API_STEPS = ["children", "authors", "labels"]
 
 def sync(hard_refresh=False, resume_at=None):
     pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)

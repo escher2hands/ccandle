@@ -3,7 +3,7 @@ from ccandle.config.config_db import TABLE_PAGES, TABLE_LIST
 from ccandle.presentation.theme import *
 
 def register(subparsers):
-    p = subparsers.add_parser("sql", help="Query your local pages db directly")
+    p = subparsers.add_parser("sql", help="Query your local database directly")
     sql_sub = p.add_subparsers(dest="sql_cmd")
 
     query_p = sql_sub.add_parser("query", help="Run a SQL query against your local pages db")
@@ -20,6 +20,8 @@ def run(args):
 
     if args.sql_cmd == "columns":
         columns = get_column_names(your_table=args.table)
+        if columns == []:
+            print(f"{RED}'{BLUE}{args.table}{RESET}{RED}' is not a valid table.{RESET}")
         for column in columns:
             print(column)
         print(f"\n{DIM}" + "-" * WIDTH_NICE + "\n"
