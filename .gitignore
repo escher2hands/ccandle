@@ -5,3 +5,10 @@
 # user config
 /src/ccandle/config/config_spaces.json
 /confluence_details.json
+
+# generated directories
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+__pycache__/
