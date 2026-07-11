@@ -224,6 +224,11 @@ def check_network_connection():
               f"\n{RESET}")
         return False
 
+def check_credentials_validity():
+    url = f"{CONFLUENCE_BASE_URL}{ENDPOINT_SPACES}"
+    response = SESSION.get(url, timeout=TIMEOUT)
+    return response.status_code == 200
+
 def _print_message_404(response_status_code):
     print(f"{RED}" + "-" * WIDTH_NICE + "\n"
           f"Request error {response_status_code}\n\n"
