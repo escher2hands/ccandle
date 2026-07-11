@@ -111,7 +111,8 @@ def run(args):
     elif args.labels_cmd == "mentions":
         from ccandle.db.db_query_utils import query_db_results
         from ccandle.presentation.user_communication import print_total_and_limit_info
-        from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+        from ccandle.spaces.space_utils import get_space_attribute_fuzzy, get_space_attribute
+        from ccandle.labels.label_bulk_actions import fuzzy_resolve_label_name, get_labels_cache
         import json, sqlite3
 
         space_id = get_space_attribute_fuzzy(args.space)
@@ -120,18 +121,28 @@ def run(args):
         with sqlite3.connect(PATH_DB) as conn:
             cur = conn.cursor()
             cur.execute(
-                f"SELECT id, title FROM {TABLE_PAGES} WHERE labels LIKE ? AND {space_filter}",
-                (f"%{args.label}%",)
+                f"SELECT id, space_id, title FROM {TABLE_PAGES} WHERE labels LIKE ? AND {space_filter}",
+                (f'%"{args.label}"%',)
             )
-            results = [{"id": res[0], "title": res[1]} for res in cur.fetchall()]
+            results = [{"id": res[0], "space_alias": get_space_attribute(res[1], 'id', 'alias'), "title": res[2]} for res in cur.fetchall()]
 
         COLUMNS = [
             {"key": "id", "label": "PAGE ID"},
+            {"key": "space_alias", "label": "SPACE"},
             {"key": "title", "label": "TITLE"},
         ]
         render_table(results[:args.limit], COLUMNS)
         print(f"\n{DIM}There are {RESET}{len(results)}{DIM} pages with the label '{RESET}{BLUE}{args.label}{RESET}{DIM}'.{RESET}")
         print_total_and_limit_info(len(results), args.limit)
+
+        # now handle near misses (fuzzy match) with other labels in the corpus
+        fuzzies = fuzzy_resolve_label_name(args.label, get_labels_cache(), top_k=5)
+        if fuzzies != []:
+            print(f"\n{DIM}" + "-" * WIDTH_NICE + "\n"
+                  f"{DIM}Note that there are similar labels in your corpus:\n{RESET}")
+            for fuzzy in fuzzies:
+                print(f"-   {YELLOW}{fuzzy}{RESET}")
+            print(f"\n{DIM}Perhaps you might like to check these as well.{RESET}")
         return 0
     return 1
 

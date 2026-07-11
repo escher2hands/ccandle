@@ -64,7 +64,7 @@ def fuzzy_resolve_label_name(clean_label, existing_labels: list[str], top_k: int
     scored.sort(key=lambda x: x[1], reverse=True)
 
     # optional threshold: avoids garbage suggestions
-    MIN_SCORE = 70
+    MIN_SCORE = 75
     filtered = [lbl for lbl, s in scored if s >= MIN_SCORE]
 
     return filtered[:top_k]
