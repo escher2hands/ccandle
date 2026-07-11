@@ -1,7 +1,7 @@
 # Spaces: get an overview on which spaces exist, which you've started tracking,
 # and also add / remove spaces from the tracking list.
 from ccandle.config.confluence_auth import fetch_conf_details
-from ccandle.presentation.theme import DIM, RESET
+from ccandle.presentation.theme import *
 
 def register(subparsers):
     p = subparsers.add_parser("spaces", help="Manage your configured Confluence spaces")
@@ -27,6 +27,8 @@ def register(subparsers):
 def run(args):
     from ccandle.spaces.space_utils import list_spaces, add_space, remove_space, list_configured_spaces, print_formatted_space_list
     from ccandle.network.network_utils import check_network_connection
+    from ccandle.config.config_app import APP_HANDLE
+
     if args.space_cmd == "list":
         if not check_network_connection():
             return 1
@@ -37,8 +39,13 @@ def run(args):
         print_formatted_space_list(results)
 
         if args.filter is not None and args.filter != "":
-            print(f"\n{len(results)} result(s) for your filter: {args.filter}.")
-        print(f"\nYou ({DIM}{fetch_conf_details('email')}{RESET}) have access to {access_count} Confluence spaces.")
+            print(f"\n{DIM}There are {RESET}{len(results)} {DIM}result(s) for your filter: {RESET}{BLUE}{args.filter}{RESET}{DIM}.{RESET}")
+        elif args.filter is None:
+            print(f"\n{DIM}Use {RESET}{BLUE}--filter KEYWORD{RESET}{DIM} to narrow down results with a fuzzy search.\n"
+                  f"You can filter for many spaces in one go, like: \n"
+                  f"   {APP_HANDLE} spaces list --filter lamp fire light \n"
+                  f"to get fuzzy matches for any from the list. Save yourself some time!{RESET}")
+        print(f"\n{DIM}You ({RESET}{fetch_conf_details('email')}{DIM}) have access to {RESET}{access_count}{DIM} Confluence spaces.{RESET}")
         return 0
 
     elif args.space_cmd == "add":
