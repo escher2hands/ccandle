@@ -57,6 +57,8 @@ def fuzzy_resolve_label_name(clean_label, existing_labels: list[str], top_k: int
     scored = []
 
     for label in existing_labels:
+        if label == clean_label:
+            continue
         score = fuzz.WRatio(clean_label, label)
         scored.append((label, score))
 
