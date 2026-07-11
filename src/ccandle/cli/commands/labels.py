@@ -1,5 +1,5 @@
 from ccandle.config.config_db import TABLE_PAGES, PATH_DB
-import sqlite3
+from ccandle.presentation.theme import *
 
 def register(subparsers):
     p = subparsers.add_parser("labels", help="Manage labels in bulk: add or delete labels from a list of page IDs")
@@ -10,6 +10,11 @@ def register(subparsers):
     list_sub = labels_sub.add_parser("list", help="List the labels used across your tracked Confluence spaces")
     list_sub.add_argument("--space", help="Narrow results to a specific space")
     list_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
+
+    mentions_sub = labels_sub.add_parser("mentions", help="List pages bearing the label specified")
+    mentions_sub.add_argument("label", help="The label to search pages for")
+    mentions_sub.add_argument("--space", help="Narrow results to a specific space")
+    mentions_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
 
     for name, help_text in [
         ("add",        "Add specified label to the list of page IDs"),
@@ -28,11 +33,7 @@ def run(args):
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.formatting_utils import parse_pids_from_terminal
     from ccandle.presentation.page_previews import get_pages_preview, render_table
-    from ccandle.presentation.theme import BOLD, RED, RESET, DIM
     from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db
-
-    if not check_network_connection():
-        return 1
 
     COLUMNS = [
         {"key": "id", "label": "PAGE ID", "width": 11},
@@ -51,6 +52,9 @@ def run(args):
         "remove": ("remove", "from", delete_label_from_pages),
     }
     if args.labels_cmd in ops:
+        if not check_network_connection():
+            return 1
+
         operation, preposition, fn = ops[args.labels_cmd]
 
         pids = parse_pids_from_terminal(args.page_ids)
@@ -102,6 +106,32 @@ def run(args):
         render_table(results[:args.limit], COLUMNS)
         print()
         print_total_and_limit_info(len(counter), args.limit)
+        return 0
+
+    elif args.labels_cmd == "mentions":
+        from ccandle.db.db_query_utils import query_db_results
+        from ccandle.presentation.user_communication import print_total_and_limit_info
+        from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+        import json, sqlite3
+
+        space_id = get_space_attribute_fuzzy(args.space)
+        space_filter = f"space_id='{space_id}'" if args.space else "1=1"
+
+        with sqlite3.connect(PATH_DB) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, title FROM {TABLE_PAGES} WHERE labels LIKE ? AND {space_filter}",
+                (f"%{args.label}%",)
+            )
+            results = [{"id": res[0], "title": res[1]} for res in cur.fetchall()]
+
+        COLUMNS = [
+            {"key": "id", "label": "PAGE ID"},
+            {"key": "title", "label": "TITLE"},
+        ]
+        render_table(results[:args.limit], COLUMNS)
+        print(f"\n{DIM}There are {RESET}{len(results)}{DIM} pages with the label '{RESET}{BLUE}{args.label}{RESET}{DIM}'.{RESET}")
+        print_total_and_limit_info(len(results), args.limit)
         return 0
     return 1
 
