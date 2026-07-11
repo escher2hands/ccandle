@@ -20,6 +20,8 @@ def run(args):
 
     if args.sql_cmd == "columns":
         columns = get_column_names(your_table=args.table)
+        if columns == []:
+            print(f"{RED}'{BLUE}{args.table}{RESET}{RED}' is not a valid table.{RESET}")
         for column in columns:
             print(column)
         print(f"\n{DIM}" + "-" * WIDTH_NICE + "\n"
