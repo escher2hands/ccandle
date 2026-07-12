@@ -15,9 +15,12 @@ info on [how it works](docs/how_does_ccandle_work.md).
 
 ## getting started
 ### installation
-- run `pip install -r requirements.txt` and `pip install -e .` to install to your IDE
+- Install uv package manager: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Clone repo: `git clone git@github.com:escher2hands/ccandle.git`, then `cd ccandle`
+- Install dependencies `uv sync`
 - enter values for `ccandle connection` email, url, and token, so you can connect to your 
 Confluence Cloud instance. 
+
 Note: manage API tokens from Atlassian at: https://id.atlassian.com/manage/api-tokens
 
 ### tracking spaces
