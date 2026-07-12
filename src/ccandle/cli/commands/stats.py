@@ -22,15 +22,15 @@ def _add_common_args(sub):
 
 
 def register(subparsers):
-    p = subparsers.add_parser("stats", help="Learn statistics from your Confluence pages")
-    stats_sub = p.add_subparsers(dest="stats_cmd")
+    p = subparsers.add_parser("stats", help="Learn deeper statistics from your Confluence pages")
+    stats_sub = p.add_subparsers(dest="stats_cmd", required=True)
 
     sub_authors = stats_sub.add_parser("authors", help="See top authors for your corpus")
     _add_common_args(sub_authors)
 
     # ——— LINKS STUFF ——————————————————————————————
     sub_links = stats_sub.add_parser("links", help="See info about the link distribution of your corpus")
-    links_sub = sub_links.add_subparsers(dest="links_cmd")
+    links_sub = sub_links.add_subparsers(dest="links_cmd", required=True)
 
     sub_orphans = links_sub.add_parser("orphans", help="Find pages with no incoming links")
     sub_popular = links_sub.add_parser("popular", help="See the most linked-to pages")
@@ -49,7 +49,7 @@ def register(subparsers):
                                                         help="Finetune the threshold for considering pages as duplicates. E.g. 1.0 is default, 1.1 is less precise,...")
 
     sub_empty = stats_sub.add_parser("empty",           help="Find pages in degrees of emptiness, to identify pages to delete or clean up")
-    empty_sub = sub_empty.add_subparsers(dest="empty_cmd")
+    empty_sub = sub_empty.add_subparsers(dest="empty_cmd", required=True)
 
     sub_blanks = empty_sub.add_parser("blanks",         help="See truly blank pages. No words, no macros, empty html or at most some blank paragraph tags")
     sub_wordless = empty_sub.add_parser("wordless",     help="See pages with zero word count. Often, these have a diagram or image, but don't deserve to be their own pages")
@@ -76,6 +76,7 @@ def run(args):
     from ccandle.spaces.space_utils import get_space_attribute
     from ccandle.spaces.space_utils import display_friendly_space_info
     from ccandle.presentation.user_communication import clean_user_space_id_or_exit, print_total_and_limit_info
+
 
     space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
 
