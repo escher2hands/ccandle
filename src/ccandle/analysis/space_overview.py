@@ -82,14 +82,34 @@ STATS_GROUP_TITLES = {
     "navigation": "ADVANCED NAVIGATIONAL ELEMENTS",
 }
 
-def present_all_space_overviews(quiet=False, path_to_db=PATH_DB):
+def present_all_space_overviews(quiet=False, path_to_db=PATH_DB, json_format=False):
     space_ids = list_configured_space_ids()
-    for space_id in space_ids:
-        present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db)
+    if json_format:
+        results = []
+        for space_id in space_ids:
+            sdata = present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db, json_format=json_format)
+            results.append(sdata)
+        return results
+    else:
+        for space_id in space_ids:
+            present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db, json_format=json_format)
 
-def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB):
+    return 0
+
+def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB, json_format=False):
+    if json_format:
+        sdata = gather_relevant_space_data(space_id, path_to_db)
+        sdata = {
+            'space_id': space_id,
+            'space_short_id': get_space_attribute(space_id, "id", "short_id"),
+            'space_alias': get_space_attribute(space_id, "id", "alias"),
+            'stats': {k: round(v, 4) if isinstance(v, float) else v
+                  for k, v in sdata.items()},
+            'page_types': gather_page_types_breakdown(space_id, path_to_db),
+        }
+        return sdata
+
     space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
-
     print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
     print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
     print()
@@ -101,7 +121,6 @@ def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB):
     print(f"Total content pages in space " + f":{sdata['content_pages']:>9}")
     print(f"Total words in content pages " + f":{sdata['content_words']:>9}")
     print()
-    sdata = gather_relevant_space_data(space_id, path_to_db)
     print_grouped_stats(sdata, quiet=quiet)
     print("")
 
@@ -182,8 +201,7 @@ def print_page_types(space_id, total_pages=None, print_heading=True, path_to_db=
         print(f"PAGE TYPE BREAKDOWN")
     print("-" * WIDTH_NICE)
 
-    for p_type in type_stats.keys():
-        count = type_stats[p_type]
+    for p_type, count in type_stats.items():
         t_share = share(count, total_pages) * 100
         print(f"{t_share:2.0f} %    ({count:5} pages)    {p_type}")
 
@@ -198,7 +216,6 @@ def gather_page_types_breakdown(space_id, path_to_db):
             f"COUNT(*) FILTER (WHERE page_type = ?) AS {p_type}"
             for p_type in TYPE_LIST
         )
-        # Values in the same order as the placeholders
         params = tuple(TYPE_LIST)
 
         cur = conn.cursor()
@@ -209,8 +226,9 @@ def gather_page_types_breakdown(space_id, path_to_db):
             WHERE {SF}
             """, params
                     )
-        type_stats = cur.fetchone()
-    return type_stats
+        row = cur.fetchone()
+
+    return {p_type: row[p_type] for p_type in TYPE_LIST}
 
 def print_grouped_stats(space_stats, quiet=False):
     for group in STATS_GROUPS:
