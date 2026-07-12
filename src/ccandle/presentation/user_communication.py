@@ -16,7 +16,16 @@ def get_confirmation_to_continue(msg=None, acceptable_confirmations=None):
 
 def exit_if_not_all_ids_are_in_db(target_pids, source_pid=None):
     target_pids = target_pids + [source_pid] if source_pid else target_pids
-    id_list_existence = ids_multi_exist_in_table(target_pids)
+    try:
+        [int(pid) for pid in target_pids]
+        id_list_existence = ids_multi_exist_in_table(target_pids)
+    except (TypeError, ValueError) as e:
+        id_list_existence = {
+            'all_exist': False,
+            'failed_ids': target_pids,
+            'duplicates' : [],
+        }
+
     if not id_list_existence['all_exist']:
         print(f"{RED}" + "-" * WIDTH_NICE + "\n" +
               f"Invalid page IDs.\n")
