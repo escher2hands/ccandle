@@ -32,6 +32,7 @@ import math
 import os
 import webbrowser
 from typing import Any
+from ccandle.spaces.space_utils import display_friendly_space_info
 
 
 # ---------------------------------------------------------------------------
@@ -43,8 +44,8 @@ def _compute_scores(nodes: list[dict]) -> list[dict]:
         return []
 
     max_subtree_words   = max(n["subtree_words"]   for n in nodes) or 1
-    max_subtree_quality = 1 #max(n["subtree_quality"] for n in nodes) or 1
-    max_quality         = 1 #max(n["quality"]         for n in nodes) or 1
+    max_subtree_quality = max(n["subtree_quality"] for n in nodes) or 1
+    max_quality         = max(n["quality"]         for n in nodes) or 1
     max_incoming        = max(n["incoming_links"]  for n in nodes) or 1
     max_outgoing        = max(n["outgoing_links"]  for n in nodes) or 1
 
@@ -506,7 +507,7 @@ function resize() {{
 function getRadius(node, sizeMode) {{
   const maxVal = Math.max(...currentNodes.map(n => n[sizeMode])) || 1;
   const t = node[sizeMode] / maxVal;
-  return 10 + Math.sqrt(t) * 38;
+  return 10 + Math.sqrt(t) * 50;
 }}
 
 function draw() {{
@@ -820,7 +821,7 @@ try {{
 def render_pages_map(
     nodes: list[dict[str, Any]],
     output_path: str = "cartographer.html",
-    space_title: str = "Confluence Space",
+    space_id=None,
     open_browser: bool = True,
 ) -> str:
     """
@@ -851,6 +852,7 @@ def render_pages_map(
     # Escape </script> in the JSON so it can't break the HTML <script> block.
     # json.dumps produces valid JSON; we then escape the only dangerous sequence.
     nodes_json = json.dumps(enriched, ensure_ascii=False).replace("</", "<\\/")
+    space_title = display_friendly_space_info(space_id, color=False)
     html = _html(nodes_json, space_title)
 
     output_path = os.path.abspath(output_path)
