@@ -9,11 +9,11 @@ VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "co
                "assign_type", "find_duplicates"]
 API_STEPS = ["children", "authors", "labels"]
 
-def sync(hard_refresh=False, resume_at=None):
+def sync(hard_refresh=False, resume_at=None, your_delta_pages=None):
     pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)
 
     if not resume_at:
-        delta_pages = sync_pages(hard_refresh=hard_refresh)               # run our first page scraping from the CC
+        delta_pages = sync_pages_from_cloud(hard_refresh=hard_refresh)               # run our first page scraping from the CC
         if delta_pages is None or delta_pages == []:
             print(f"\n" + "-" * WIDTH_NICE + "\n"
                   f"{BOLD}No changed pages found. There's nothing to process!\n"
@@ -24,7 +24,7 @@ def sync(hard_refresh=False, resume_at=None):
     else:
         print(f"{DIM}Skipping step {RESET}scrape{DIM} pages from Confluence\n"
               f"{DIM}Processing all ids from local database{RESET}")
-        delta_pages = get_all_ids_in_pages()                              # take pages to process from our local
+        delta_pages = your_delta_pages if your_delta_pages else get_all_ids_in_pages()         # take pages to process from our local
 
     steps = [
         ("children", lambda: _scrape_children(delta_pages)),
@@ -64,7 +64,7 @@ def sync(hard_refresh=False, resume_at=None):
     _print_total_pipeline_duration(pipeline_start_time, delta_pages)
 
 
-def sync_pages(hard_refresh=False):
+def sync_pages_from_cloud(hard_refresh=False):
     from ccandle.db.table_utils import create_table
     from ccandle.pages.schema_table_pages import SCHEMA_PAGES
     from ccandle.pages.scrape_list_of_available_pages import scrape_page_metadata_in_space

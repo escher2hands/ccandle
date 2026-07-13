@@ -9,15 +9,16 @@ Confluence toolset to shine light on the quality and navigability of technical d
 other useful metadata
 - statistical analyzer of spaces, to give visibility on quality and basic dimensions
 
-A toolset for [Confluence power users](docs/who_is_this_for.md) to coax their Confluence 
-pages to be more [findable and maintainable](docs/an_ideal_confluence.md). See also some 
-info on [how it works](docs/how_does_ccandle_work.md). 
+A toolset for [Confluence power users](docs/who_is_this_for.md) to coax their Confluence pages to be more 
+[findable and maintainable](docs/an_ideal_confluence.md). See also some info on [how it works](docs/how_does_ccandle_work.md). 
 
 ## getting started
 ### installation
 - Install uv package manager: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - Clone repo: `git clone git@github.com:escher2hands/ccandle.git`, then `cd ccandle`
 - Install dependencies `uv sync`
+
+### authentication to your Confluence instance
 - enter values for `ccandle connection` email, url, and token, so you can connect to your 
 Confluence Cloud instance. 
 

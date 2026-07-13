@@ -46,9 +46,9 @@ def run(args):
         with yaspin(text=f"{DIM}Validating these credentials with Confluence...{RESET}", color="cyan"):
             valid = check_credentials_validity()
         if valid:
-            print(f"{DIM}Credentials status:  {RESET}{GREEN}VALID{RESET}")
+            print(f"{DIM}Credentials status:  {RESET}{GREEN}VALID{RESET}  ✅ ")
         else:
-            print(f"{DIM}Credentials status:  {RESET}{RED}INVALID{RESET}\n"
+            print(f"{DIM}Credentials status:  {RESET}{RED}INVALID{RESET}  ❌ \n"
                   f"{DIM}Your token may be expired, your email may have a typo, \n"
                   f"or the url you set for Confluence may be invalid.{RESET}")
 
