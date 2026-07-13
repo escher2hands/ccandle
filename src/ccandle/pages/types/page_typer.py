@@ -1,6 +1,6 @@
 from ccandle.config.config_db import TABLE_VECTORS, TABLE_PAGES, PATH_DB
 from ccandle.pages.types.decompose_page_into_type_signals import load_type_signal_vectors, generate_signal_vectors_in_bulk
-from ccandle.pages.types.page_type_explorer import PATH_MODEL
+from ccandle.config.config_db import PATH_MODEL
 from ccandle.pages.types.type_signals_defs import SIGNAL_KEYS
 import sqlite3, joblib
 import numpy as np
