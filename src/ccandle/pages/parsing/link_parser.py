@@ -141,8 +141,6 @@ def clean_and_store_links(pid_list=None, path_to_db=PATH_DB, debug_mode=False):
     # process the data in place
     convert_links_in_memory(data, debug_mode=debug_mode)
     links_map = build_links_list_in_memory(data)
-    print("-" * 80)
-    print(links_map)
     # bulk store the data back to the DB, using the specified db connection
     persist_changes(data, links_map, path_to_db)
 
