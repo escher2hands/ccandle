@@ -1,6 +1,6 @@
 # ccandle gives you tools to manage larger Confluence spaces, or webs of spaces
 
-## Measure Confluence quality with a single command
+## measure Confluence quality with a single command
 
 <img src="images/overview_sample.jpg" width="500" alt="Evaluation of a Confluence space">
 
@@ -16,7 +16,7 @@ By deterministically measuring your space quality, you get direct insight into w
 to focus maintenance efforts. You can also benchmark against old evaluations, to see 
 if your maintenance efforts are outpacing the 'rot' that Confluence spaces tend towards.
 
-### Why not measure content quality?
+### why not measure content quality?
 Well, without burning a lot of compute on a fancy LLM, measuring the content quality is 
 just impossible for any reasonable deterministic algorithm. Even if you could throw around 
 the compute to chuck a few hundred or thousand or tens of thousands of pages (yes, some 
@@ -27,7 +27,7 @@ course, this becomes a bootstrapping problem.
 Perhaps some future developer can tackle this issue. However, due to the mentioned 
 difficulties, ccandle focuses on *form* and not content. 
 
-## Taming structure by managing labels and navboxes in bulk
+## taming structure by managing labels and navboxes in bulk
 While outdated information and junk pages are a menace, often spaces are most in need 
 of a more helpful structure. [Navboxes](an_ideal_confluence.md#wikipedia-style-navboxes-guide-readers-along-a-topic) 
 are one structural element we can add to Confluence pages to give more structure; to 
@@ -45,7 +45,7 @@ what the source page was, and what the excerpt's name was? Work smarter, and fas
 
 <img src="images/labels_screenshot.png" width="500" alt="Screenshot of labels workflow">
 
-## Rapidly identify junk -- and kill it before it rots your Confluence
+## rapidly identify junk -- and kill it before it rots your Confluence
 Confluence Cloud doesn't allow deep inspection of space contents. Getting a list of empty 
 pages isn't really possible. But leaving empty pages, or duplicate pages, clutters 
 your page tree, your search results, and your Confluence.
@@ -66,3 +66,19 @@ by last modified date if you're really risk avoidant, and kill only those pages 
 ancient no one will even notice they're gone.
 
 <img src="images/empties_screenshot.png" width="500" alt="Screenshot of empties workflow">
+
+
+## map out important pages (link relevance, tree structure relevance)
+<img src="images/cartographer_screenshot.png" width="400" alt="Screenshot of empties workflow">
+
+Some spaces are monsters, with thousands of pages, and a complex, jumbled page tree 
+hierarchy. It can be nearly impossible to map out which pages are in these 'monster' 
+spaces, let alone to do that quickly. 
+
+Cartographer is a feature to help you map out these spaces. It analyzes pages in your 
+tree, finding which branches contain meaningful info, which are full of meeting minutes 
+and administrative pages, which are full of blanks, and which are golden nuggets in the 
+caves of your spaces. 
+
+run `ccandle cartographer --space SPACE` to get a quick analysis of the layout of the 
+important information in your spaces.
