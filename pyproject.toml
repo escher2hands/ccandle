@@ -4,10 +4,43 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccandle"
-version = "0.1.0"
+version = "0.2.0"
+description = "Toolset for analyzing and improving Confluence Cloud documentation."
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.10"
+
+authors = [
+    {name = "Morgan Randall"}
+]
+
+keywords = [
+    "confluence",
+    "atlassian",
+    "documentation",
+    "technical-documentation",
+    "knowledge-base",
+    "wiki",
+    "cli",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+]
+
 dependencies = [
-    "bs4>=0.0.2",
+    "beautifulsoup4>=4.13",
     "joblib>=1.5.3",
     "platformdirs>=4.10.0",
     "rapidfuzz>=3.14.5",
