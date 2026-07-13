@@ -24,7 +24,6 @@ def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
     pages = {}
     title_index = {}
     pid_set = {str(pid) for pid in pid_list}   # <-- normalize to reformat strings, and still accept ints
-    # pid_set = set(pid_list)
 
     for pid, title, space_id, body in rows:
         space_shid = get_space_attribute(space_id, 'id', 'short_id')
