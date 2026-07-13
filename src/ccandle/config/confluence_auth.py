@@ -70,7 +70,8 @@ def set_conf_details(field, value):
 
     if field == "url" and not value.startswith(("http://", "https://")):
         print(f"{RED}That's not a valid url.\n"
-              f"{DIM}Your url should include the whole base url, including the {BLUE}https://{RESET}")
+              f"{DIM}Your url should include the whole base url, including the {BLUE}https://{RESET}\n"
+              f"{RED}{DIM}For example, 'https://company.atlassian.net/'{RESET}")
         return 1
 
     details[field.upper()] = value
