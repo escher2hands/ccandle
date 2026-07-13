@@ -1,7 +1,9 @@
 # ccandle
-Confluence toolset to shine light on the quality and navigability of technical documentation.
 
-<img src="docs/images/light_in_cave.png" width="700" alt="Overview">
+<img src="docs/images/ccandle_overview.png" width="800" alt="ccandle helps evaluate space quality, map out hot pages, and identify junk">
+
+ccandle is a toolset for [Confluence power users](docs/who_is_this_for.md) to coax their Confluence pages to be more 
+[findable and maintainable](docs/an_ideal_confluence.md). See also some info on [how it works](docs/how_does_ccandle_work.md). 
 
 ## goals
 - CLI tool to sync user local offline db with their Confluence Cloud instance
@@ -9,8 +11,6 @@ Confluence toolset to shine light on the quality and navigability of technical d
 other useful metadata
 - statistical analyzer of spaces, to give visibility on quality and basic dimensions
 
-A toolset for [Confluence power users](docs/who_is_this_for.md) to coax their Confluence pages to be more 
-[findable and maintainable](docs/an_ideal_confluence.md). See also some info on [how it works](docs/how_does_ccandle_work.md). 
 
 ## getting started
 ### installation
@@ -49,3 +49,7 @@ See more info on the [brief features overview](docs/what_does_ccandle_do.md).
 exists)
 - Space content distribution explorer (find parts of the page tree with unexpectedly dense 
 documentation, and filter out those parts with mostly template and blank pages)
+
+## ccandle, a Confluence toolset to shine light on the quality and navigability of technical documentation.
+
+<img src="docs/images/light_in_cave.png" width="700" alt="ccandle brings light to your technical documentation">
