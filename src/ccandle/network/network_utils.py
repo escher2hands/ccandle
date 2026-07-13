@@ -2,7 +2,7 @@ import requests
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.presentation.theme import WIDTH_NICE, RED, BLUE, DIM, RESET
 from requests.auth import HTTPBasicAuth
-from ccandle.config.config_network import CONFLUENCE_BASE_URL, DEFAULT_HEADERS, FORMAT_STORAGE, CONFLUENCE_BASE_URL_V1, \
+from ccandle.config.config_network import get_confluence_base_url, DEFAULT_HEADERS, FORMAT_STORAGE, get_confluence_base_url_v1, \
     ENDPOINT_SPACES
 from ccandle.config.confluence_auth import fetch_conf_details
 import re, time
@@ -22,7 +22,7 @@ def _make_session():
 SESSION = _make_session()
 
 def _get(endpoint, params=None, quiet=False):
-    url = f"{CONFLUENCE_BASE_URL}{endpoint}"
+    url = f"{get_confluence_base_url()}{endpoint}"
     try:
         response = SESSION.get(url, params=params, timeout=TIMEOUT)
     except requests.exceptions.RequestException as e:
@@ -121,13 +121,13 @@ def request_labels_for_space(space_id):
     return [{"id": r.get("id"), "label": r.get("name")} for r in results]
 
 def add_label_via_rest(page_id, label):
-    url = f"{CONFLUENCE_BASE_URL_V1}content/{page_id}/label"
+    url = f"{get_confluence_base_url_v1()}content/{page_id}/label"
     response = SESSION.post(url, json=[{"prefix": "global", "name": label}], timeout=30)
     response.raise_for_status()
     return response.json()
 
 def delete_label_via_rest(page_id, label):
-    url = f"{CONFLUENCE_BASE_URL_V1}content/{page_id}/label"
+    url = f"{get_confluence_base_url_v1()}content/{page_id}/label"
     response = SESSION.delete(url, params={"name": label}, timeout=30)
     if response.status_code == 404:
         return {"status": "absent", "label": label, "body": response.json()}
@@ -137,7 +137,7 @@ def delete_label_via_rest(page_id, label):
 
 # for fetching user / author metadata
 def request_users_metadata(account_ids, batch_size=250):
-    url = f"{CONFLUENCE_BASE_URL}/users-bulk"
+    url = f"{get_confluence_base_url()}/users-bulk"
     all_results = []
 
     for i in range(0, len(account_ids), batch_size):
@@ -165,7 +165,7 @@ def request_users_metadata(account_ids, batch_size=250):
 #         title
 #         version
 def request_put_page(target_page, new_html):
-    url = f"{CONFLUENCE_BASE_URL}/pages/{target_page['pid']}"
+    url = f"{get_confluence_base_url()}/pages/{target_page['pid']}"
 
     payload = {
         "id": str(target_page["pid"]),
@@ -211,7 +211,7 @@ def request_put_page(target_page, new_html):
 
 def check_network_connection():
     try:
-        url = f"{CONFLUENCE_BASE_URL}{ENDPOINT_SPACES}"
+        url = f"{get_confluence_base_url()}{ENDPOINT_SPACES}"
         response = SESSION.get(url, timeout=TIMEOUT)
         return True             # Any HTTP response means we reached Atlassian.
     except OSError or requests.ConnectionError or requests.Timeout:
@@ -225,8 +225,11 @@ def check_network_connection():
         return False
 
 def check_credentials_validity():
-    url = f"{CONFLUENCE_BASE_URL}{ENDPOINT_SPACES}"
-    response = SESSION.get(url, timeout=TIMEOUT)
+    url = f"{get_confluence_base_url()}{ENDPOINT_SPACES}"
+    try:
+        response = SESSION.get(url, timeout=TIMEOUT)
+    except requests.exceptions.RequestException as e:
+        return False
     return response.status_code == 200
 
 def _print_message_404(response_status_code):

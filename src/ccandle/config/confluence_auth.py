@@ -2,6 +2,7 @@
 
 import os, json
 from ccandle.config.config_db import CONFIG_DIR
+from ccandle.presentation.theme import *
 DETAILS_FILE = CONFIG_DIR / "conf_details.json"
 
 VALID_FIELDS = ["token", "email", "url", "repo-url"]
@@ -25,6 +26,7 @@ def fetch_conf_details(field):
 
 def _load_conf_details():
     if not DETAILS_FILE.exists():
+        DETAILS_FILE.parent.mkdir(parents=True, exist_ok=True)  # ensure dir exists first
         with DETAILS_FILE.open("w", encoding="utf-8") as f:
             json.dump({}, f, indent=2)
 
@@ -44,7 +46,6 @@ def _load_conf_details():
         return {}                                       # empty config
 
 def load_conf_url():
-    from ccandle.presentation.theme import RED, BLUE, DIM, RESET, WIDTH_NICE
     from ccandle.config.config_app import APP_HANDLE, FRIENDLY_APP_NAME
     MSG_NO_CONF_CONFIGURED = (f"{RED}" + "-" * WIDTH_NICE + "\n"
                               f"There is no Confluence URL configured.\n"
@@ -65,6 +66,12 @@ def set_conf_details(field, value):
     field = field.lower().strip()
     if field not in VALID_FIELDS:
         print(f"{field} is not a valid field name. Use one of [{VALID_FIELDS}].")
+        return 1
+
+    if field == "url" and not value.startswith(("http://", "https://")):
+        print(f"{RED}That's not a valid url.\n"
+              f"{DIM}Your url should include the whole base url, including the {BLUE}https://{RESET}\n"
+              f"{RED}{DIM}For example, 'https://company.atlassian.net/'{RESET}")
         return 1
 
     details[field.upper()] = value
