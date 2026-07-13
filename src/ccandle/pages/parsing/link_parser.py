@@ -23,7 +23,7 @@ def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
 
     pages = {}
     title_index = {}
-    pid_set = set(pid_list)
+    pid_set = {str(pid) for pid in pid_list}   # <-- normalize to reformat strings, and still accept ints
 
     for pid, title, space_id, body in rows:
         space_shid = get_space_attribute(space_id, 'id', 'short_id')
@@ -141,6 +141,8 @@ def clean_and_store_links(pid_list=None, path_to_db=PATH_DB, debug_mode=False):
     # process the data in place
     convert_links_in_memory(data, debug_mode=debug_mode)
     links_map = build_links_list_in_memory(data)
+    print("-" * 80)
+    print(links_map)
     # bulk store the data back to the DB, using the specified db connection
     persist_changes(data, links_map, path_to_db)
 
