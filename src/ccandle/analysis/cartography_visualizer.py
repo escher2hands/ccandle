@@ -818,7 +818,7 @@ try {{
 # Public API
 # ---------------------------------------------------------------------------
 
-def render_pages_map(
+def render_pages_map_in_browser(
     nodes: list[dict[str, Any]],
     output_path: str = "cartographer.html",
     space_id=None,
