@@ -1,12 +1,10 @@
 """
 cartographer.py
-
 Takes a list of enriched page node dicts and renders a standalone HTML
 visualization showing structural richness vs. page importance.
 
 Usage:
     from cartographer import render
-
     render(nodes, output_path="cartographer.html", space_title="My Space")
     # -> writes cartographer.html and returns the output path
 
@@ -38,19 +36,15 @@ from typing import Any
 
 # ---------------------------------------------------------------------------
 # Score computation
+# Adds `structural` and `importance` float scores (both 0–1) to each node.
 # ---------------------------------------------------------------------------
-
 def _compute_scores(nodes: list[dict]) -> list[dict]:
-    """
-    Adds `structural` and `importance` float scores (both 0–1) to each node.
-    Does not mutate the originals — returns new dicts.
-    """
     if not nodes:
         return []
 
     max_subtree_words   = max(n["subtree_words"]   for n in nodes) or 1
-    max_subtree_quality = max(n["subtree_quality"] for n in nodes) or 1
-    max_quality         = max(n["quality"]         for n in nodes) or 1
+    max_subtree_quality = 1 #max(n["subtree_quality"] for n in nodes) or 1
+    max_quality         = 1 #max(n["quality"]         for n in nodes) or 1
     max_incoming        = max(n["incoming_links"]  for n in nodes) or 1
     max_outgoing        = max(n["outgoing_links"]  for n in nodes) or 1
 
@@ -97,7 +91,6 @@ def _compute_scores(nodes: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # HTML template
 # ---------------------------------------------------------------------------
-
 def _html(nodes_json: str, space_title: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -824,7 +817,7 @@ try {{
 # Public API
 # ---------------------------------------------------------------------------
 
-def render(
+def render_pages_map(
     nodes: list[dict[str, Any]],
     output_path: str = "cartographer.html",
     space_title: str = "Confluence Space",
