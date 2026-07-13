@@ -1,7 +1,10 @@
+
 from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from ccandle.db.db_query_utils import query_db_results
 from collections import deque, defaultdict
 import sqlite3, json
+from ccandle.db.db_utils import get_field_in_pages
+
 
 def make_maps(space_id, path_to_db=PATH_DB, limit=20):
     rows = query_db_results(
@@ -68,73 +71,31 @@ def make_maps(space_id, path_to_db=PATH_DB, limit=20):
             ).fetchone()[0] or 0, -1)
             result['subtree_words'] = result['avg_word_count'] * result['descendants']
 
-            result["most_common_type"] = (conn.execute(
+            result["word_count"] = get_field_in_pages(result['pid'], "word_count")
+            result["type"] = get_field_in_pages(result['pid'], "page_type")
+            """(conn.execute(
                 f"SELECT page_type FROM {TABLE_PAGES} WHERE id IN ({placeholders}) AND page_type IS NOT NULL "
                 f"GROUP BY page_type ORDER BY COUNT(*) DESC LIMIT 1", ids
-            ).fetchone() or (None,))[0]
+            ).fetchone() or (None,))[0]"""
 
             metrics = trunk_metrics.get(result["pid"], {})
             result["title"] = metrics.get("title")
             result["last_modified"] = metrics.get("last_modified")
 
     return results
-#
-# def make_maps(space_id, path_to_db=PATH_DB, limit=20):
-#     rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
-#     pid_to_child_list_map = {pid: json.loads(child_list_json) for pid, child_list_json in rows}
-#
-#     parent_map = build_parent_map(pid_to_child_list_map)
-#     depth_map = compute_depths(pid_to_child_list_map, parent_map)
-#     subtree_sizes, descendant_map = build_all_subtree_metrics(pid_to_child_list_map)
-#
-#     results = [
-#         {
-#             "pid": pid,
-#             "direct_children": len(children),
-#             "descendants": subtree_sizes.get(pid, 0),
-#             "depth": interpret_depth(depth_map.get(pid, 0)),
-#         }
-#         for pid, children in pid_to_child_list_map.items()
-#         if len(children) > 2 and subtree_sizes.get(pid, 0) > 0
-#     ]
-#
-#     results.sort(key=lambda x: x["descendants"], reverse=True)
-#     results = results[:limit]
-#
-#     with sqlite3.connect(path_to_db) as conn:
-#         trunk_metrics = get_trunk_metrics({r["pid"] for r in results}, conn)
-#         for result in results:
-#             desc_ids = descendant_map.get(result["pid"], set())
-#             placeholders = ",".join(["?"] * len(desc_ids))
-#             ids = tuple(desc_ids)
-#
-#             result["avg_word_count"] = round(conn.execute(
-#                 f"SELECT AVG(word_count) FROM {TABLE_PAGES} WHERE id IN ({placeholders})", ids
-#             ).fetchone()[0] or 0, -1)
-#
-#             result["most_common_type"] = (conn.execute(
-#                 f"SELECT page_type FROM {TABLE_PAGES} WHERE id IN ({placeholders}) AND page_type IS NOT NULL "
-#                 f"GROUP BY page_type ORDER BY COUNT(*) DESC LIMIT 1", ids
-#             ).fetchone() or (None,))[0]
-#
-#             metrics = trunk_metrics.get(result["pid"], {})
-#             result["title"] = metrics.get("title")
-#             result["last_modified"] = metrics.get("last_modified")
-#
-#     return results
 
-def build_parent_map(pid_to_child_list_map):
-    parent_map = {
+def build_parent_map(pid_to_info):
+    return {
         child: parent
-        for parent, children in pid_to_child_list_map.items()
-        for child in children
+        for parent, info in pid_to_info.items()
+        for child in info["children"]
     }
-    return parent_map
 
-def compute_depths(pid_to_child_list_map, parent_map):
-    all_nodes = set(pid_to_child_list_map.keys())
-    for children in pid_to_child_list_map.values():
-        all_nodes.update(children)
+def compute_depths(pid_to_info, parent_map):
+    all_nodes = set(pid_to_info.keys())
+
+    for info in pid_to_info.values():
+        all_nodes.update(info["children"])
 
     roots = [n for n in all_nodes if n not in parent_map]
     depth = {r: 0 for r in roots}
@@ -143,51 +104,48 @@ def compute_depths(pid_to_child_list_map, parent_map):
     while q:
         node = q.popleft()
         node_depth = depth[node]
-        for child in pid_to_child_list_map.get(node, []):
-            if child not in depth or node_depth + 1 < depth[child]: # only set if not already set or if we find a shorter path
+
+        children = pid_to_info.get(node, {}).get("children", [])
+        for child in children:
+            if child not in depth or node_depth + 1 < depth[child]:
                 depth[child] = node_depth + 1
                 q.append(child)
 
     return depth
 
-def build_all_subtree_metrics(pid_to_child_list_map):
+def build_all_subtree_metrics(pid_to_info):
     subtree_size = {}
     descendant_set = {}
 
-    for node in pid_to_child_list_map:
+    for node in pid_to_info:
         if node not in subtree_size:
-            compute_subtree_metrics(node, pid_to_child_list_map, subtree_size, descendant_set)
+            compute_subtree_metrics(
+                node,
+                pid_to_info,
+                subtree_size,
+                descendant_set,
+            )
 
     return subtree_size, descendant_set
 
-def compute_subtree_metrics(node, pid_to_child_list_map, subtree_size, descendant_set):
-    children = pid_to_child_list_map.get(node, [])
+def compute_subtree_metrics(node, pid_to_info, subtree_size, descendant_set):
+    children = pid_to_info.get(node, {}).get("children", [])
     all_descendants = set()
 
     for child in children:
         all_descendants.add(child)
-        child_descendants = compute_subtree_metrics(child, pid_to_child_list_map, subtree_size, descendant_set)
+        child_descendants = compute_subtree_metrics(
+            child,
+            pid_to_info,
+            subtree_size,
+            descendant_set,
+        )
         all_descendants.update(child_descendants)
 
     subtree_size[node] = len(all_descendants)
     descendant_set[node] = all_descendants
+
     return all_descendants
-
-def get_descendant_metrics(desc_ids, conn):
-    placeholders = ",".join(["?"] * len(desc_ids))
-    ids = tuple(desc_ids)
-
-    avg_word_count = conn.execute(
-        f"SELECT AVG(word_count) FROM {TABLE_PAGES} WHERE id IN ({placeholders})", ids
-    ).fetchone()[0] or 0
-
-    most_common_type = conn.execute(
-        f"SELECT page_type FROM {TABLE_PAGES} WHERE id IN ({placeholders}) AND page_type IS NOT NULL "
-        f"GROUP BY page_type ORDER BY COUNT(*) DESC LIMIT 1", ids
-    ).fetchone()
-    most_common_type = most_common_type[0] if most_common_type else None
-    return avg_word_count, most_common_type
-
 
 def get_trunk_metrics(pids, conn):
     placeholders = ",".join(["?"] * len(pids))
@@ -204,31 +162,3 @@ def interpret_depth(depth):
     else:               interpretation = "deep"
     return interpretation + " " * (10-len(interpretation)) + f" ({depth})"
 
-def get_descendants(space_id, page_id, path_to_db=PATH_DB):
-    rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
-    pid_to_child_list_map = {pid: json.loads(child_list_json) for pid, child_list_json in rows}
-
-    parent_map = build_parent_map(pid_to_child_list_map)
-    depth_map = compute_depths(pid_to_child_list_map, parent_map)
-    _, descendant_map = build_all_subtree_metrics(pid_to_child_list_map)
-
-    desc_ids = descendant_map.get(page_id, set())
-    if not desc_ids:
-        return []
-
-    base_depth = depth_map.get(page_id, 0)
-
-    with sqlite3.connect(path_to_db) as conn:
-        trunk_metrics = get_trunk_metrics(desc_ids, conn)
-
-    return sorted(
-        [
-            {
-                "pid": pid,
-                "title": trunk_metrics.get(pid, {}).get("title"),
-                "depth": depth_map.get(pid, base_depth) - base_depth,
-            }
-            for pid in desc_ids
-        ],
-        key=lambda x: (x["depth"], x["title"] or ""),
-    )
