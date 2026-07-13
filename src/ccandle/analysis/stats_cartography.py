@@ -73,10 +73,10 @@ def make_maps(space_id, path_to_db=PATH_DB, limit=20):
 
             result["word_count"] = get_field_in_pages(result['pid'], "word_count")
             result["type"] = get_field_in_pages(result['pid'], "page_type")
-            """(conn.execute(
+            result["most_common_type"] = (conn.execute(
                 f"SELECT page_type FROM {TABLE_PAGES} WHERE id IN ({placeholders}) AND page_type IS NOT NULL "
                 f"GROUP BY page_type ORDER BY COUNT(*) DESC LIMIT 1", ids
-            ).fetchone() or (None,))[0]"""
+            ).fetchone() or (None,))[0]
 
             metrics = trunk_metrics.get(result["pid"], {})
             result["title"] = metrics.get("title")
