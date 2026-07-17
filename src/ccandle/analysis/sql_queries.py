@@ -4,8 +4,7 @@ from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from ccandle.presentation.page_previews import render_results
 from ccandle.presentation.theme import RED, RESET, DIM
 
-def query_via_cli(your_query, path_to_db=PATH_DB, force_table=False):
-    # print(path_to_db)
+def query_via_cli(your_query, path_to_db=PATH_DB):
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         try:
@@ -23,8 +22,8 @@ def query_via_cli(your_query, path_to_db=PATH_DB, force_table=False):
 
     columns = [{"key": col[0], "label": col[0].upper()} for col in cur.description]
     results = [dict(zip([col["key"] for col in columns], row)) for row in rows]
-    render_results(results, columns, force_table=force_table)
-    return 0
+
+    return results, columns
 
 def get_column_names(your_table=TABLE_PAGES, path_to_db=PATH_DB):
     columns = []
