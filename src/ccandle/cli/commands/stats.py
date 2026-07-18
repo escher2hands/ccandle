@@ -218,9 +218,9 @@ def run(args):
         if args.fuzziness != 1.0:
             if not args.ids_only: print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
                   f"This may take a while, especially if you set a high fuzziness score...")
-            dup_groups = scan_for_duplicates_in_corpus(args.fuzziness)
+            dup_groups = scan_for_duplicates_in_corpus(args.fuzziness, path_to_db=args.db_path)
         else:
-            dup_groups = fetch_unique_duplicate_groups(space_id=space_id)
+            dup_groups = fetch_unique_duplicate_groups(space_id=space_id, path_to_db=args.db_path)
         if args.ids_only:
             page_ids = [page_id
                 for group in dup_groups
