@@ -1,18 +1,16 @@
 # Entry point for `ccandle benchmark SNAPSHOT_PATH_OR_NAME`.
 #
-# Loads (or reuses) a normalized snapshot, pulls a same-shape overview of
-# both the snapshot and the currently active db, matches spaces by
-# space_id, and prints the delta for anything that matches. Anything that
-# doesn't match (space added/removed since the snapshot was taken) gets
-# printed raw instead of diffed against nothing.
+# resolve_snapshot_reference accepts a full path, a bare filename, or a
+# bare date, and always returns a path to a .hydrated.db file (building
+# it via dehydrate + rehydrate if needed and auto_hydrate is allowed).
+# compare_snapshots then pulls a same-shape overview of that snapshot and
+# of the currently active db, matches spaces by space_id, and prints the
+# delta for anything that matches.
 
 import json
-from pathlib import Path
-
-from ccandle.benchmark.snapshot_dehydrator import copy_and_dehydrate_snapshot, _dehydrated_path_from_snapshot
-from ccandle.benchmark.snapshot_rehydrator import rehydrate_snapshot, _normalized_path_from_dehydrated
-from ccandle.config.config_db import PATH_DB
 from ccandle.analysis.space_overview import present_all_space_overviews
+from ccandle.benchmark.snapshot_manager import resolve_snapshot_reference
+from ccandle.config.config_db import PATH_DB
 from ccandle.presentation.theme import *
 
 NUMERIC_DELTA_SECTIONS = ("stats", "page_types")
@@ -21,38 +19,9 @@ NUMERIC_DELTA_SECTIONS = ("stats", "page_types")
 # Confluence source of truth, so a metric present in one overview is
 # guaranteed to be present in the other post-rehydration. Anything under
 # this threshold is treated as "no real change" rather than float noise.
-DEFAULT_EQUALITY_THRESHOLD = 0.01
+EQUALITY_THRESHOLD = 0.01
 UNCHANGED_SENTINEL = "--"
 
-
-def resolve_snapshot_reference(snapshot_input: str) -> Path:
-    # TODO: look up snapshot_input in the snapshot registry once it exists.
-    return Path(snapshot_input).expanduser().resolve()
-
-
-def _expected_normalized_path(snapshot_path: Path) -> Path:
-    """Pure path computation, mirroring the naming both stages already
-    use, without doing any of the actual dehydrate/rehydrate work. Lets
-    us check for a cache hit before paying for either step — the old
-    version's "reuse if it exists" shortcut, restored here since
-    copy_and_dehydrate_snapshot unconditionally recreates its output."""
-    return _normalized_path_from_dehydrated(_dehydrated_path_from_snapshot(snapshot_path))
-
-
-def _load_or_reuse_normalized(snapshot_path: Path, quiet: bool = False) -> Path:
-    normalized_path = _expected_normalized_path(snapshot_path)
-    if normalized_path.exists():
-        if not quiet:
-            print("Found a 'hydrated' version of your snapshot! We'll use it for this benchmark.")
-        return normalized_path
-
-    if not quiet:
-        print("Loading your snapshot...")
-    dehydrated_path = copy_and_dehydrate_snapshot(snapshot_path)
-
-    if not quiet:
-        print("Reprocessing with current algorithms...")
-    return rehydrate_snapshot(dehydrated_path)
 
 
 def _index_by_space_id(spaces: list[dict]) -> dict:
@@ -89,7 +58,7 @@ def _diff_space(old_space: dict, new_space: dict, equality_threshold: float) -> 
 def compare_overviews(
     old_spaces: list[dict],
     new_spaces: list[dict],
-    equality_threshold: float = DEFAULT_EQUALITY_THRESHOLD,
+    equality_threshold: float = EQUALITY_THRESHOLD,
 ) -> dict:
     old_by_id = _index_by_space_id(old_spaces)
     new_by_id = _index_by_space_id(new_spaces)
@@ -138,32 +107,22 @@ def _print_delta_report(comparison: dict) -> None:
             print(json.dumps(space, indent=2))
 
 
-def compare_snapshots(
-    snapshot_input: str,
-    json_format: bool = False,
-    quiet: bool = False,
-    equality_threshold: float = DEFAULT_EQUALITY_THRESHOLD,
-) -> int:
-    snapshot_path = resolve_snapshot_reference(snapshot_input)
-
-    if not snapshot_path.exists():
+def compare_snapshots(snapshot_input: str, json_format=False, quiet=False, equality_threshold=EQUALITY_THRESHOLD) -> int:
+    auto_hydrate = True
+    try:
+        hydrated_path = resolve_snapshot_reference(snapshot_input, auto_hydrate=auto_hydrate)
+    except FileNotFoundError as e:
         print(
             f"{RED}" + "-" * WIDTH_NICE +
-            f"\nSnapshot not found: {snapshot_path}{RESET}"
-            f"\n\n{RED}{DIM}Double check the path or name you gave for the "
-            f"snapshot you'd like to compare.\n{RESET}"
+            f"\n{e}{RESET}\n"
         )
         return 1
 
-    # json output should be pipe-clean; suppress progress narration for it
     narrate = not (quiet or json_format)
-
-    normalized_path = _load_or_reuse_normalized(snapshot_path, quiet=not narrate)
-
     if narrate:
         print("\nComparing snapshot against current active db...\n")
 
-    old_spaces = present_all_space_overviews(json_format=True, path_to_db=normalized_path)
+    old_spaces = present_all_space_overviews(json_format=True, path_to_db=hydrated_path)
     new_spaces = present_all_space_overviews(json_format=True, path_to_db=PATH_DB)
 
     comparison = compare_overviews(old_spaces, new_spaces, equality_threshold)
