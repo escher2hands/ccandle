@@ -42,7 +42,7 @@ def run(args):
         res['parent_title'] = p_title
     print(
         f"Are you sure you'd like to move the following {BOLD}{len(results)}{RESET} pages "
-        f"under {BOLD}{parent_title}{RESET} ({args.parent_id})?\n"
+        f"under {BLUE}{parent_title}{RESET} ({args.parent_id})?\n"
     )
     render_table(results, COLUMNS)
 

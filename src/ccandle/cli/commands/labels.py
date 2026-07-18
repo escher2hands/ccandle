@@ -64,7 +64,7 @@ def run(args):
             return 0        # need to exit if there is no valid label to add
         results = get_pages_preview(pids, "labels", "space_id", "title")
         print(
-            f"Are you sure you'd like to {operation} the label {BOLD}{label}{RESET} {preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
+            f"Are you sure you'd like to {operation} the label {BLUE}{label}{RESET} {preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
         render_table(results, COLUMNS)
         print(f"\n{DIM}Type yes or no. Y/n{RESET}")
         response = input()
