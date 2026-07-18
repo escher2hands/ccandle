@@ -1,6 +1,7 @@
 # currently we only scrape pages metadata and html...
 # later we'll add more steps.
 from ccandle.config.config_app import APP_HANDLE
+from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.presentation.theme import *
 import datetime
@@ -119,22 +120,22 @@ def _scrape_labels():
     scrape_labels()
 def _extract_plain_texts_in_bulk(delta_pages):
     from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
-    extract_plain_texts_in_bulk(delta_pages)
+    extract_plain_texts_in_bulk(delta_pages, path_to_db=PATH_DB)
 def _add_basic_metadata_in_bulk(delta_pages):
     from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
-    add_basic_metadata_in_bulk(delta_pages)
+    add_basic_metadata_in_bulk(delta_pages, path_to_db=PATH_DB)
 def _clean_link_formatting_and_store_link_list(delta_pages):
     from ccandle.pages.parsing.link_parser import clean_and_store_links
-    clean_and_store_links(delta_pages)
+    clean_and_store_links(delta_pages, path_to_db=PATH_DB)
 def _extract_excerpt_info(delta_pages):
     from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
-    find_and_store_excerpt_info(delta_pages)
+    find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB)
 def _type_all_pages(delta_pages):
     from ccandle.pages.types.page_typer import type_all_pages
-    type_all_pages(delta_pages)
+    type_all_pages(delta_pages, path_to_db=PATH_DB)
 def _scan_for_duplicates():
     from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus
-    scan_for_duplicates_in_corpus()
+    scan_for_duplicates_in_corpus(path_to_db=PATH_DB)
 
 def set_all_pages_as_processed(processed_list):
     from ccandle.config.config_db import TABLE_PAGES, PATH_DB
@@ -160,4 +161,5 @@ def _print_total_pipeline_duration(pipeline_start_time, delta_pages):
     count_spaces = len(list_configured_space_ids())
     print(f"-" * WIDTH_NICE)
     print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} configured spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
+    print("\a")
 
