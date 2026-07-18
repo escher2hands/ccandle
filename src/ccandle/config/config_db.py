@@ -11,6 +11,7 @@ TABLE_LIST = [TABLE_PAGES, TABLE_LABELS, TABLE_AUTHORS, TABLE_VECTORS]
 DATA_DIR = Path(user_data_dir(APP_NAME))
 DB_DIR = DATA_DIR / "db"
 CONFIG_DIR = DATA_DIR / "config"
+ARTIFACT_DIR = DATA_DIR / "artifacts"
 
 PATH_SPACES_CONFIG = CONFIG_DIR / "config_spaces.json"
 PATH_DB = DB_DIR / "confluence_mirror.db"
