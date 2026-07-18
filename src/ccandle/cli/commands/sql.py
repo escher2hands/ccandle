@@ -2,7 +2,7 @@
 # - ccandle sql columns
 # - ccandle sql query QUERY
 from ccandle.spaces.space_utils import get_space_attribute
-from ccandle.config.config_db import TABLE_PAGES, TABLE_LIST
+from ccandle.config.config_db import TABLE_PAGES, TABLE_LIST, PATH_DB
 from ccandle.db.db_utils import get_field_in_pages
 from ccandle.presentation.theme import *
 
@@ -12,11 +12,13 @@ def register(subparsers):
 
     query_p = sql_sub.add_parser("query", help="Run a SQL query against your local pages db")
     query_p.add_argument("query", help="Your SQL query string")
+    query_p.add_argument("--db-path", default=PATH_DB, help="Check against a database path different from your active one")
     query_p.add_argument("--force-table", action="store_true", help="Force table view, truncating lengthy values")
     query_p.add_argument("--clickable", action="store_true", help="Append a clickable url to the results")
 
     col_sub = sql_sub.add_parser("columns", help="List the columns in your local pages table")
     col_sub.add_argument("--table", default=TABLE_PAGES, help="Your SQL query string")
+    col_sub.add_argument("--db-path", default=PATH_DB, help="Check against a database path different from your active one")
 
 
 def run(args):
@@ -26,7 +28,8 @@ def run(args):
     from ccandle.config.confluence_auth import load_conf_url
 
     if args.sql_cmd == "columns":
-        columns = get_column_names(your_table=args.table)
+        # if args.db_path != PATH_DB: print(f"{YELLOW}RESULTS FOR THE DB AT: {args.db_path}{RESET}\n")
+        columns = get_column_names(your_table=args.table, path_to_db=args.db_path)
         if columns == []:
             print(f"{RED}'{BLUE}{args.table}{RESET}{RED}' is not a valid table.{RESET}")
         for column in columns:
@@ -38,7 +41,8 @@ def run(args):
              f"{DIM}as they have specific data you may want to merge.{RESET}")
         return 0
     elif args.sql_cmd == "query":
-        results, columns = query_via_cli(args.query)
+        # if args.db_path != PATH_DB: print(f"{YELLOW}RESULTS FOR THE DB AT: {args.db_path}{RESET}\n")
+        results, columns = query_via_cli(args.query, path_to_db=args.db_path)
         if args.clickable:
             if not any(col["key"] == "id" for col in columns):
                 print(f"{RED}" + "-" * WIDTH_NICE + "\n"
