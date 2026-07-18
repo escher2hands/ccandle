@@ -60,6 +60,7 @@ def register(subparsers):
         _add_common_args(sub)
         sub.add_argument("--min-age", type=int, default=0, help="Show only pages not edited in N days")
         sub.add_argument("--no-structural-value", "-nsv", action="store_true", help="Show only pages without a structural purpose, insufficient children, no links; the network and page tree won't notice if you kill it")
+        sub.add_argument("--clickable", action="store_true", help="Include clickable links for each result")
 
     # ——— CHILD STUFF ———————————————————————————————
     sub_children = stats_sub.add_parser("children",     help="See direct children and also deep descendants of a specified page")
@@ -255,7 +256,7 @@ def run(args):
             {"key": "word_count", "label": "# WORDS", "width": 7},
             {"key": "last_modified", "label": "LAST MODIFIED", "width": 13},
             {"key": "landing_page_status", "label": "STRUCTURAL VAL?", "width": 15},
-            {"key": "title", "label": "TITLE"},
+            {"key": "title", "label": "TITLE", "width": 50},
         ]
         results = []
         if args.empty_cmd == "blanks":
@@ -273,6 +274,9 @@ def run(args):
         if args.ids_only:
             print([res['id'] for res in results[:args.limit]])
         else:
+            if args.clickable:
+                COLUMNS.append({"key": "tiny_link", "label": "LINK"})
+
             print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
             print(f"{DIM}Legend of 'landing page' statuses:{RESET}")
             for label, desc in LANDING_PAGE_TYPES.items():
