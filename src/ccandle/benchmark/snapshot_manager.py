@@ -1,8 +1,14 @@
-# we want to create very easy functions to manage snapshots.
-# that means:
-# - create snapshot (dehydrated)
-# - snapshot namer to keep things easy to read
-# - parse name or path to return a path (clean lookup for names)
+# Resolving snapshot references, and knowing what snapshots exist at all.
+#
+# find_available_snapshots() is the "what do I have" half — a pure
+# ARTIFACT_DIR scan, no side effects, safe to call just to render a list.
+# resolve_snapshot_reference() is the "make this into a working snapshot"
+# half — may trigger dehydrate/rehydrate as a side effect. Kept in one
+# module because both are just different views over the same naming
+# convention (snapshot_naming.py), but callers should treat them as
+# distinct: one is safe to call speculatively, the other isn't.
+
+from datetime import date
 from pathlib import Path
 
 from ccandle.benchmark.snapshot_dehydrator import copy_and_dehydrate_snapshot
@@ -17,8 +23,27 @@ from ccandle.benchmark.snapshot_namer import (
 )
 from ccandle.config.config_db import ARTIFACT_DIR
 
+# Scans ARTIFACT_DIR for files matching our naming convention and
+# buckets them by stage: {'dehydrated': {date: path}, 'hydrated': {date: path}}.
+# Anything else is omitted from results.
+def find_available_snapshots() -> dict[str, dict[date, Path]]:
+    dehydrated: dict[date, Path] = {}
+    hydrated: dict[date, Path] = {}
+
+    if ARTIFACT_DIR.exists():
+        for path in ARTIFACT_DIR.iterdir():
+            if not path.is_file():
+                continue
+            parsed = parse_canonical_name(path)
+            if parsed is None:
+                continue
+            snapshot_date, stage = parsed
+            (hydrated if stage == "hydrated" else dehydrated)[snapshot_date] = path
+
+    return {"dehydrated": dehydrated, "hydrated": hydrated}
+
 def _resolve_from_date(
-    snapshot_date,
+    snapshot_date: date,
     auto_hydrate: bool,
     raw_source_path: Path | None = None,
     known_dehydrated: Path | None = None,
