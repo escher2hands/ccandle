@@ -3,11 +3,12 @@
 # stub                  'not worthy of being a page, roll it up'
 
 from ccandle.config.config_db import PATH_DB
+from ccandle.config.confluence_auth import load_conf_url
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.pages.types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.spaces.space_utils import get_space_attribute
 
-SEL_QUERY = "id, space_id, word_count, html, title, has_link_tree, child_list, page_type, link_count, last_modified"
+SEL_QUERY = "id, space_id, word_count, html, title, has_link_tree, child_list, page_type, link_count, last_modified, tiny_link"
 HTML_PREVIEW_WINDOW = 300
 
 # truly empty pages, maybe just some formatting tags in the html
@@ -63,6 +64,7 @@ def _assign_landing_page_status(has_link_tree, child_list, page_type, link_count
     return "-"
 
 def _build_results_dict(results_blob):
+    conf_url = load_conf_url()
     return [
         {
             "id": res[0],
@@ -74,6 +76,7 @@ def _build_results_dict(results_blob):
             "landing_page_status": _assign_landing_page_status(res[5], res[6], res[7], res[8]),
             "title": res[4],
             "last_modified": res[9][:10],
+            "tiny_link": f"{load_conf_url()}/wiki{res[10]}/",
         }
         for res in results_blob
     ]
