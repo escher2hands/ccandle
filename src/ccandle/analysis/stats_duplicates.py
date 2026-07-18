@@ -52,14 +52,14 @@ JaccardDuplicate = namedtuple(
     ["page_id_a", "page_id_b", "jaccard_similarity", "signal_distance"],
 )
 
-def scan_for_duplicates_in_corpus(fuzziness=1.0):
+def scan_for_duplicates_in_corpus(fuzziness=1.0, path_to_db=PATH_DB):
     pre_filter_sensitivity = 0.7 / fuzziness
     duplicate_threshold = 0.85 / fuzziness
-    pairs = find_duplicate_pages(epsilon=pre_filter_sensitivity, jaccard_threshold=duplicate_threshold)
+    pairs = find_duplicate_pages(epsilon=pre_filter_sensitivity, jaccard_threshold=duplicate_threshold, path_to_db=path_to_db)
     groups = group_jaccard_duplicates(pairs)
     mapping = build_duplicate_mapping(groups)
     if fuzziness == 1.0:            # only store duplicate mapping when fuzziness is a stable score.
-        _store_duplicate_lists(mapping)
+        _store_duplicate_lists(mapping, path_to_db)
     return duplicate_mapping_to_groups(mapping)
 
 # Full pipeline, start to finish: type-signal nearest-neighbor candidate
@@ -69,8 +69,8 @@ def scan_for_duplicates_in_corpus(fuzziness=1.0):
 # once here and shared across both stages.
 def find_duplicate_pages(epsilon=T_SIGNALS_THRESHOLD, metric=DEFAULT_METRIC,
                          jaccard_threshold=JACCARD_SIMILARITY_THRESHOLD,
-                         k_shingle=SHINGLE_SIZE):
-    ids, X, meta = _load_filtered_vectors()
+                         k_shingle=SHINGLE_SIZE, *, path_to_db):
+    ids, X, meta = _load_filtered_vectors(path_to_db)
     candidate_pairs = _find_candidate_pairs(ids, X, epsilon, metric)
     print(f"{DIM}Completed pre-filtering to find similar pages. \n"
           f"We'll compare these to find near-exact duplicates.{RESET}")
@@ -83,8 +83,8 @@ def find_duplicate_pages(epsilon=T_SIGNALS_THRESHOLD, metric=DEFAULT_METRIC,
 # filtering here, so there's no risk of hitting SQLite's bound-parameter
 # limit on a 10K-row IN(...) clause. Replaces what used to be one
 # get_field_in_pages call per page, per field.
-def _load_page_meta():
-    with sqlite3.connect(PATH_DB) as conn:
+def _load_page_meta(path_to_db):
+    with sqlite3.connect(path_to_db) as conn:
         rows = conn.execute(
             f"SELECT id, word_count, plain_text FROM {TABLE_PAGES}"
         ).fetchall()
@@ -107,12 +107,12 @@ def _filter_non_empty_pages(pids, meta):
 # non-empty page set. Shared by find_duplicate_candidate_pairs (standalone
 # tuning use) and find_duplicate_pages (full pipeline) so metadata never
 # gets loaded more than once per run.
-def _load_filtered_vectors():
-    ids, X = load_type_signal_vectors()
+def _load_filtered_vectors(path_to_db):
+    ids, X = load_type_signal_vectors(path_to_db=path_to_db)
     if not ids:
         return [], X, {}
 
-    meta = _load_page_meta()
+    meta = _load_page_meta(path_to_db)
     keep_set = set(_filter_non_empty_pages(ids, meta))
     keep_idx = [i for i, pid in enumerate(ids) if pid in keep_set]
     if len(keep_idx) < 2:
@@ -147,17 +147,6 @@ def _find_candidate_pairs(ids, X, epsilon, metric=DEFAULT_METRIC):
         key=lambda p: p.distance,
     )
 
-
-# Find pages whose type-signal vectors land within `epsilon` of each
-# other. We pre filter for these candidate pairs so we don't spend
-# ages on the jaccard comparisons.
-# Returns: list of CandidatePair(page_id_a, page_id_b, distance), sorted
-# closest-match-first.
-def find_duplicate_candidate_pairs(epsilon=T_SIGNALS_THRESHOLD, metric=DEFAULT_METRIC):
-    ids, X, _ = _load_filtered_vectors()
-    return _find_candidate_pairs(ids, X, epsilon, metric)
-
-
 # Lowercase, strip, collapse whitespace. Deliberately conservative beyond
 # that -- doesn't strip punctuation or the [[Heading: ...]] / [[link to: ...]]
 # structural markup, since those are meaningful, consistently-applied tokens
@@ -183,12 +172,6 @@ def _jaccard_similarity(set_a, set_b):
     intersection = len(set_a & set_b)
     union = len(set_a | set_b)
     return intersection / union if union else 0.0
-
-# Module-level (not a closure) so it can be pickled and sent to worker
-# processes -- a nested function or lambda would fail here.
-def _shingle_worker(args):
-    pid, text, k = args
-    return pid, _make_shingles(_normalize_text(text), k=k)
 
 # Run Jaccard shingle comparison on the specific candidate pairs produced
 # by find_duplicate_candidate_pairs -- not on clusters. The nearest-neighbor
@@ -278,8 +261,8 @@ class UnionFind:
             self.parent[py] = px
 
 # mapping: dict {page_id: [pid1, pid2, ...]}
-def _store_duplicate_lists(mapping):
-    with sqlite3.connect(PATH_DB) as conn:
+def _store_duplicate_lists(mapping, path_to_db):
+    with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         # clear the old ones, so that we have a cleanly built list with no stales
         query = f"UPDATE {TABLE_PAGES} SET duplicate_list = NULL"
@@ -293,8 +276,8 @@ def _store_duplicate_lists(mapping):
         cur.executemany(query, rows)
 
 
-def fetch_unique_duplicate_groups(space_id=None):
-    with sqlite3.connect(PATH_DB) as conn:
+def fetch_unique_duplicate_groups(space_id=None, path_to_db=PATH_DB):
+    with sqlite3.connect(path_to_db) as conn:
         space_filter = f"space_id = {space_id}" if space_id else "1=1"
         query = f"""SELECT duplicate_list FROM {TABLE_PAGES} WHERE duplicate_list IS NOT NULL AND {space_filter}"""
         cur = conn.cursor()
