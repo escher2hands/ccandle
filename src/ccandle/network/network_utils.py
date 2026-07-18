@@ -39,6 +39,8 @@ def _get(endpoint, params=None, quiet=False):
 
     return response.json()
 
+
+# ——— SIMPLE REQUESTS ——————————————————————————
 def request_paginated_results(endpoint, limit=50, max_items=100000, quiet=False):
     all_results = []
     cursor = None
@@ -158,6 +160,7 @@ def request_users_metadata(account_ids, batch_size=250):
         all_results.extend(data.get("results", []))
     return all_results
 
+# ——— REQUESTS STUFF ———————————————————————————
 # Update a Confluence page.
 # DANGER! This overwrites an existing page! Handle with care!
 # target_page dict must contain:
@@ -209,6 +212,43 @@ def request_put_page(target_page, new_html):
         "html": response_json.get('body').get('storage').get('value'),
     }
 
+def request_move_page(page_id, target_id, position="append"):
+    """
+    Move a single page under a new parent using the v1 content move endpoint.
+    No version bump, no body round-trip — just repositions the page.
+    """
+    url = f"{get_confluence_base_url_v1()}/content/{page_id}/move/{position}/{target_id}"
+
+    try:
+        response = SESSION.put(url, timeout=30)
+    except requests.exceptions.RequestException as e:
+        print(f"Connection failed: {e}")
+        return {
+            "status": "no connection",
+            "http_status": 503,
+            "page_id": page_id,
+            "target_id": target_id,
+        }
+
+    if response.status_code not in (200, 202):
+        print(f"Move failed for page {page_id} ({response.status_code})")
+        print(response.text)
+        return {
+            "status": "error",
+            "http_status": response.status_code,
+            "page_id": page_id,
+            "target_id": target_id,
+        }
+
+    return {
+        "status": "success",
+        "http_status": response.status_code,
+        "page_id": page_id,
+        "target_id": target_id,
+    }
+
+
+# ——— UX HELPERS ———————————————————————————————
 def check_network_connection():
     try:
         url = f"{get_confluence_base_url()}{ENDPOINT_SPACES}"
