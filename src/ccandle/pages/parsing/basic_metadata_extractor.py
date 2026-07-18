@@ -1,6 +1,7 @@
 # get link count, word count, image count, lead para, and check if page has link tree
 from bs4 import BeautifulSoup
 
+from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.pages.parsing.eval_defs import *
 from ccandle.pages.parsing.paragraph_parser import extract_lead_paragraph_from_soup
 from ccandle.pages.parsing.plain_text_extractor import extract_text_and_word_count_from_html
@@ -12,8 +13,9 @@ from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
 
-def add_basic_metadata_in_bulk(pids):
-    pages = _get_page_texts_and_htmls(pids)
+def add_basic_metadata_in_bulk(pids=None, path_to_db=PATH_DB):
+    pids = pids or get_all_ids_in_pages(path_to_db=path_to_db)
+    pages = _get_page_texts_and_htmls(pids, path_to_db=path_to_db)
     enriched_pages = []
     for page in tqdm(pages, desc="Extracting basic metadata from each page...", unit="page"):
         soup = BeautifulSoup(page['html'], 'html.parser')
@@ -27,7 +29,7 @@ def add_basic_metadata_in_bulk(pids):
             'eval_notes': eval_notes['serialized_notes'],
         }
         enriched_pages.append(enriched)
-    _store_enriched_metadata(enriched_pages)
+    _store_enriched_metadata(enriched_pages, path_to_db=path_to_db)
 
 def _get_eval_notes(html, soup, space_id, word_count):
     lead_para_html = extract_lead_paragraph_from_soup(soup)
@@ -51,10 +53,10 @@ def _get_eval_notes(html, soup, space_id, word_count):
     return lead_para_text, notes_data
 
 
-def _get_page_texts_and_htmls(pids):
+def _get_page_texts_and_htmls(pids, path_to_db):
     placeholders = ",".join(["?"] * len(pids))
 
-    with sqlite3.connect(PATH_DB) as conn:
+    with sqlite3.connect(path_to_db) as conn:
         cursor = conn.cursor()
         cursor.execute(f"SELECT id, html, space_id, plain_text, word_count "
                        f"FROM {TABLE_PAGES} WHERE id IN ({placeholders})", pids)
@@ -63,8 +65,8 @@ def _get_page_texts_and_htmls(pids):
             for pid, html, space_id, plain_text, word_count in cursor.fetchall()
         ]
 
-def _store_enriched_metadata(enriched_records):
-    with sqlite3.connect(PATH_DB) as conn:
+def _store_enriched_metadata(enriched_records, path_to_db):
+    with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         cur.executemany(
             f"UPDATE {TABLE_PAGES} "
