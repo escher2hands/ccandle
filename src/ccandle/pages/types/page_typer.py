@@ -1,19 +1,21 @@
 from ccandle.config.config_db import TABLE_VECTORS, TABLE_PAGES, PATH_DB
+from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.pages.types.decompose_page_into_type_signals import load_type_signal_vectors, generate_signal_vectors_in_bulk
 from ccandle.config.config_db import PATH_MODEL
 from ccandle.pages.types.type_signals_defs import SIGNAL_KEYS
 import sqlite3, joblib
 import numpy as np
 
-def type_all_pages(delta_pages=None):
-    generate_signal_vectors_in_bulk(pids=delta_pages)
+def type_all_pages(delta_pages=None, path_to_db=PATH_DB):
+    delta_pages = delta_pages or get_all_ids_in_pages(path_to_db=path_to_db)
+    generate_signal_vectors_in_bulk(pids=delta_pages, path_to_db=path_to_db)
     print(f"Now assigning types to your pages...")
-    apply_type_labels()
+    apply_type_labels(path_to_db=path_to_db)
     print("Done.\n")
 
 # Inference step. No seeds, no training corpus dependency — just loads
 # the shared model artifact and applies it to whatever corpus is local.
-def apply_type_labels(model_path=PATH_MODEL):
+def apply_type_labels(model_path=PATH_MODEL, path_to_db=PATH_DB):
     artifact = joblib.load(model_path)
     clf = artifact["model"]
     threshold = artifact["confidence_threshold"]
@@ -24,7 +26,7 @@ def apply_type_labels(model_path=PATH_MODEL):
             "different SIGNAL_KEYS layout than the current corpus produces."
         )
 
-    page_ids, X = load_type_signal_vectors()
+    page_ids, X = load_type_signal_vectors(path_to_db=path_to_db)
 
     probs = clf.predict_proba(X)
     max_prob = probs.max(axis=1)
@@ -41,7 +43,7 @@ def apply_type_labels(model_path=PATH_MODEL):
         for pid, lbl in zip(page_ids, final_label)
     ]
 
-    with sqlite3.connect(PATH_DB) as conn:
+    with sqlite3.connect(path_to_db) as conn:
         conn.executemany(f"UPDATE {TABLE_VECTORS} SET type = ?, type_confidence = ? WHERE id = ?",
             vec_rows, )
         conn.executemany(f"UPDATE {TABLE_PAGES} SET page_type = ? WHERE id = ?",
