@@ -15,7 +15,7 @@ EXTRACT_PATTERN = re.compile(r"\[\[link to: ([^\]]+)\]\]")
 # Loads the data we need for link conversion in one shot
 # "pages": {pid: plain_text},
 # "title_index": {(title, space_key): pid} - should work even if more than one page has the same title
-def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
+def load_pages_and_title_index(pid_list, path_to_db):
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT id, title, space_id, plain_text FROM {TABLE_PAGES}")
@@ -38,7 +38,7 @@ def load_pages_and_title_index(pid_list, path_to_db=PATH_DB):
 # in place, and returns the number of converted links. Our goal is
 # for faster look up of links, easier validation, and also fast checks
 # for cross-space links.
-def convert_links_in_memory(data, debug_mode=False):
+def convert_links_in_memory(data, debug_mode=False, *, path_to_db):
     pages = data["pages"]
     title_index = data["title_index"]  # now {(title, space_short_id): pid}
     converted_links_count = 0
@@ -57,6 +57,7 @@ def convert_links_in_memory(data, debug_mode=False):
             title=inner_text,
             space_short_id=space_short_id,
             title_to_pid_index=title_index,
+            path_to_db=path_to_db,
         )
         target_pid = resolved['target_pid']
 
@@ -81,9 +82,9 @@ def convert_links_in_memory(data, debug_mode=False):
 
 # Looks up pid from (title, space_short_id). If no index provided, builds one on the fly.
 # title_to_pid_index should be {(title, space_short_id): pid}.
-def resolve_pid_from_title_and_space(title, space_short_id, title_to_pid_index=None):
+def resolve_pid_from_title_and_space(title, space_short_id, title_to_pid_index=None, *, path_to_db=PATH_DB):
     if title_to_pid_index is None:
-        with sqlite3.connect(PATH_DB) as conn: # One-off: build a minimal index for just this title
+        with sqlite3.connect(path_to_db) as conn: # One-off: build a minimal index for just this title
             cur = conn.cursor()
             cur.execute(
                 f"SELECT id, space_id FROM {TABLE_PAGES} WHERE title=?", (title,)
@@ -113,7 +114,7 @@ def build_links_list_in_memory(data: dict) -> dict:
     return links_map
 
 # Writes all modified fields back in bulk.
-def persist_changes(data, links_map, path_to_db=PATH_DB):
+def persist_changes(data, links_map, path_to_db):
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         # Update page bodies
@@ -134,12 +135,12 @@ def persist_changes(data, links_map, path_to_db=PATH_DB):
 
 # Complete pipeline:
 # load -> process -> store
-def clean_and_store_links(pid_list=None, path_to_db=PATH_DB, debug_mode=False):
-    pid_list = pid_list or get_all_ids_in_pages()
+def clean_and_store_links(pid_list=None, debug_mode=False, *, path_to_db):
+    pid_list = pid_list or get_all_ids_in_pages(path_to_db=path_to_db)
     # load data for the given pages
     data = load_pages_and_title_index(pid_list, path_to_db)
     # process the data in place
-    convert_links_in_memory(data, debug_mode=debug_mode)
+    convert_links_in_memory(data, debug_mode=debug_mode, path_to_db=path_to_db)
     links_map = build_links_list_in_memory(data)
     # bulk store the data back to the DB, using the specified db connection
     persist_changes(data, links_map, path_to_db)
