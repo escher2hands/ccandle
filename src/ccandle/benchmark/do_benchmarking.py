@@ -22,8 +22,6 @@ NUMERIC_DELTA_SECTIONS = ("stats", "page_types")
 EQUALITY_THRESHOLD = 0.01
 UNCHANGED_SENTINEL = "--"
 
-
-
 def _index_by_space_id(spaces: list[dict]) -> dict:
     return {space["space_id"]: space for space in spaces}
 
