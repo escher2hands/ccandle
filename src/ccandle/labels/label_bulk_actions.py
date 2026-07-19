@@ -81,7 +81,7 @@ def check_and_clean_label(label):
         index = 1
         print(f"{BOLD}{0}{RESET} -   {label}{RESET}{DIM} (your label){RESET}")
         for fuzzy_label in fuzzies:
-            print(f"{BOLD}{index}{RESET} -   {YELLOW}{fuzzy_label}{RESET}")
+            print(f"{BOLD}[{index}]{RESET} -   {YELLOW}{fuzzy_label}{RESET}")
             index += 1
         print(f"{DIM}Press the number of the label you want to use. \n"
               f"Or, press {RESET}{BOLD}0{RESET}{DIM} to create a new label with your input.{RESET}")

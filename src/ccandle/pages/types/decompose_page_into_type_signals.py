@@ -12,29 +12,29 @@ import sqlite3
 from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
-def generate_signal_vectors_in_bulk(pids=None):
-    page_ids = pids or get_all_ids_in_pages()
+def generate_signal_vectors_in_bulk(pids=None, path_to_db=PATH_DB):
+    page_ids = pids or get_all_ids_in_pages(path_to_db=path_to_db)
     X = []
 
     for page_id in tqdm(page_ids, desc="Generating type signal vectors...", unit="pages"):
-        sig_vec = get_decomposition_vector(page_id)
+        sig_vec = get_decomposition_vector(page_id, path_to_db=path_to_db)
         X.append(sig_vec)
 
     X = np.array(X, dtype=float)
     X_scaled = scale_signal_vectors(X, SIGNAL_KEYS)
 
-    create_table(TABLE_VECTORS, SCHEMA_VECTORS)     # create the table if it doesn't already exist
+    create_table(TABLE_VECTORS, SCHEMA_VECTORS, path_to_db=path_to_db)     # create the table if it doesn't already exist
 
-    _store_type_signal_vectors(page_ids, X, X_scaled)
+    _store_type_signal_vectors(page_ids, X, X_scaled, path_to_db=path_to_db)
 
-def get_decomposition_vector(page_id):
-    signals_dict = decompose_page(page_id, verbose=False)
+def get_decomposition_vector(page_id, path_to_db):
+    signals_dict = decompose_page(page_id, verbose=False, path_to_db=path_to_db)
     return np.array(list(signals_dict.values()), dtype=float)
 
-def decompose_page(page_id, verbose=False):
+def decompose_page(page_id, verbose=False, *, path_to_db):
     signals_dict = {}
     title, html, plain_text, word_count = query_field_multi_in_pages(page_id, 'title',
-                                                                         'html', 'plain_text', 'word_count')
+                                                                         'html', 'plain_text', 'word_count', path_to_db=path_to_db)
     if verbose:
         print("=" * WIDTH_NICE)
         print(page_id + " | " + title.upper() + "\n")
@@ -48,7 +48,7 @@ def decompose_page(page_id, verbose=False):
     soup = BeautifulSoup(html, 'html.parser')
 
     word_count, image_count, link_count, child_list = query_field_multi_in_pages(page_id,
-                                              'word_count', 'image_count', 'link_count', 'child_list')
+                                              'word_count', 'image_count', 'link_count', 'child_list', path_to_db=path_to_db)
     signals = base_content_signals(word_count, image_count, soup, html, plain_text)
     _print_signals_if_verbose(signals, "base signals (proportional to word count)", verbose)
     signals_dict.update(signals)
@@ -191,8 +191,8 @@ def _empty_signals_vector():
     assert len(SIGNAL_KEYS) == SIGNALS_VECTOR_DIM, f"Got {len(SIGNAL_KEYS)}, expected {SIGNALS_VECTOR_DIM}"
     return {key: 0 for key in SIGNAL_KEYS}
 
-def inspect_page_type_signals():
-    with sqlite3.connect(PATH_DB) as conn:
+def inspect_page_type_signals(path_to_db=PATH_DB):
+    with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         smell_type = 'eval_smell'
         cur.execute(f"""SELECT id, {smell_type} FROM {TABLE_PAGES}""")
@@ -201,12 +201,12 @@ def inspect_page_type_signals():
     smell_scores = [row[1] for row in rows]
     return page_ids, smell_scores
 
-def _store_type_signal_vectors(page_ids, signal_vec_unscaled, signal_vectors):
+def _store_type_signal_vectors(page_ids, signal_vec_unscaled, signal_vectors, *, path_to_db):
     rows = [
         (page_id, signal_vec_unscaled[i].astype(np.float32).tobytes(), signal_vectors[i].astype(np.float32).tobytes())
         for i, page_id in enumerate(page_ids)
     ]
-    with sqlite3.connect(PATH_DB) as conn:
+    with sqlite3.connect(path_to_db) as conn:
         conn.executemany(
             f"""INSERT INTO {TABLE_VECTORS} (id, type_signals_unscaled, type_signals_vec)
                 VALUES (?, ?, ?)
@@ -215,8 +215,8 @@ def _store_type_signal_vectors(page_ids, signal_vec_unscaled, signal_vectors):
             rows,
         )
 
-def load_type_signal_vectors():
-    with sqlite3.connect(PATH_DB) as conn:
+def load_type_signal_vectors(path_to_db=PATH_DB):
+    with sqlite3.connect(path_to_db) as conn:
         rows = conn.execute(
             f"SELECT id, type_signals_vec FROM {TABLE_VECTORS} WHERE type_signals_vec IS NOT NULL"
         ).fetchall()

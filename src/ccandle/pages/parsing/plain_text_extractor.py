@@ -3,6 +3,7 @@
 # - headings
 # - links in line
 # - bullet points should be respected
+from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.spaces.space_utils import get_space_attribute
@@ -23,14 +24,14 @@ HEADING_ELEMENTS = {"h1", "h2"}
 LIST_ITEM_ELEMENT = "li"
 INTERNAL_LINK_FLAG_PATTERN = re.compile(r"\[\[link to:\s+(~[A-Za-z0-9]+|[A-Z0-9]+):(.*?)\]\]", re.DOTALL,)
 
-def extract_plain_texts_in_bulk(pid_list=None):
-    pids = pid_list or get_all_ids_in_pages()
+def extract_plain_texts_in_bulk(pid_list=None, *, path_to_db):
+    pids = pid_list or get_all_ids_in_pages(path_to_db=path_to_db)
     all_pids_to_htmls = [
         {
             'id': result[0],
             'html': result[1],
             'space_key': get_space_attribute(result[2], "id", "short_id"),
-        } for result in query_db_results(select_query="id, html, space_id")]
+        } for result in query_db_results(select_query="id, html, space_id", path_to_db=path_to_db)]
     pids_to_htmls = [record for record in all_pids_to_htmls if record['id'] in pids]
 
     texts = []
@@ -42,7 +43,7 @@ def extract_plain_texts_in_bulk(pid_list=None):
             'word_count': word_count,
         })
 
-    _store_plain_texts_in_bulk(texts)
+    _store_plain_texts_in_bulk(texts, path_to_db=path_to_db)
     return texts
 
 # Walks block-level elements in document order and converts them to plain text:
@@ -85,10 +86,10 @@ def extract_text_and_word_count_from_html(html: str, space_key: str) -> tuple[st
 
     return "\n".join(output).strip(), word_count
 
-def _store_plain_texts_in_bulk(text_records):
+def _store_plain_texts_in_bulk(text_records, path_to_db):
     import sqlite3
-    from ccandle.config.config_db import PATH_DB, TABLE_PAGES
-    with sqlite3.connect(PATH_DB) as conn:
+    from ccandle.config.config_db import TABLE_PAGES
+    with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         cur.executemany(
             f"UPDATE {TABLE_PAGES} SET plain_text = ?, word_count = ? WHERE id = ?",

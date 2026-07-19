@@ -15,8 +15,9 @@ from collections import defaultdict
 from yaspin import yaspin
 from ccandle.excerpts.excerpt_utils import *
 
-def find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB, quiet=False):
-    pages_basic_data = _load_page_data(delta_pages, path_to_db)
+def find_and_store_excerpt_info(delta_pages=None, path_to_db=PATH_DB, quiet=False):
+    delta_pages = delta_pages or get_all_ids_in_pages(path_to_db=path_to_db)
+    pages_basic_data = _load_page_data(delta_pages, path_to_db=path_to_db)
 
     if quiet: excerpt_sources = find_excerpt_sources_in_bulk(pages_basic_data)
     else:
@@ -38,7 +39,7 @@ def find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB, quiet=False):
     for pid in delta_pages:
         all_excerpts_info.setdefault(pid, [])   # set a default
 
-    _store_excerpts(all_excerpts_info)
+    _store_excerpts(all_excerpts_info, path_to_db)
     if not quiet: print(f"{DIM}Finished computing excerpt info for all pages.\n{RESET}")
 
 def find_excerpt_sources_in_bulk(pages_basic_data):
@@ -65,13 +66,13 @@ def find_excerpt_includes_in_bulk(pages_basic_data, existing_excerpt_index=None)
 
     return all_excerpts
 
-def _store_excerpts(excerpts_data, path_to_db=PATH_DB):
+def _store_excerpts(excerpts_data, path_to_db):
     excerpt_updates = [(json.dumps(excerpts), pid) for pid, excerpts in excerpts_data.items()]
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         cur.executemany(f"""UPDATE {TABLE_PAGES} SET excerpts = ? WHERE id = ?""", excerpt_updates, )
 
-def load_existing_excerpt_sources_in_db(path_to_db=PATH_DB):
+def load_existing_excerpt_sources_in_db(path_to_db):
     results = query_db_results(
         "id, excerpts",
         where_clause="excerpts like '%:source:%'",
@@ -104,7 +105,7 @@ def _merge_excerpt_indexes(*indexes):
         for pid, items in merged.items()
     }
 
-def _load_page_data(delta_pages=None, path_to_db=PATH_DB):
+def _load_page_data(delta_pages=None, *, path_to_db):
     FILTER_MACRO = f"html like '%ac:structured-macro%'"
     delta_pages = delta_pages or get_all_ids_in_pages(path_to_db=path_to_db)
     placeholders = ",".join("?" for _ in delta_pages)
