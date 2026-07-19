@@ -16,6 +16,7 @@ class StatConfig:
     title: str
     goal: float
     group: str
+    higher_is_better: bool
     hint: str = ""
 
 STATS_KEYS = {
@@ -24,53 +25,63 @@ STATS_KEYS = {
         title="Pages without links",
         goal=10.0,
         group="topology",
+        higher_is_better=False,
         hint="share of pages with no OUTgoing links",
     ),
     "orphans_share": StatConfig(
         title="Orphan pages",
         goal=40.0,
         group="topology",
+        higher_is_better=False,
         hint="share of pages with no INcoming links",
     ),
     "link_density": StatConfig(
         title="Link density",
         goal=3.0,
         group="topology",
+        higher_is_better=True,
         hint="links per 100 words across content pages",
     ),
     "lead_paras_good_share": StatConfig(
         title="Good lead paragraphs",
         goal=15.0,
         group="quality",
+        higher_is_better=True,
         hint="share of pages that have a descriptive leading paragraph with links",
     ),
     "excerpts_and_reuse_share": StatConfig(
         title="Pages reusing excerpts",
         goal=10.0,
         group="quality",
+        higher_is_better=True,
         hint="share pages reusing excerpts of other pages, reducing redundancy and drift",
     ),
     "junk_pages_share": StatConfig(
         title="Junk / empty pages",
         goal=5.0,
         group="quality",
+        higher_is_better=False,
         hint="share of pages that are empty, very short, or duplicated",
     ),
     "landing_page_coverage": StatConfig(
         title="Landing page coverage",
         goal=5.0,
         group="navigation",
+        higher_is_better=True,
+        hint="share of directory pages aka landing pages to route readers to info",
     ),
     "navbox_coverage": StatConfig(
         title="Navbox coverage",
         goal=20.0,
         group="navigation",
+        higher_is_better=True,
         hint="share of pages containing navboxes, guiding users through a topic",
     ),
     "hub_coverage": StatConfig(
         title="Hub coverage",
         goal=20.0,
         group="navigation",
+        higher_is_better=True,
         hint="coverage of expected topic clusters with intro pages",
     ),
 }
@@ -108,10 +119,7 @@ def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB, json_
             'page_types': gather_page_types_breakdown(space_id, path_to_db),
         }
         return sdata
-
-    space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
-    print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
-    print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
+    print_space_header(space_id)
     print()
 
     sdata = gather_relevant_space_data(space_id, path_to_db)
@@ -219,13 +227,7 @@ def gather_page_types_breakdown(space_id, path_to_db):
         params = tuple(TYPE_LIST)
 
         cur = conn.cursor()
-        cur.execute(f"""
-            SELECT
-                {select_lines}
-            FROM pages
-            WHERE {SF}
-            """, params
-                    )
+        cur.execute(f"""SELECT {select_lines} FROM pages WHERE {SF}""", params )
         row = cur.fetchone()
 
     return {p_type: row[p_type] for p_type in TYPE_LIST}
@@ -252,3 +254,9 @@ def print_grouped_stats(space_stats, quiet=False):
 
 def share(numerator, denominator):
     return numerator / denominator if denominator else 0.0
+
+def print_space_header(space_id):
+    space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
+    print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
+    print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
+
