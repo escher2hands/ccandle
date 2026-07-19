@@ -4,14 +4,8 @@
 # can be re-run any number of times as the pipeline changes, always
 # starting from the same untouched dehydrated base.
 
-from ccandle.config.config_db import TABLE_PAGES, ARTIFACT_DIR, TABLE_VECTORS
+from ccandle.config.config_db import TABLE_PAGES, TABLE_VECTORS
 from ccandle.db.table_utils import create_table
-from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
-from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
-from ccandle.pages.parsing.link_parser import clean_and_store_links
-from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
-from ccandle.pages.types.page_typer import type_all_pages
-from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus
 from pathlib import Path
 import sqlite3
 
@@ -46,6 +40,14 @@ def _seed_hydrated_table(dehydrated_path: Path, tmp_path: Path) -> int:
 
 
 def rehydrate_snapshot(dehydrated_input) -> Path:
+    from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
+    from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
+    from ccandle.pages.parsing.link_parser import clean_and_store_links
+    from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
+    from ccandle.page_types.page_typer import type_all_pages
+    from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus
+    # pushed some imports here to reduce startup time to first print
+
     dehydrated_path = Path(dehydrated_input).expanduser().resolve()
     if not dehydrated_path.exists():
         raise FileNotFoundError(dehydrated_path)

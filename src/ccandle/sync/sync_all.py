@@ -131,7 +131,7 @@ def _extract_excerpt_info(delta_pages):
     from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
     find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB)
 def _type_all_pages(delta_pages):
-    from ccandle.pages.types.page_typer import type_all_pages
+    from ccandle.page_types.page_typer import type_all_pages
     type_all_pages(delta_pages, path_to_db=PATH_DB)
 def _scan_for_duplicates():
     from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus

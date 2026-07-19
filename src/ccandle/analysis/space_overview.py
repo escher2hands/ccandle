@@ -5,7 +5,7 @@ from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.config.config_types import TYPE_ADMIN_FILTER, TYPE_LIST
 from ccandle.pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
-from ccandle.pages.types.type_signals_defs import THRESH_PAGE_EMPTY
+from ccandle.page_types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.presentation.theme import *
 from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute, display_friendly_space_info
 import sqlite3

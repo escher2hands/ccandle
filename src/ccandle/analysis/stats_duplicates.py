@@ -24,8 +24,8 @@ cluster-then-pairwise approach did.
 from collections import namedtuple
 from sklearn.neighbors import NearestNeighbors
 from ccandle.config.config_db import PATH_DB, TABLE_PAGES
-from ccandle.pages.types.type_signals_defs import THRESH_PAGE_EMPTY
-from ccandle.pages.types.decompose_page_into_type_signals import load_type_signal_vectors
+from ccandle.page_types.type_signals_defs import THRESH_PAGE_EMPTY
+from ccandle.page_types.decompose_page_into_type_signals import load_type_signal_vectors
 import sqlite3, json
 from tqdm import tqdm
 

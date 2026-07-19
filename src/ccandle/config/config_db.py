@@ -16,6 +16,8 @@ ARTIFACT_DIR = DATA_DIR / "artifacts"
 PATH_SPACES_CONFIG = CONFIG_DIR / "config_spaces.json"
 PATH_DB = DB_DIR / "confluence_mirror.db"
 PATH_MODEL = CONFIG_DIR / "type_model.joblib"
-
 for directory in (DB_DIR, CONFIG_DIR):
     directory.mkdir(parents=True, exist_ok=True)
+
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PATH_BUNDLED_MODEL = PACKAGE_ROOT / "artifacts" / "page_type_model.joblib"  # the default location when src is cloned

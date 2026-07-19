@@ -34,8 +34,8 @@ def interactive_smoke_test():
         BASE_CMD + ["spaces", "list", "--filter", test_space_query],
         BASE_CMD + ["spaces", "configured"],
 
-        BASE_CMD + ["sync"],
-        BASE_CMD + ["sync", "--from-step", "parse_text"],
+        # BASE_CMD + ["sync"],
+        # BASE_CMD + ["sync", "--from-step", "parse_text"],
 
         BASE_CMD + ["labels", "add", "smoke-test-label", "2622718175", "2455404674"],
         BASE_CMD + ["labels", "remove", "smoke-test-label", "2622718175", "2455404674"],

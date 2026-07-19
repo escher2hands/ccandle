@@ -5,7 +5,7 @@
 from ccandle.config.config_db import PATH_DB
 from ccandle.config.confluence_auth import load_conf_url
 from ccandle.db.db_query_utils import query_db_results
-from ccandle.pages.types.type_signals_defs import THRESH_PAGE_EMPTY
+from ccandle.page_types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.spaces.space_utils import get_space_attribute
 
 SEL_QUERY = "id, space_id, word_count, html, title, has_link_tree, child_list, page_type, link_count, last_modified, tiny_link"
