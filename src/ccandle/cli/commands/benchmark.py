@@ -13,6 +13,8 @@ def register(subparsers):
 def run(args):
     from ccandle.benchmark.snapshot_manager import find_available_snapshots
     from ccandle.benchmark.do_benchmarking import compare_snapshots
+    from ccandle.analysis.space_overview import print_space_header
+    from ccandle.spaces.space_utils import display_friendly_space_info
 
     debug = True
     from ccandle.config.config_db import PATH_DB
@@ -31,13 +33,22 @@ def run(args):
         if not snapshot_ref:
             print(f"{RED}No snapshot given.{RESET}")
             return 1
-    comparison = compare_snapshots(
-        snapshot_ref,
-        json_format=False,
-        quiet=args.quiet,
-    )
+    comparison = compare_snapshots(snapshot_ref, json_format=False, quiet=args.quiet)
 
-    _print_delta_report(comparison)
+    for space in comparison['matched']:
+        print_space_header(space['space_id'])
+        print_grouped_delta_stats(space['stats'], quiet=args.quiet)
+        print("\n")
+
+    if comparison["only_in_snapshot"]:
+        print(f"\nThe following spaces were in your {BLUE}snapshot{RESET}, but missing from the current db:")
+        for space in comparison["only_in_snapshot"]:
+            print("-   " + display_friendly_space_info(space["space_id"], long=True))
+
+    if comparison["only_in_current"]:
+        print(f"\nThe following spaces were in your {BLUE}current db{RESET}, but missing from the snapshot:")
+        for space in comparison["only_in_current"]:
+            print(f"-   {DIM}{display_friendly_space_info(space['space_id'], long=True)}{RESET}")
 
     if debug:
         report = diff_active_db(copy_path)
@@ -94,31 +105,26 @@ def prompt_for_snapshot(available: dict):
         # Anything non-numeric is assumed to be a path or explicit snapshot name.
         return response
 
+def print_grouped_delta_stats(delta_stats, quiet=False):
+    from ccandle.analysis.space_overview import STATS_GROUPS, STATS_GROUP_TITLES, STATS_KEYS
 
-def _print_delta_report(comparison: dict) -> None:
-    from ccandle.benchmark.do_benchmarking import NUMERIC_DELTA_SECTIONS
-    from ccandle.analysis.space_overview import print_space_header
-    from ccandle.spaces.space_utils import display_friendly_space_info
-    if not any(comparison.values()):
-        print("No spaces found in either db.")
-        return
+    for group in STATS_GROUPS:
+        print(f"\n{STATS_GROUP_TITLES[group]}")
+        print("-" * WIDTH_NICE)
 
-    for space in comparison["matched"]:
-        print_space_header(space['space_id'])
-        for section in NUMERIC_DELTA_SECTIONS:
-            print(f"  {section}:")
-            for key, value in space[section].items():
-                print(f"    {key}: {_format_delta_percent(value, True)}")
+        for key, cfg in STATS_KEYS.items():
+            if cfg.group != group:
+                continue
 
-    if comparison["only_in_snapshot"]:
-        print(f"\nThe following spaces were in your {BLUE}snapshot{RESET}, but missing from current db:")
-        for space in comparison["only_in_snapshot"]:
-            print("-   " + display_friendly_space_info(space['space_id'], long=True))
+            delta = delta_stats.get(key)
+            if delta is None:
+                continue
 
-    if comparison["only_in_current"]:
-        print(f"\nThe following spaces were in your {BLUE}current db{RESET}, but missing from your snapshot:")
-        for space in comparison["only_in_current"]:
-            print(f"-   {DIM}{display_friendly_space_info(space['space_id'], long=True)}{RESET}")
+            line = f"{cfg.title:<27}: {_format_delta_percent(delta, cfg.higher_is_better):>16}"
+            if not quiet and cfg.hint:
+                line += f"  {DIM}→ {cfg.hint}{RESET}"
+
+            print(line)
 
 def _format_delta_percent(delta, higher_is_better):
     EQUALITY_THRESHOLD = 0.001
