@@ -94,7 +94,7 @@ STATS_GROUP_TITLES = {
 }
 
 def present_all_space_overviews(quiet=False, path_to_db=PATH_DB, json_format=False):
-    space_ids = list_configured_space_ids()
+    space_ids = _space_id_list(path_to_db)
     if json_format:
         results = []
         for space_id in space_ids:
@@ -259,4 +259,8 @@ def print_space_header(space_id):
     space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
     print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
     print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
+
+def _space_id_list(path_to_db):
+    space_ids_ill_formatted = query_db_results(select_query="distinct(space_id)", path_to_db=path_to_db)
+    return [res[0] for res in space_ids_ill_formatted]
 
