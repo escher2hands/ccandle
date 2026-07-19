@@ -14,6 +14,13 @@ def run(args):
     from ccandle.benchmark.snapshot_manager import find_available_snapshots
     from ccandle.benchmark.do_benchmarking import compare_snapshots
 
+    debug = True
+    from ccandle.config.config_db import PATH_DB
+    from ccandle.benchmark.db_leakage_checker import snapshot_active_db, diff_active_db, print_diff_report
+    if debug:
+        copy_path = PATH_DB.with_name(PATH_DB.stem + ".pre_rehydrate_copy.db")
+        snapshot_active_db(copy_path)
+
     snapshot_ref = args.snapshot
     if not snapshot_ref:
         if not args.quiet:
@@ -24,12 +31,19 @@ def run(args):
         if not snapshot_ref:
             print(f"{RED}No snapshot given.{RESET}")
             return 1
-
-    return compare_snapshots(
+    comparison = compare_snapshots(
         snapshot_ref,
         json_format=False,
         quiet=args.quiet,
     )
+
+    _print_delta_report(comparison)
+
+    if debug:
+        report = diff_active_db(copy_path)
+        print_diff_report(report)
+        copy_path.unlink()  # clean up the check copy once you've reviewed it
+    return 0
 
 def prompt_for_snapshot(available: dict):
     hydrated = available["hydrated"]
@@ -79,3 +93,47 @@ def prompt_for_snapshot(available: dict):
 
         # Anything non-numeric is assumed to be a path or explicit snapshot name.
         return response
+
+
+def _print_delta_report(comparison: dict) -> None:
+    from ccandle.benchmark.do_benchmarking import NUMERIC_DELTA_SECTIONS
+    from ccandle.analysis.space_overview import print_space_header
+    from ccandle.spaces.space_utils import display_friendly_space_info
+    if not any(comparison.values()):
+        print("No spaces found in either db.")
+        return
+
+    for space in comparison["matched"]:
+        print_space_header(space['space_id'])
+        for section in NUMERIC_DELTA_SECTIONS:
+            print(f"  {section}:")
+            for key, value in space[section].items():
+                print(f"    {key}: {_format_delta_percent(value, True)}")
+
+    if comparison["only_in_snapshot"]:
+        print(f"\nThe following spaces were in your {BLUE}snapshot{RESET}, but missing from current db:")
+        for space in comparison["only_in_snapshot"]:
+            print("-   " + display_friendly_space_info(space['space_id'], long=True))
+
+    if comparison["only_in_current"]:
+        print(f"\nThe following spaces were in your {BLUE}current db{RESET}, but missing from your snapshot:")
+        for space in comparison["only_in_current"]:
+            print(f"-   {DIM}{display_friendly_space_info(space['space_id'], long=True)}{RESET}")
+
+def _format_delta_percent(delta, higher_is_better):
+    EQUALITY_THRESHOLD = 0.001
+    if abs(delta) < EQUALITY_THRESHOLD:
+        return f"{DIM}   ---   {RESET}"
+
+    improved = (
+        delta > 0 if higher_is_better
+        else delta < 0
+    )
+
+    colour = GREEN if improved else RED
+    symbol = "▲" if improved else "▼"
+
+    return (
+        f"{colour}{symbol} "
+        f"{abs(delta) * 100:5.1f} %{RESET}"
+    )
