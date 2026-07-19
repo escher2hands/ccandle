@@ -34,7 +34,7 @@ import sqlite3
 import numpy as np
 import pandas as pd
 from ccandle.config.config_db import PATH_DB, TABLE_VECTORS
-from ccandle.pages.types.type_signals_defs import SIGNAL_KEYS
+from ccandle.types.type_signals_defs import SIGNAL_KEYS
 
 # ---- CONFIG --------------------------------------------------------------
 FALLBACK_TABLE = TABLE_VECTORS

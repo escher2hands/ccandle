@@ -30,7 +30,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 import hdbscan
 
-from ccandle.pages.types.decompose_page_into_type_signals import load_type_signal_vectors
+from ccandle.types.decompose_page_into_type_signals import load_type_signal_vectors
 
 # ---- CONFIG --------------------------------------------------------------
 

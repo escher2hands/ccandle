@@ -1,7 +1,7 @@
 # basic sanity check on some test pages
 from bs4 import BeautifulSoup
 from ccandle.db.db_utils import get_field_in_pages
-from ccandle.pages.types.extract_type_signals import header_count_from_soup, image_count_from_html, word_count_from_soup, \
+from ccandle.page_types.extract_type_signals import header_count_from_soup, image_count_from_html, word_count_from_soup, \
     paragraph_length_signals_from_soup, link_count_from_html
 
 TEST_DATA = {

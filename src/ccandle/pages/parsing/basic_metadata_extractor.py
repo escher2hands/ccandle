@@ -5,7 +5,7 @@ from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.pages.parsing.eval_defs import *
 from ccandle.pages.parsing.paragraph_parser import extract_lead_paragraph_from_soup
 from ccandle.pages.parsing.plain_text_extractor import extract_text_and_word_count_from_html
-from ccandle.pages.types.extract_type_signals import link_count_from_html, image_count_from_html, macro_child_widget_from_html, \
+from ccandle.page_types.extract_type_signals import link_count_from_html, image_count_from_html, macro_child_widget_from_html, \
     header_count_from_soup, macro_has_toc_from_html
 from ccandle.spaces.space_utils import get_space_attribute
 import sqlite3, json
