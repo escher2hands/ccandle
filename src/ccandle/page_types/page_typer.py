@@ -1,10 +1,11 @@
 from ccandle.config.config_db import TABLE_VECTORS, TABLE_PAGES, PATH_DB
 from ccandle.db.db_utils import get_all_ids_in_pages
-from ccandle.types.decompose_page_into_type_signals import load_type_signal_vectors, generate_signal_vectors_in_bulk
-from ccandle.config.config_db import PATH_MODEL
-from ccandle.types.type_signals_defs import SIGNAL_KEYS
-import sqlite3, joblib
+from ccandle.page_types.decompose_page_into_type_signals import load_type_signal_vectors, generate_signal_vectors_in_bulk
+from ccandle.config.config_db import PATH_MODEL, PATH_BUNDLED_MODEL
+from ccandle.page_types.type_signals_defs import SIGNAL_KEYS
+import sqlite3, joblib, shutil
 import numpy as np
+from pathlib import Path
 
 def type_all_pages(delta_pages=None, path_to_db=PATH_DB):
     delta_pages = delta_pages or get_all_ids_in_pages(path_to_db=path_to_db)
@@ -16,7 +17,7 @@ def type_all_pages(delta_pages=None, path_to_db=PATH_DB):
 # Inference step. No seeds, no training corpus dependency — just loads
 # the shared model artifact and applies it to whatever corpus is local.
 def apply_type_labels(model_path=PATH_MODEL, path_to_db=PATH_DB):
-    artifact = joblib.load(model_path)
+    artifact = load_page_typing_model(model_path=model_path)
     clf = artifact["model"]
     threshold = artifact["confidence_threshold"]
 
@@ -49,3 +50,20 @@ def apply_type_labels(model_path=PATH_MODEL, path_to_db=PATH_DB):
         conn.executemany(f"UPDATE {TABLE_PAGES} SET page_type = ? WHERE id = ?",
                          page_rows, )
         conn.commit()
+
+def load_page_typing_model(model_path=PATH_MODEL):
+    model_path = Path(model_path)
+
+    if model_path == PATH_MODEL:
+        ensure_default_model_exists()
+    elif not model_path.exists():
+        raise FileNotFoundError(f"Model not found: {model_path}")
+
+    return joblib.load(model_path)
+
+def ensure_default_model_exists():
+    if PATH_MODEL.exists():
+        return
+
+    PATH_MODEL.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(PATH_BUNDLED_MODEL, PATH_MODEL)
