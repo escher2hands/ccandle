@@ -7,7 +7,7 @@ from ccandle.config.config_types import TYPE_ADMIN_FILTER, TYPE_LIST
 from ccandle.pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
 from ccandle.page_types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.presentation.theme import *
-from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute, display_friendly_space_info
+from ccandle.spaces.space_utils import get_space_attribute, display_friendly_space_info
 import sqlite3
 from dataclasses import dataclass
 
@@ -82,7 +82,7 @@ STATS_KEYS = {
         goal=20.0,
         group="navigation",
         higher_is_better=True,
-        hint="coverage of expected topic clusters with intro pages",
+        hint="coverage of expected topic clusters with canonical intro pages",
     ),
 }
 
