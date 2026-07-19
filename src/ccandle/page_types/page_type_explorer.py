@@ -33,8 +33,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import classification_report, confusion_matrix
-from ccandle.types.type_signals_defs import SIGNAL_KEYS
-from ccandle.types.decompose_page_into_type_signals import load_type_signal_vectors
+from ccandle.page_types.type_signals_defs import SIGNAL_KEYS
+from ccandle.page_types.decompose_page_into_type_signals import load_type_signal_vectors
 from ccandle.config.config_db import PATH_MODEL
 from datetime import datetime, timezone
 import joblib

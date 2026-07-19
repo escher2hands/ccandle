@@ -30,7 +30,7 @@ representative sample, regenerate the P95_AFTER_LOG dict below from its
 output, and nothing else needs to change.
 """
 import numpy as np
-from ccandle.types.type_signals_defs import SIGNAL_KEYS
+from ccandle.page_types.type_signals_defs import SIGNAL_KEYS
 
 # Fields with zero variance in the profiling run - carry no info.
 CONSTANT_FIELDS = {'metric_flags', 'diagram_outside_tables'}

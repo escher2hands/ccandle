@@ -2,9 +2,9 @@ from ccandle.config.config_db import TABLE_VECTORS
 from ccandle.db.db_query_utils import query_field_multi_in_pages
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.db.table_utils import create_table
-from ccandle.types.extract_type_signals import *
-from ccandle.types.type_signals_scaler import scale_signal_vectors
-from ccandle.types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM, THRESH_PAGE_EMPTY
+from ccandle.page_types.extract_type_signals import *
+from ccandle.page_types.type_signals_scaler import scale_signal_vectors
+from ccandle.page_types.type_signals_defs import SIGNAL_KEYS, SIGNALS_VECTOR_DIM, THRESH_PAGE_EMPTY
 from ccandle.pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 from ccandle.presentation.theme import DIM, BOLD, RESET, WIDTH_NICE
 import json, numpy as np

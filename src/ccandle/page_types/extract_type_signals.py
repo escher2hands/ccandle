@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from copy import copy
 from ccandle.config.confluence_auth import load_conf_url, fetch_conf_details
 from ccandle.pages.evaluation.page_scoring_defs import LEAD_PARA_MIN_WORDS, LEAD_PARA_MAX_WORDS, LEAD_PARA_MIN_LINKS
-from ccandle.types.type_keyword_defs import TITLE_KEYWORD_LISTS, HEADERS_KEYWORD_LISTS, BODY_KEYWORD_LISTS
+from ccandle.page_types.type_keyword_defs import TITLE_KEYWORD_LISTS, HEADERS_KEYWORD_LISTS, BODY_KEYWORD_LISTS
 from ccandle.pages.parsing.paragraph_parser import extract_prose_paragraphs, extract_lead_paragraph_from_soup
 import re
 from collections import Counter
