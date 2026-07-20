@@ -7,10 +7,8 @@
 
 import sqlite3
 from pathlib import Path
-from ccandle.db.table_utils import create_table
-from ccandle.config.config_db import TABLE_PAGES, TABLE_VECTORS
+from ccandle.config.config_db import TABLE_PAGES
 from ccandle.benchmark.snapshot_namer import scratch_path, finalize_snapshot_name, DEHYDRATED_SUFFIX
-from ccandle.pages.vectors.schema_table_vectors import SCHEMA_VECTORS
 
 # --------------------------------------------------------------------------
 # Single source of truth for field names + types. DEHYDRATED_SCHEMA is everything
@@ -79,7 +77,7 @@ def create_dehydrated_table(db_conn: sqlite3.Connection) -> None:
 
 
 # copy all rows over
-def _copy_snapshot(cur: sqlite3.Cursor, source_html_column: str = "html_body") -> int:
+def _copy_snapshot(cur: sqlite3.Cursor) -> int:
     columns = _col_list(BASE_COLUMNS)
     insert_sql = f"""
         INSERT INTO {TABLE_PAGES} ({columns})
@@ -91,7 +89,7 @@ def _copy_snapshot(cur: sqlite3.Cursor, source_html_column: str = "html_body") -
     return cur.rowcount
 
 
-def copy_and_dehydrate_snapshot(snapshot_input, source_html_column: str = "html_body") -> Path:
+def copy_and_dehydrate_snapshot(snapshot_input) -> Path:
     snapshot_path = Path(snapshot_input).expanduser().resolve()
     if not snapshot_path.exists():
         raise FileNotFoundError(f"Snapshot not found: {snapshot_path}")
@@ -104,17 +102,12 @@ def copy_and_dehydrate_snapshot(snapshot_input, source_html_column: str = "html_
         cur.executescript("PRAGMA synchronous = OFF; PRAGMA temp_store = MEMORY;")
         cur.execute("ATTACH DATABASE ? AS src", (str(snapshot_path),))
         try:
-            tables = {row[0] for row in cur.execute(
-                "SELECT name FROM src.sqlite_master WHERE type='table'"
-            )}
+            tables = {row[0] for row in cur.execute("SELECT name FROM src.sqlite_master WHERE type='table'")}
             if TABLE_PAGES not in tables:
-                raise ValueError(
-                    f"{snapshot_path} has no '{TABLE_PAGES}' table (found: {sorted(tables)})"
-                )
+                raise ValueError(f"{snapshot_path} has no '{TABLE_PAGES}' table (found: {sorted(tables)})")
 
             create_dehydrated_table(conn)
-            # create_table(TABLE_VECTORS, SCHEMA_VECTORS, path_to_db=tmp_path)
-            copied = _copy_snapshot(cur, source_html_column=source_html_column)
+            copied = _copy_snapshot(cur)
             conn.commit()
         finally:
             cur.execute("DETACH DATABASE src")
