@@ -1,3 +1,4 @@
+from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.config_db import TABLE_PAGES, PATH_DB
 from ccandle.presentation.theme import *
 
@@ -33,7 +34,7 @@ def run(args):
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.formatting_utils import parse_pids_from_terminal
     from ccandle.presentation.page_previews import get_pages_preview, render_table
-    from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db
+    from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db, get_confirmation_to_continue
 
     COLUMNS = [
         {"key": "id", "label": "PAGE ID", "width": 11},
@@ -66,19 +67,17 @@ def run(args):
         print(
             f"Are you sure you'd like to {operation} the label {BLUE}{label}{RESET} {preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
         render_table(results, COLUMNS)
-        print(f"\n{DIM}Type yes or no. Y/n{RESET}")
-        response = input()
-        if response in ["y", "yes"]:
-            failures = fn(pids, label)
-            if failures:
-                print(f"\nSome of your labels operations weren't successful:\n")
-                [print(f"{RED}-   {failure}{RESET}") for failure in failures]
-                print(f"\nPlease double check these manually.")
-            print("\nResults:")
-            new_results = get_pages_preview(pids, "labels", "title")
-            render_table(new_results, CONFIRMATION_COLUMNS)
-        else:
-            print("Aborting.")
+
+        get_confirmation_to_continue()
+
+        failures = fn(pids, label)
+        if failures:
+            print(f"\nSome of your labels operations weren't successful:\n")
+            [print(f"{RED}-   {failure}{RESET}") for failure in failures]
+            print(f"\nPlease double check these manually.")
+        print("\nResults:")
+        new_results = get_pages_preview(pids, "labels", "title")
+        render_table(new_results, CONFIRMATION_COLUMNS)
         return 0
 
     elif args.labels_cmd == "sync":
@@ -89,6 +88,7 @@ def run(args):
         from collections import Counter
         from ccandle.presentation.user_communication import print_total_and_limit_info
         from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+        from ccandle.labels.label_bulk_actions import gather_likely_redundant_labels
         import json
 
         counter = Counter()
@@ -106,6 +106,20 @@ def run(args):
         render_table(results[:args.limit], COLUMNS)
         print()
         print_total_and_limit_info(len(counter), args.limit)
+
+        print(f"\n\n{DIM}" + "-" * WIDTH_NICE + f"{RESET}"
+              f"\nWould you like to scan for redundant labels across your corpus?")
+
+        get_confirmation_to_continue()
+
+        redundants = gather_likely_redundant_labels(results, min_similarity=80)
+        print_redundant_label_groups(redundants)
+        if redundants:
+            print(f"\n{DIM}Consider {BLUE}merging{RESET}{DIM} via: \n{RESET}"
+                  f"   {APP_HANDLE} labels merge {BLUE}SOURCE TARGET{RESET}"
+                  f"\n{DIM}like: "
+                  f"\n   {APP_HANDLE} labels merge onboarding obnoarding")
+
         return 0
 
     elif args.labels_cmd == "mentions":
@@ -146,3 +160,12 @@ def run(args):
         return 0
     return 1
 
+def print_redundant_label_groups(clusters: list[list[dict]]) -> None:
+    if not clusters:
+        return
+
+    total_labels_involved = sum(len(c) for c in clusters)
+    print(f"\nNote: {total_labels_involved} labels across {len(clusters)} group(s) look like they might be redundant:\n")
+    for cluster in clusters:
+        pieces = [item["label"] for item in cluster]
+        print(f"-   {DIM}" + f" {RESET}~{DIM} ".join(pieces) + f"{RESET}")
