@@ -17,6 +17,7 @@ def register(subparsers):
         ("url",   "Set your Confluence Cloud URL. For example: company.atlassian.net/"),
         ("token", "Set your API token for authentication. Manage tokens at: https://id.atlassian.com/manage/api-tokens"),
         ("repo-url", "Set your team's main repository base url for better page analysis. For example: git.name.company.com/"),
+        ("snapshot-frequency", "Set an auto-snapshot frequency in DAYS to enable easy benchmarking of progress"),
     ]:
         sub = conn_sub.add_parser(name, help=help_text)
         sub.add_argument("value", help="The value to set")
@@ -28,7 +29,7 @@ def run(args):
     from ccandle.network.network_utils import check_credentials_validity
     from yaspin import yaspin
     key = args.conn_cmd  # "email", "url", or "token"
-    if key in ("email", "url", "token", "repo-url"):
+    if key in ("email", "url", "token", "repo-url", "snapshot-frequency"):
         return set_conf_details(key.replace("_", "-"), args.value)
 
     elif key == "status":
@@ -40,15 +41,15 @@ def run(args):
                 if val is not None and val != "":
                     val = "SECRET"
 
-            print(f"{field:<10} : {val}")
+            print(f"{field:<19} : {val}")
 
         print()
         with yaspin(text=f"{DIM}Validating these credentials with Confluence...{RESET}", color="cyan"):
             valid = check_credentials_validity()
         if valid:
-            print(f"{DIM}Credentials status:  {RESET}{GREEN}VALID{RESET}  ✅ ")
+            print(f"{DIM}Credentials status  : {RESET}{GREEN}VALID{RESET}  ✅ ")
         else:
-            print(f"{DIM}Credentials status:  {RESET}{RED}INVALID{RESET}  ❌ \n"
+            print(f"{DIM}Credentials status  : {RESET}{RED}INVALID{RESET}  ❌ \n"
                   f"{DIM}Your token may be expired, your email may have a typo, \n"
                   f"or the url you set for Confluence may be invalid.{RESET}")
 
