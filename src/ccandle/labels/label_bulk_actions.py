@@ -15,8 +15,10 @@ def add_label_to_pages(pids, clean_label):
     failures = []
     for pid in tqdm(pids, desc="Adding labels to pages...", unit="page"):
         status = add_label_via_rest(pid, clean_label)
-        if not rest_success(status, clean_label):
-            failures.append(pid)
+        if status['status'] == 'access denied':
+            failures.append({'pid':pid, 'status': "access denied", 'code': status['code']})
+        elif status['status'] == 'error':
+            failures.append({'pid':pid, 'status': "unknown error", 'code': status['code']})
         else:
             add_label_to_page_entry_in_db(pid, clean_label)
     return failures
@@ -26,9 +28,9 @@ def delete_label_from_pages(pids, clean_label):
     for pid in tqdm(pids, desc="Deleting labels from pages...", unit="page"):
         status = delete_label_via_rest(pid, clean_label)
         if status['status'] == 'absent':
-            failures.append(str(pid) + " label was already absent")
+            failures.append({'pid':pid, 'status': "label was already absent", 'code': status['code']})
         elif status['status'] == 'error':
-            failures.append(str(pid) + " unknown error")
+            failures.append({'pid':pid, 'status': "unknown error", 'code': status['code']})
         else:
             delete_label_from_page_entry_in_db(pid, clean_label)
     return failures
