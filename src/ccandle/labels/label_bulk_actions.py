@@ -6,7 +6,8 @@ from ccandle.db.db_utils import update_field
 from ccandle.db.db_query_utils import query_field_in_pages
 from ccandle.network.network_utils import add_label_via_rest, delete_label_via_rest
 from ccandle.presentation.theme import RED, YELLOW, RESET, BOLD, DIM
-from rapidfuzz import fuzz
+from collections import defaultdict
+from rapidfuzz import fuzz, process
 from tqdm import tqdm
 import json
 
@@ -14,8 +15,10 @@ def add_label_to_pages(pids, clean_label):
     failures = []
     for pid in tqdm(pids, desc="Adding labels to pages...", unit="page"):
         status = add_label_via_rest(pid, clean_label)
-        if not rest_success(status, clean_label):
-            failures.append(pid)
+        if status['status'] == 'access denied':
+            failures.append({'pid':pid, 'status': "access denied", 'code': status['code']})
+        elif status['status'] == 'error':
+            failures.append({'pid':pid, 'status': "unknown error", 'code': status['code']})
         else:
             add_label_to_page_entry_in_db(pid, clean_label)
     return failures
@@ -25,9 +28,9 @@ def delete_label_from_pages(pids, clean_label):
     for pid in tqdm(pids, desc="Deleting labels from pages...", unit="page"):
         status = delete_label_via_rest(pid, clean_label)
         if status['status'] == 'absent':
-            failures.append(str(pid) + " label was already absent")
+            failures.append({'pid':pid, 'status': "label was already absent", 'code': status['code']})
         elif status['status'] == 'error':
-            failures.append(str(pid) + " unknown error")
+            failures.append({'pid':pid, 'status': "unknown error", 'code': status['code']})
         else:
             delete_label_from_page_entry_in_db(pid, clean_label)
     return failures
@@ -53,7 +56,7 @@ def normalize_label(original_label):
         label = legal_option
     return label
 
-def fuzzy_resolve_label_name(clean_label, existing_labels: list[str], top_k: int = 3):
+def fuzzy_resolve_label_name(clean_label, existing_labels: list[str], top_k: int = 3, min_similarity=75):
     scored = []
 
     for label in existing_labels:
@@ -66,8 +69,7 @@ def fuzzy_resolve_label_name(clean_label, existing_labels: list[str], top_k: int
     scored.sort(key=lambda x: x[1], reverse=True)
 
     # optional threshold: avoids garbage suggestions
-    MIN_SCORE = 75
-    filtered = [lbl for lbl, s in scored if s >= MIN_SCORE]
+    filtered = [lbl for lbl, s in scored if s >= min_similarity]
 
     return filtered[:top_k]
 
@@ -109,8 +111,49 @@ def add_label_to_page_entry_in_db(pid, label):
 
 def delete_label_from_page_entry_in_db(pid, label):
     page_labels = query_field_in_pages(pid, "labels")
-    print(page_labels)
     label_set = set(json.loads(page_labels))
     label_set.discard(label)
     updated_labels = json.dumps(sorted(label_set))
     update_field(pid, "labels", updated_labels)
+
+def gather_likely_redundant_labels(labels_with_counts: list[dict], min_similarity: int = 75, linkage_method="complete") -> list[list[dict]]:
+    """
+    Cluster labels using hierarchical agglomerative clustering instead of
+    connected-components, so a chain of weak bridges can't merge unrelated
+    labels into one giant group. With complete linkage, every pair of labels
+    within a returned cluster is guaranteed to be >= min_similarity.
+    """
+
+    import numpy as np
+    from scipy.cluster.hierarchy import linkage, fcluster
+    from scipy.spatial.distance import squareform
+
+    labels = [item["label"] for item in labels_with_counts]
+    n = len(labels)
+    if n < 2:
+        return []
+
+    sim = process.cdist(labels, labels, scorer=fuzz.WRatio).astype(float)
+    np.fill_diagonal(sim, 100.0)
+
+    dist = 100.0 - sim
+    np.fill_diagonal(dist, 0.0)
+    dist = (dist + dist.T) / 2  # guard against float asymmetry
+
+    condensed = squareform(dist, checks=False)
+    Z = linkage(condensed, method=linkage_method)
+
+    max_distance = 100 - min_similarity
+    cluster_ids = fcluster(Z, t=max_distance, criterion="distance")
+
+    groups = defaultdict(list)
+    for idx, cid in enumerate(cluster_ids):
+        groups[cid].append(labels_with_counts[idx])
+
+    clusters = [
+        sorted(g, key=lambda x: x["page_count"], reverse=True)
+        for g in groups.values()
+        if len(g) > 1
+    ]
+    clusters.sort(key=lambda c: sum(item["page_count"] for item in c), reverse=True)
+    return clusters

@@ -125,17 +125,22 @@ def request_labels_for_space(space_id):
 def add_label_via_rest(page_id, label):
     url = f"{get_confluence_base_url_v1()}content/{page_id}/label"
     response = SESSION.post(url, json=[{"prefix": "global", "name": label}], timeout=30)
-    response.raise_for_status()
-    return response.json()
+
+    if response.status_code == 400:     status = "access denied"
+    elif response.status_code == 200:   status = "success"
+    else:                               status = "error"
+
+    return {"status": status, "label": label, "code": response.status_code}
 
 def delete_label_via_rest(page_id, label):
     url = f"{get_confluence_base_url_v1()}content/{page_id}/label"
     response = SESSION.delete(url, params={"name": label}, timeout=30)
-    if response.status_code == 404:
-        return {"status": "absent", "label": label, "body": response.json()}
-    if response.text:
-        return {"status": "error", "label": label, "body": response.json()}
-    return {"status": "success", "label": label, "body": None}
+
+    if response.status_code == 404:     status = "absent"
+    elif response.text:                 status = "error"
+    else:                               status = "success"
+
+    return {"status": status, "label": label, "code": response.status_code}
 
 # for fetching user / author metadata
 def request_users_metadata(account_ids, batch_size=250):
