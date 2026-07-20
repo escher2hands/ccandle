@@ -5,7 +5,7 @@ from ccandle.config.config_db import CONFIG_DIR
 from ccandle.presentation.theme import *
 DETAILS_FILE = CONFIG_DIR / "conf_details.json"
 
-VALID_FIELDS = ["token", "email", "url", "repo-url"]
+VALID_FIELDS = ["token", "email", "url", "repo-url", "snapshot-frequency"]
 
 def fetch_conf_details(field):
     field = field.replace("_", "-")
@@ -21,6 +21,8 @@ def fetch_conf_details(field):
         return data.get("URL")
     elif field == "repo-url":
         return data.get("REPO-URL") or "UNSET"
+    elif field == "snapshot-frequency":
+        return data.get("SNAPSHOT-FREQUENCY") or 30
     return None
 
 
@@ -73,6 +75,15 @@ def set_conf_details(field, value):
               f"{DIM}Your url should include the whole base url, including the {BLUE}https://{RESET}\n"
               f"{RED}{DIM}For example, 'https://company.atlassian.net/'{RESET}")
         return 1
+
+    if field == "snapshot-frequency":
+        try: value = int(value)
+        except ValueError:
+            print(f"{RED}You must set a frequency in integer days.\n"
+                  f"{DIM}Your choice, '{BLUE}{value}{RESET}{RED}{DIM}' is not an integer.\n"
+                  f"{DIM}You may set frequency to '{BLUE}0{RESET}{RED}{DIM}' to disable auto snapshots.\n"
+                  f"30 days is a good frequency, as it's enough to show some change.{RESET}")
+            return 1
 
     details[field.upper()] = value
     with open(DETAILS_FILE, "w") as f:
