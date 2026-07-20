@@ -10,11 +10,11 @@ VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "co
                "assign_type", "find_duplicates"]
 API_STEPS = ["children", "authors", "labels"]
 
-def sync(hard_refresh=False, resume_at=None, your_delta_pages=None):
+def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=None):
     pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)
 
     if not resume_at:
-        delta_pages = sync_pages_from_cloud(hard_refresh=hard_refresh)               # run our first page scraping from the CC
+        delta_pages = sync_pages_from_cloud(hard_refresh=hard_refresh, space_id=space_id)               # run our first page scraping from the CC
         if delta_pages is None or delta_pages == []:
             print(f"\n" + "-" * WIDTH_NICE + "\n"
                   f"{BOLD}No changed pages found. There's nothing to process!\n"
@@ -25,7 +25,7 @@ def sync(hard_refresh=False, resume_at=None, your_delta_pages=None):
     else:
         print(f"{DIM}Skipping step {RESET}scrape{DIM} pages from Confluence\n"
               f"{DIM}Processing all ids from local database{RESET}")
-        delta_pages = your_delta_pages if your_delta_pages else get_all_ids_in_pages()         # take pages to process from our local
+        delta_pages = your_delta_pages if your_delta_pages else get_all_ids_in_pages(space_id=space_id) # take pages to process from our local
 
     steps = [
         ("children", lambda: _scrape_children(delta_pages)),
@@ -39,8 +39,8 @@ def sync(hard_refresh=False, resume_at=None, your_delta_pages=None):
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
-        #("map_links", lambda: _find_link_events_for_all_pages()),        # can only be done on all pages, no subsets
-        ("find_duplicates", lambda: _scan_for_duplicates()),                      # can only be done on all pages, no subsets
+        #("map_links", lambda: _find_link_events_for_all_pages()),            # can only be done on all pages, no subsets
+        ("find_duplicates", lambda: _scan_for_duplicates()),                  # can only be done on all pages, no subsets
     ]
     for name, fn in steps:
         if resume_at and resume_at not in VALID_STEPS:
@@ -62,10 +62,11 @@ def sync(hard_refresh=False, resume_at=None, your_delta_pages=None):
 
     set_all_pages_as_processed(delta_pages)
 
-    _print_total_pipeline_duration(pipeline_start_time, delta_pages)
+    _print_total_pipeline_duration(pipeline_start_time, delta_pages, space_id)
+    return 0
 
 
-def sync_pages_from_cloud(hard_refresh=False):
+def sync_pages_from_cloud(hard_refresh=False, space_id=None):
     from ccandle.db.table_utils import create_table
     from ccandle.pages.schema_table_pages import SCHEMA_PAGES
     from ccandle.pages.scrape_list_of_available_pages import scrape_page_metadata_in_space
@@ -76,7 +77,8 @@ def sync_pages_from_cloud(hard_refresh=False):
 
     create_table("pages", SCHEMA_PAGES)  # this does nothing if the table already exists
 
-    space_ids = list_configured_space_ids()
+    sync_only_one_space_id = True if space_id else False
+    space_ids = [space_id] if space_id else list_configured_space_ids()
     delta_pages = []
     all_cloud_ids = []
     for space_id in space_ids:
@@ -104,7 +106,8 @@ def sync_pages_from_cloud(hard_refresh=False):
 
         delta_pages.extend(pids)
 
-    delete_dead_db_pages(all_cloud_ids)
+    if not sync_only_one_space_id:
+        delete_dead_db_pages(all_cloud_ids)
     return delta_pages
 
 # - STEPS ----------------------------------------------
@@ -154,12 +157,13 @@ def _print_step_duration(step_start_time, name):
     duration_str = str(step_duration).split('.')[0]                 # Format duration as H:MM:SS
     print(f"Finished step {name} in {duration_str} (H:MM:SS).")
 
-def _print_total_pipeline_duration(pipeline_start_time, delta_pages):
+def _print_total_pipeline_duration(pipeline_start_time, delta_pages, space_id=None):
     from ccandle.spaces.space_utils import list_configured_space_ids
     step_duration = datetime.datetime.now(datetime.timezone.utc) - pipeline_start_time
     duration_str = str(step_duration).split('.')[0]                 # Format duration as H:MM:SS
-    count_spaces = len(list_configured_space_ids())
+    count_spaces = 1 if space_id else len(list_configured_space_ids())
+    space_descriptor = "selected" if space_id else "configured"
     print(f"-" * WIDTH_NICE)
-    print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} configured spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
+    print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} {space_descriptor} spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
     print("\a")
 
