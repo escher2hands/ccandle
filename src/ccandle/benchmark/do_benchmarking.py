@@ -7,7 +7,7 @@
 # of the currently active db, matches spaces by space_id, and prints the
 # delta for anything that matches.
 
-from ccandle.analysis.space_overview import present_all_space_overviews
+from ccandle.overview.generate_space_overview import generate_all_space_overviews
 from ccandle.benchmark.snapshot_manager import resolve_snapshot_reference
 from ccandle.config.config_db import PATH_DB
 from ccandle.presentation.theme import *
@@ -83,8 +83,8 @@ def compare_snapshots(snapshot_input: str, json_format=False, quiet=False):
     if narrate:
         print("\nComparing snapshot against current active db...\n")
 
-    old_spaces = present_all_space_overviews(json_format=True, path_to_db=hydrated_path)
-    new_spaces = present_all_space_overviews(json_format=True, path_to_db=PATH_DB)
+    old_spaces = generate_all_space_overviews(path_to_db=hydrated_path)
+    new_spaces = generate_all_space_overviews(path_to_db=PATH_DB)
 
     comparison = compare_overviews(old_spaces, new_spaces)
 
