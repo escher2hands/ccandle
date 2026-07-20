@@ -8,12 +8,16 @@ def register(subparsers):
     p.add_argument("--hard-refresh", action="store_true", help="Sync all pages from scratch, even if they have not changed since last sync")
     p.add_argument("--from-step", dest="from_step", type=str, default=None,
                         help="Resume processing from the given step. Valid steps: " + ", ".join(VALID_STEPS),)
+    p.add_argument("--space", default=None, help="Sync only a selected space")
 
 def run(args):
     from ccandle.sync.sync_all import sync
     from ccandle.network.network_utils import check_network_connection
+    from ccandle.presentation.user_communication import clean_user_space_id_or_exit
+    space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
+
     if args.from_step in API_STEPS + [None]:
         if not check_network_connection():
             return 1                # force internet connection for steps that require API connection
-    sync(args.hard_refresh, args.from_step)
+    sync(hard_refresh=args.hard_refresh, resume_at=args.from_step, space_id=space_id)
     return 0
