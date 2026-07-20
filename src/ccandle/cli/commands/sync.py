@@ -14,10 +14,16 @@ def run(args):
     from ccandle.sync.sync_all import sync
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.user_communication import clean_user_space_id_or_exit
+    from ccandle.benchmark.snapshot_scheduler import maybe_take_scheduled_snapshot
+
     space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
 
     if args.from_step in API_STEPS + [None]:
         if not check_network_connection():
             return 1                # force internet connection for steps that require API connection
     sync(hard_refresh=args.hard_refresh, resume_at=args.from_step, space_id=space_id)
+
+    if not args.from_step and not space_id:
+        maybe_take_scheduled_snapshot()
+
     return 0
