@@ -181,9 +181,9 @@ def resolve_space_fuzzy(input_space) -> dict:
                      f"{RESET}")
 
 def display_friendly_space_info(space_id, color=False, long=False):
-    alias_str = get_space_attribute(space_id, 'id', 'alias')
+    alias_str = get_space_attribute(space_id, 'id', 'alias') or "UNKNOWN SPACE"
     id_str = str(space_id)
-    shid_str = ", " + get_space_attribute(space_id, 'id', 'short_id') if long else ""
+    shid_str = f', {get_space_attribute(space_id, "id", "short_id") if long else ""}'
     if color:
         return f"{RESET}{BLUE}{alias_str} {RESET}{DIM}({space_id}{shid_str}){RESET}"
     return f"{alias_str} ({id_str}{shid_str})"

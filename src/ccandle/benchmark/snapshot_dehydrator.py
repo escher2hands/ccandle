@@ -41,6 +41,7 @@ HYDRATED_SCHEMA: tuple[tuple[str, str], ...] = (
     ("image_count", "INTEGER"),
     ("has_link_tree", "BOOLEAN"),
     ("eval_notes", "TEXT"),
+
     ("page_type", "TEXT"),
     ("mm_smell", "INTEGER"),
     ("rn_smell", "INTEGER"),
@@ -49,8 +50,8 @@ HYDRATED_SCHEMA: tuple[tuple[str, str], ...] = (
     ("sd_smell", "INTEGER"),
     ("ci_smell", "INTEGER"),
     ("lp_smell", "INTEGER"),
+
     ("links_list", "TEXT"),
-    ("child_list", "TEXT"),
     ("duplicate_list", "TEXT"),
     ("excerpts", "TEXT"),
 )

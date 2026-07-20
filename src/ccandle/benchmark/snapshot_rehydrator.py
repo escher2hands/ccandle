@@ -57,8 +57,7 @@ def rehydrate_snapshot(dehydrated_input) -> Path:
     seeded = _seed_hydrated_table(dehydrated_path, tmp_path)
     print(
         f"\nSeeded {seeded} page(s) from {dehydrated_path.name}.\n"
-        f"Reprocessing with the current algorithms: (1) evaluate pages, "
-        f"(2) format page links, (3) assign page types.\n"
+        f"Reprocessing with the current algorithms, (6) steps.\n"
     )
 
     print("(1/6) Extracting plain texts from html sources...")

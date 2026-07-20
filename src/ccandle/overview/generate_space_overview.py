@@ -7,7 +7,7 @@ from ccandle.config.config_types import TYPE_ADMIN_FILTER, TYPE_LIST
 from ccandle.pages.parsing.eval_defs import NOTES_LEAD_PARA_GOOD
 from ccandle.page_types.type_signals_defs import THRESH_PAGE_EMPTY
 from ccandle.presentation.theme import *
-from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute, display_friendly_space_info
+from ccandle.spaces.space_utils import get_space_attribute, display_friendly_space_info
 import sqlite3
 from dataclasses import dataclass
 
@@ -20,17 +20,17 @@ class StatConfig:
 
 STATS_KEYS = {
     # TOPOLOGY / CONNECTEDNESS
-    "dead_ends_share": StatConfig(
-        title="Pages without links",
-        goal=10.0,
+    "non_dead_ends_share": StatConfig(
+        title="Pages with OUTgoing links",
+        goal=90.0,
         group="topology",
-        hint="share of pages with no OUTgoing links",
+        hint="share of non-'dead end' pages; pages with OUTgoing links",
     ),
-    "orphans_share": StatConfig(
-        title="Orphan pages",
-        goal=40.0,
+    "non_orphans_share": StatConfig(
+        title="Pages with INcoming links",
+        goal=60.0,
         group="topology",
-        hint="share of pages with no INcoming links",
+        hint="share of non-'orphan' pages; pages with INcoming links",
     ),
     "link_density": StatConfig(
         title="Link density",
@@ -50,16 +50,17 @@ STATS_KEYS = {
         group="quality",
         hint="share pages reusing excerpts of other pages, reducing redundancy and drift",
     ),
-    "junk_pages_share": StatConfig(
-        title="Junk / empty pages",
-        goal=5.0,
+    "non_junk_pages_share": StatConfig(
+        title="Non-junk / non-empty pages",
+        goal=95.0,
         group="quality",
-        hint="share of pages that are empty, very short, or duplicated",
+        hint="share of pages that are not empty, very short, or duplicated",
     ),
     "landing_page_coverage": StatConfig(
         title="Landing page coverage",
         goal=5.0,
         group="navigation",
+        hint="share of directory pages aka landing pages to route readers to info",
     ),
     "navbox_coverage": StatConfig(
         title="Navbox coverage",
@@ -71,7 +72,7 @@ STATS_KEYS = {
         title="Hub coverage",
         goal=20.0,
         group="navigation",
-        hint="coverage of expected topic clusters with intro pages",
+        hint="coverage of expected topic clusters with canonical intro pages",
     ),
 }
 
@@ -82,50 +83,24 @@ STATS_GROUP_TITLES = {
     "navigation": "ADVANCED NAVIGATIONAL ELEMENTS",
 }
 
-def present_all_space_overviews(quiet=False, path_to_db=PATH_DB, json_format=False):
-    space_ids = list_configured_space_ids()
-    if json_format:
-        results = []
-        for space_id in space_ids:
-            sdata = present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db, json_format=json_format)
-            results.append(sdata)
-        return results
-    else:
-        for space_id in space_ids:
-            present_space_overview(space_id, quiet=quiet, path_to_db=path_to_db, json_format=json_format)
+def generate_all_space_overviews(path_to_db=PATH_DB):
+    space_ids = _space_id_list(path_to_db)
+    results = []
+    for space_id in space_ids:
+        sdata = generate_space_overview(space_id, path_to_db=path_to_db)
+        results.append(sdata)
+    return results
 
-    return 0
-
-def present_space_overview(space_id=None, quiet=False, path_to_db=PATH_DB, json_format=False):
-    if json_format:
-        sdata = gather_relevant_space_data(space_id, path_to_db)
-        sdata = {
-            'space_id': space_id,
-            'space_short_id': get_space_attribute(space_id, "id", "short_id"),
-            'space_alias': get_space_attribute(space_id, "id", "alias"),
-            'stats': {k: round(v, 4) if isinstance(v, float) else v
-                  for k, v in sdata.items()},
-            'page_types': gather_page_types_breakdown(space_id, path_to_db),
-        }
-        return sdata
-
-    space_info = display_friendly_space_info(space_id, color=True, long=True) if space_id else "ALL CONFIGURED SPACES"
-    print(f'{BLUE}' + '=' * WIDTH_NICE + f'{RESET}')
-    print(f"{BOLD}OVERVIEW FOR SPACE {RESET}{space_info}:")
-    print()
-
+def generate_space_overview(space_id=None, path_to_db=PATH_DB):
     sdata = gather_relevant_space_data(space_id, path_to_db)
-    print(f"Total pages in space" + " "*9 + f":{sdata['total_pages']:>9}")
-    print(f"Total words in space" + " "*9 + f":{sdata['total_words']:>9}")
-    print()
-    print(f"Total content pages in space " + f":{sdata['content_pages']:>9}")
-    print(f"Total words in content pages " + f":{sdata['content_words']:>9}")
-    print()
-    print_grouped_stats(sdata, quiet=quiet)
-    print("")
-
-    print_page_types(space_id=space_id, total_pages=sdata['total_pages'], print_heading=False, path_to_db=path_to_db)
-    print("\n")
+    return {
+        'space_id': space_id,
+        'space_short_id': get_space_attribute(space_id, "id", "short_id"),
+        'space_alias': get_space_attribute(space_id, "id", "alias"),
+        'stats': {k: round(v, 4) if isinstance(v, float) else v
+              for k, v in sdata.items()},
+        'page_types': gather_page_types_breakdown(space_id, path_to_db),
+    }
 
 def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
     space_query = f"space_id={space_id}" if space_id else "1=1"
@@ -177,33 +152,18 @@ def gather_relevant_space_data(space_id=None, path_to_db=PATH_DB):
         "content_pages":            cp,
         "content_words":            cw,
         # topology
-        "dead_ends_share":          share(stats["dead_ends"], cp),
-        "orphans_share":            share(orphans["total"], cp),
+        "non_dead_ends_share":      1 - share(stats["dead_ends"], cp),
+        "non_orphans_share":        1 - share(orphans["total"], cp),
         "link_density":             share(stats["content_links"], cw),
         # quality
         "lead_paras_good_share":    share(stats["good_lead_paras"], cp),
         "excerpts_and_reuse_share": share(stats["excerpts_reused"], cp),
-        "junk_pages_share":         share((stats["duplicates"] + stats["empty_pages"]), cp),
+        "non_junk_pages_share":     1 - share((stats["duplicates"] + stats["empty_pages"]), cp),
         # navigation
         "landing_page_coverage":    share(stats["landing_pages"], cp),
         "navbox_coverage":          share(stats["navboxes"], cp),
         "hub_coverage":             share(stats["canonical_intros"], cp),
     }
-
-def print_page_types(space_id, total_pages=None, print_heading=True, path_to_db=PATH_DB):
-    type_stats = gather_page_types_breakdown(space_id, path_to_db)
-    total_pages = total_pages or len(get_all_ids_in_pages(space_id=space_id))
-    if print_heading:
-        space_alias = get_space_attribute(space_id, 'id', 'alias')
-        space_shid = get_space_attribute(space_id, 'id', 'short_id')
-        print(f"{BOLD} OVERVIEW FOR SPACE {BLUE}{space_alias}{RESET} {DIM}({space_id}, {space_shid}){RESET}:")
-    else:
-        print(f"PAGE TYPE BREAKDOWN")
-    print("-" * WIDTH_NICE)
-
-    for p_type, count in type_stats.items():
-        t_share = share(count, total_pages) * 100
-        print(f"{t_share:2.0f} %    ({count:5} pages)    {p_type}")
 
 def gather_page_types_breakdown(space_id, path_to_db):
     space_query = f"space_id={space_id}" if space_id else "1=1"
@@ -219,36 +179,15 @@ def gather_page_types_breakdown(space_id, path_to_db):
         params = tuple(TYPE_LIST)
 
         cur = conn.cursor()
-        cur.execute(f"""
-            SELECT
-                {select_lines}
-            FROM pages
-            WHERE {SF}
-            """, params
-                    )
+        cur.execute(f"""SELECT {select_lines} FROM pages WHERE {SF}""", params )
         row = cur.fetchone()
 
     return {p_type: row[p_type] for p_type in TYPE_LIST}
 
-def print_grouped_stats(space_stats, quiet=False):
-    for group in STATS_GROUPS:
-        items = [(key, cfg) for key, cfg in STATS_KEYS.items() if cfg.group == group]
-        if not items:
-            continue
-
-        print(f"\n{STATS_GROUP_TITLES[group]}")
-        print("-" * WIDTH_NICE)
-
-        for key, cfg in items:
-            value = space_stats.get(key)
-            if value is None:
-                continue
-            line = f"{cfg.title:<27}: {(value * 100):5.1f} %"
-            if cfg.goal is not None:
-                line += f" | goal: {cfg.goal:5.1f}"
-            if not quiet and cfg.hint:
-                line += f"  {DIM}→ {cfg.hint}{RESET}"
-            print(line)
-
 def share(numerator, denominator):
     return numerator / denominator if denominator else 0.0
+
+def _space_id_list(path_to_db):
+    space_ids_ill_formatted = query_db_results(select_query="distinct(space_id)", path_to_db=path_to_db)
+    return [res[0] for res in space_ids_ill_formatted]
+
