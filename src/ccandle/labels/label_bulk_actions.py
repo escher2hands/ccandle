@@ -81,7 +81,7 @@ def check_and_clean_label(label):
     if fuzzies is not None and fuzzies != [] and label not in fuzzies:
         print(f"\n{DIM}Your cleaned label {RESET}{BOLD}{label}{RESET}{DIM} seems similar to a few existing labels:{RESET}")
         index = 1
-        print(f"{BOLD}{0}{RESET} -   {label}{RESET}{DIM} (your label){RESET}")
+        print(f"{BOLD}[{0}]{RESET} -   {label}{RESET}{DIM} (your label){RESET}")
         for fuzzy_label in fuzzies:
             print(f"{BOLD}[{index}]{RESET} -   {YELLOW}{fuzzy_label}{RESET}")
             index += 1
