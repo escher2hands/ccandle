@@ -24,9 +24,9 @@ def maybe_take_scheduled_snapshot():
         return          # auto-snapshotting disabled
 
     from ccandle.benchmark.snapshot_manager import find_available_snapshots
-    snapshots = find_available_snapshots()
-    all_dates = snapshots.get("dehydrated", []) + snapshots.get("hydrated", [])
-    latest_date = _get_latest_snapshot_date(snapshots)
+    snapshots_segregated = find_available_snapshots()
+    all_dates = (list(snapshots_segregated["hydrated"]) + list(snapshots_segregated["dehydrated"]))
+    latest_date = max(all_dates, default=None)
 
     if latest_date is None:
         _take_snapshot_and_report(reason="no snapshots found yet")
