@@ -27,9 +27,10 @@ def run(args):
     from ccandle.presentation.page_previews import render_results
     from ccandle.config.confluence_auth import load_conf_url
 
+    db_path = args.db_path      # wanted to make path resolution easier, but for now this stays a stub that does nothing
     if args.sql_cmd == "columns":
         # if args.db_path != PATH_DB: print(f"{YELLOW}RESULTS FOR THE DB AT: {args.db_path}{RESET}\n")
-        columns = get_column_names(your_table=args.table, path_to_db=args.db_path)
+        columns = get_column_names(your_table=args.table, path_to_db=db_path)
         if columns == []:
             print(f"{RED}'{BLUE}{args.table}{RESET}{RED}' is not a valid table.{RESET}")
         for column in columns:
@@ -42,7 +43,7 @@ def run(args):
         return 0
     elif args.sql_cmd == "query":
         # if args.db_path != PATH_DB: print(f"{YELLOW}RESULTS FOR THE DB AT: {args.db_path}{RESET}\n")
-        results, columns = query_via_cli(args.query, path_to_db=args.db_path)
+        results, columns = query_via_cli(args.query, path_to_db=db_path)
         if args.clickable:
             if not any(col["key"] == "id" for col in columns):
                 print(f"{RED}" + "-" * WIDTH_NICE + "\n"
