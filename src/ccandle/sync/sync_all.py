@@ -106,8 +106,8 @@ def sync_pages_from_cloud(hard_refresh=False, space_id=None):
 
         delta_pages.extend(pids)
 
-    if not sync_only_one_space_id:
-        delete_dead_db_pages(all_cloud_ids)
+    if not sync_only_one_space_id:              # specifically avoid purging pages, as moving spaces looks
+        delete_dead_db_pages(all_cloud_ids)     # like deletion when scoped to a single space
     return delta_pages
 
 # - STEPS ----------------------------------------------

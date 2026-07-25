@@ -69,31 +69,30 @@ def add_space(space_id, alias):
 
     return { 'status': 'success' }
 
-
-def remove_space(space_id):
+def remove_spaces(space_ids):
     # load the config
     data = _load_config_spaces()
+    # map space_id -> config key
+    key_by_space_id = {
+        value.get("id"): key
+        for key, value in data.items()
+    }
 
-    # find the space to remove
-    key_to_remove = None
-    for key, value in data.items():
-        if value.get("id") == space_id:
-            key_to_remove = key
-            break
+    removed = False
+    for space_id in space_ids:
+        key = key_by_space_id.get(space_id)
 
-    # handle the result
-    if key_to_remove:
-        del data[key_to_remove]
+        if key is None:
+            print(f"Space ID '{space_id}' not found in configuration.")
+            continue
 
-    # save changes to our updated config
+        del data[key]
+        removed = True
+        print(f"Successfully removed space: {key} (ID: {space_id})")
+    # save changes if anything was removed
+    if removed:
         with open(PATH_SPACES_CONFIG, "w") as f:
             json.dump(data, f, indent=2)
-
-        print(f"Successfully removed space: {key_to_remove} (ID: {space_id})")
-        return 0
-    else:
-        print(f"Space ID '{space_id}' not found in configuration.")
-        return 1
 
 
 def get_space_attribute(space_identifier, id_type, attribute):

@@ -21,11 +21,11 @@ def register(subparsers):
     subs["list"].add_argument("--filter", "-f", nargs="+", help="Filter spaces by key or name")
     subs["add"].add_argument("space_id", help="Numeric Confluence space ID")
     subs["add"].add_argument("alias", help="A local, user-friendly alias for the space")
-    subs["remove"].add_argument("space_id", help="Numeric Confluence space ID")
+    subs["remove"].add_argument("space_ids", nargs="+", help="Numeric Confluence space ID(s)")
     # "configured" needs no extra arguments
 
 def run(args):
-    from ccandle.spaces.space_utils import list_spaces, add_space, remove_space, list_configured_spaces, print_formatted_space_list
+    from ccandle.spaces.space_utils import list_spaces, add_space, remove_spaces, list_configured_spaces, print_formatted_space_list
     from ccandle.network.network_utils import check_network_connection
     from ccandle.config.config_app import APP_HANDLE
 
@@ -63,7 +63,8 @@ def run(args):
                   f"\nPlease sync now to scrape and process the new space.")
             return 0
     elif args.space_cmd == "remove":
-        results = remove_space(args.space_id)
+        remove_spaces(args.space_ids)
+        return 0
 
     elif args.space_cmd == "configured":
         results = list_configured_spaces()

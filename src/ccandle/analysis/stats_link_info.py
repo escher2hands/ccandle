@@ -145,7 +145,8 @@ def find_cross_space_links(input_space, path_to_db=PATH_DB):
 
     results = [{
             "space_id": get_space_attribute(linked_short_id, "short_id", "id") or '???',
-            "space_alias": get_space_attribute(linked_short_id, "short_id", "alias") or linked_short_id,
+            "space_short_id": linked_short_id,
+            "space_alias": get_space_attribute(linked_short_id, "short_id", "alias") or "???",
             "count": count,
         }
         for linked_short_id, count in space_counter.most_common()]
