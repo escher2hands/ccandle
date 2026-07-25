@@ -82,3 +82,37 @@ caves of your spaces.
 
 run `ccandle cartographer --space SPACE` to get a quick analysis of the layout of the 
 important information in your spaces.
+
+
+## move pages in your Confluence hierarchy in bulk
+Though a stronger link network *should* be our focus, many readers will still expect 
+page hierarchies to be intuitive and usable. 
+
+run `ccandle move-pages NEW-PARENT PAGE-IDS` to shift a list of pages to your selected 
+new parent.
+
+
+## gain deep insights into your corpus
+Confluence doesn't surface so much useful meta-information. If you're a Confluence 
+gardener, though, data is useful. That's where ccandle's `stats` function comes in. Try 
+- `ccandle stats authors` to get a list of the most prolific editors in a space or 
+across your corpus
+- `ccandle stats links orphans` to see a share of orphaned pages across your tracked 
+spaces
+- `ccandle stats links incoming PAGE_ID` to see all incoming links for a page (you can 
+do this on Confluence Cloud, by pretending to delete a page, then backing out...but this 
+is probably a teensy-weensy bit easier)
+- `ccandle stats links popular` to find the most 'popular' pages in your corpus / a 
+specific space; e.g. find the most-linked to pages
+- `ccandle stats links cross-space SPACE_ID` to find which spaces are most closely 
+related to this one, to better understand how teams and topics relate to each other
+
+Not enough insight? Run `ccandle sql query QUERY` to run arbitrary db queries on your 
+stored pages.
+
+
+## track progress across time with snapshots and benchmarking
+Compare the current state of your corpus with an older snapshot by running `ccandle 
+benchmark`. By default, a new snapshot is taken every 30 days, but you can set a 
+different automatic frequency with `ccandle benchmark snapshots frequency DAYS`, or 
+turn off auto-snapshots by setting frequency to -1.
