@@ -2,26 +2,86 @@
 # see a delta between the 'overview' metrics between the snapshot
 # and your current, to benchmark results and progress.
 from ccandle.presentation.theme import *
+import re
+from pathlib import Path
+from ccandle.config.config_db import ARTIFACT_DIR
+import argparse
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def validate_snapshot_date(value: str) -> str:
+    """argparse type= validator: only accepts strict yyyy-mm-dd."""
+    if not _DATE_RE.match(value):
+        raise argparse.ArgumentTypeError(f"'{value}' is not a valid date — expected format: yyyy-mm-dd")
+    return value
 
 def register(subparsers):
-    p = subparsers.add_parser("benchmark", help="Measure progress between your current local Confluence mirror and an old snapshot")
-
+    p = subparsers.add_parser(
+        "benchmark",
+        help="Measure progress between your current local Confluence mirror and an old snapshot",
+    )
     p.add_argument("--snapshot", default=None, help="The snapshot you'd like to compare against your current mirror")
     p.add_argument("--quiet", action="store_true", help="Suppress info")
 
+    # nested, OPTIONAL subparsers -- omitting `required=True` here is what lets
+    # `ccandle benchmark` run on its own with no subcommand
+    benchmark_subparsers = p.add_subparsers(dest="bench_cmd")
+
+    snapshots_p = benchmark_subparsers.add_parser("snapshots", help="Manage benchmark snapshots")
+    # this level IS required -- "ccandle benchmark snapshots" alone doesn't make sense
+    snap_sub = snapshots_p.add_subparsers(dest="snap_cmd", required=True)
+
+    list_p = snap_sub.add_parser("list", help="List available snapshots")
+
+    delete_p = snap_sub.add_parser("delete", help="Delete a snapshot")
+    delete_p.add_argument("date", metavar="DATE", type=validate_snapshot_date, help="Date of the snapshot to delete (yyyy-mm-dd)")
+
+    dehydrate_p = snap_sub.add_parser("dehydrate", help="Dehydrate a snapshot")
+    dehydrate_p.add_argument("date", metavar="DATE", type=validate_snapshot_date, help="Date of the snapshot to dehydrate (yyyy-mm-dd)")
+
+    create_p = snap_sub.add_parser("create", help="Create a new snapshot")
+
+    frequency = snap_sub.add_parser("frequency", help="Set the snapshot frequency")
+    frequency.add_argument("days", metavar="DAYS", type=int, help="Number of days between snapshots")
+
 def run(args):
     from ccandle.benchmark.snapshot_manager import find_available_snapshots
+    snap_cmd = getattr(args, "snap_cmd", None)
+    
+    if args.bench_cmd == "snapshots":
+        if snap_cmd == "frequency":
+            from ccandle.config.confluence_auth import set_conf_details
+            return set_conf_details("snapshot-frequency", args.days)
+        elif snap_cmd == "list":
+            available_snaps = find_available_snapshots()
+            display_snapshot_list(available_snaps, number_options=False)
+            return 0
+        elif snap_cmd == "delete":
+            delete_snapshot(args.date)
+            return 0
+        elif snap_cmd == "dehydrate":
+            dehydrate_snapshot(args.date)
+            return 0
+        elif snap_cmd == "create":
+            from ccandle.benchmark.snapshot_manager import copy_and_dehydrate_snapshot
+            from ccandle.config.config_db import PATH_DB
+            copy_and_dehydrate_snapshot(PATH_DB)
+            print("Successfully copied your current local pages into a snapshot.")
+            return 0
+        return 1
+
+    # if none of those others, we assume bare benchmarking
     from ccandle.benchmark.do_benchmarking import compare_snapshots
     from ccandle.overview.present_space_overview import print_space_header, print_grouped, print_meta, print_type_header
     from ccandle.spaces.space_utils import display_friendly_space_info
-
     snapshot_ref = args.snapshot
     if not snapshot_ref:
         if not args.quiet:
             print(f"{DIM}Compare your current local copy of your tracked Confluence \n"
                   f"spaces against a stored snapshot from an older date.\n{RESET}")
         available_snaps = find_available_snapshots()
-        snapshot_ref = prompt_for_snapshot(available_snaps)
+        options = display_snapshot_list(available_snaps)
+        snapshot_ref = prompt_for_snapshot(options)
         if not snapshot_ref:
             print(f"{RED}No snapshot given.{RESET}")
             return 1
@@ -49,28 +109,28 @@ def run(args):
 
     return 0
 
-def prompt_for_snapshot(available: dict):
+
+def display_snapshot_list(available: dict, number_options: bool=True):
     hydrated = available["hydrated"]
     dehydrated = available["dehydrated"]
 
     dehydrated_only = sorted(set(dehydrated) - set(hydrated), reverse=True)
     hydrated_dates = sorted(hydrated, reverse=True)
-
     options = []
-
     if hydrated_dates or dehydrated_only:
         print("Available snapshots:")
 
         index = 1
         for d in hydrated_dates:
-            print(f"{BOLD}[{index}]{RESET} -   {YELLOW}{d.isoformat()}{RESET}")
+            num_index = f"{BOLD}[{index}]{RESET}" if number_options else ""
+            print(f"{num_index} -   {YELLOW}{d.isoformat()}{RESET}")
             options.append(d.isoformat())
             index += 1
 
         for d in dehydrated_only:
+            num_index = f"{BOLD}[{index}]{RESET}" if number_options else ""
             print(
-                f"{BOLD}[{index}]{RESET} -   "
-                f"{d.isoformat()}"
+                f"{num_index} -   {d.isoformat()}"
                 f"{DIM} (dehydrated only — will finish hydrating on use){RESET}"
             )
             options.append(d.isoformat())
@@ -78,10 +138,11 @@ def prompt_for_snapshot(available: dict):
     else:
         print(f"{DIM}No snapshots found yet. \n"
             f"Pass a path to a raw Confluence export to build one.{RESET}")
+    return options
 
+def prompt_for_snapshot(options: list):
     print(f"\n{DIM}Enter a snapshot number, or paste a snapshot path.\n"
         f"Type {RESET}{BOLD}q{RESET}{DIM} to cancel.{RESET}")
-
     while True:
         response = input("> ").strip()
         if response.lower() in ("q", "quit", "exit", "n", "no"):
@@ -94,7 +155,6 @@ def prompt_for_snapshot(available: dict):
 
             print(f"{DIM}Please enter a number from {RESET}1-{len(options)}{RESET}")
             continue
-
         # Anything non-numeric is assumed to be a path or explicit snapshot name.
         return response
 
@@ -147,3 +207,36 @@ def _format_page_type_delta(delta_count, width=5):
     if delta_count == 0:
         return " " * width + " " * 7
     return f"{symbol} {abs(delta_count):>{width}} pages"
+
+def _snapshot_path(date_str: str, kind: str) -> Path:
+    file_date = date_str.replace("-", "_")
+    return ARTIFACT_DIR / f"confluence_mirror_{file_date}.{kind}.db"
+
+def delete_snapshot(date_str: str) -> int:
+    hydrated = _snapshot_path(date_str, "hydrated")
+    dehydrated = _snapshot_path(date_str, "dehydrated")
+
+    found = False
+    for path in (hydrated, dehydrated):
+        if path.exists():
+            path.unlink()
+            found = True
+            print(f"{DIM}Removed {path.name}{RESET}")
+
+    if not found:
+        print(f"{RED}Couldn't find a snapshot with that date.{RESET}")
+        return 1
+
+    print(f"Deleted snapshot from {date_str}")
+    return 0
+
+def dehydrate_snapshot(date_str: str) -> int:
+    hydrated = _snapshot_path(date_str, "hydrated")
+
+    if not hydrated.exists():
+        print(f"{RED}Couldn't find a snapshot with that date.{RESET}")
+        return 1
+
+    hydrated.unlink()
+    print(f"Dehydrated snapshot from {date_str}")
+    return 0
