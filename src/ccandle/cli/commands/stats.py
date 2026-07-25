@@ -192,8 +192,7 @@ def run(args):
                 print(f"{RED}You must specify a space ID, to see which spaces it links to.{RESET}")
                 return 1                        # exit immediately
             if not args.ids_only: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
-            self_link_count, cross_link_count, results = find_cross_space_links(
-                input_space=space_id, path_to_db=args.db_path)
+            self_link_count, cross_link_count, results = find_cross_space_links(input_space=space_id, path_to_db=args.db_path)
             if args.ids_only:
                 print(", ".join(r["space_alias"] for r in results[:args.limit]))
                 return 0                        # exit immediately
@@ -206,8 +205,9 @@ def run(args):
 
             print(f"Cross-space links: {BOLD}{cross_link_count}{RESET}\n")
             COLUMNS = [
-                {"key": "space_id", "label": "SPACE ID", "width": 12},
-                {"key": "space_alias", "label": "SHORT ID", "width": 19},
+                {"key": "space_id", "label": "SPACE ID"},
+                {"key": "space_short_id", "label": "SHORT ID"},
+                {"key": "space_alias", "label": "ALIAS"},
                 {"key": "count", "label": "LINKS"},
             ]
             render_table(results[:args.limit], COLUMNS)
