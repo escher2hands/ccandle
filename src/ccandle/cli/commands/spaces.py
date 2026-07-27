@@ -77,7 +77,7 @@ def run(args):
     elif args.space_cmd == "configured":
         results = list_configured_spaces()
         print_formatted_space_list(results)
-        print(f"\nYou have {len(results)} space(s) configured.")
+        print(f"\n{DIM}You have {RESET}{len(results)}{DIM} space(s) configured.{RESET}")
         return 0
 
     return 1
