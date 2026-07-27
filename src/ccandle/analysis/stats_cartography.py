@@ -164,11 +164,14 @@ def interpret_depth(depth):
 
 def get_descendants(space_id, page_id, path_to_db=PATH_DB):
     rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
-    pid_to_child_list_map = {pid: json.loads(child_list_json) for pid, child_list_json in rows}
+    pid_to_info = {
+        pid: {"children": json.loads(child_list_json)}
+        for pid, child_list_json in rows
+    }
 
-    parent_map = build_parent_map(pid_to_child_list_map)
-    depth_map = compute_depths(pid_to_child_list_map, parent_map)
-    _, descendant_map = build_all_subtree_metrics(pid_to_child_list_map)
+    parent_map = build_parent_map(pid_to_info)
+    depth_map = compute_depths(pid_to_info, parent_map)
+    _, descendant_map = build_all_subtree_metrics(pid_to_info)
 
     desc_ids = descendant_map.get(page_id, set())
     if not desc_ids:
