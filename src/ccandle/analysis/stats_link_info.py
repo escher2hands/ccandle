@@ -47,6 +47,7 @@ def find_max_linked_to_stats(space_id=None, path_to_db=PATH_DB, limit=20):
         space_alias = get_space_attribute(key, "short_id", "alias") or key
         results.append({
             "space_alias": space_alias,
+            "space_shid": key,
             "pid": pid,
             "incoming_links": count,
             "title": titles_by_pid.get(pid, pid),
