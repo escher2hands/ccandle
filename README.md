@@ -26,7 +26,7 @@ Note: manage API tokens from Atlassian at: https://id.atlassian.com/manage/api-t
 
 ### tracking spaces
 - run `ccandle spaces list` to find the space id of any spaces you are interested in tracking
-- run `ccandle spaces add SPACE_ID ALIAS` to add a space to track 
+- run `ccandle spaces add SPACE_ID` to add a space (or spaces) to track 
 - run `ccandle sync` to scrape the space, and process the scraped pages
 
 ### do things
