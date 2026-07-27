@@ -77,19 +77,19 @@ def create_dehydrated_table(db_conn: sqlite3.Connection) -> None:
 
 
 # copy all rows over
-def _copy_snapshot(cur: sqlite3.Cursor) -> int:
+def _copy_snapshot(cur: sqlite3.Cursor, quiet=False) -> int:
     columns = _col_list(BASE_COLUMNS)
     insert_sql = f"""
         INSERT INTO {TABLE_PAGES} ({columns})
         SELECT {columns}
         FROM src.{TABLE_PAGES}
     """
-    print(f"Copying src.{TABLE_PAGES} -> {TABLE_PAGES} (dehydrated schema).")
+    if not quiet: print(f"Copying src.{TABLE_PAGES} -> {TABLE_PAGES} (dehydrated schema).")
     cur.execute(insert_sql)
     return cur.rowcount
 
 
-def copy_and_dehydrate_snapshot(snapshot_input) -> Path:
+def copy_and_dehydrate_snapshot(snapshot_input, quiet=True) -> Path:
     snapshot_path = Path(snapshot_input).expanduser().resolve()
     if not snapshot_path.exists():
         raise FileNotFoundError(f"Snapshot not found: {snapshot_path}")
@@ -115,5 +115,5 @@ def copy_and_dehydrate_snapshot(snapshot_input) -> Path:
         conn.close()
 
     dehydrated_path = finalize_snapshot_name(tmp_path, DEHYDRATED_SUFFIX)
-    print(f"Copied {copied} page(s) -> {dehydrated_path}")
+    if not quiet: print(f"Copied {copied} page(s) -> {dehydrated_path}")
     return dehydrated_path
