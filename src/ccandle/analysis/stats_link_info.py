@@ -74,10 +74,10 @@ def find_orphaned_pages(pids=None, space_id=None, path_to_db=PATH_DB):
         pids = set(pids)
 
     incoming_links = set()
-    rows = query_db_results(select_query="id, title, space_id, links_list", path_to_db=path_to_db)
-    page_info = {str(row[0]): row[:3] for row in rows}  # id -> (id, title, space_id)
+    rows = query_db_results(select_query="id, title, space_id, page_type, links_list", path_to_db=path_to_db)
+    page_info = {str(row[0]): row[:4] for row in rows}  # id -> (id, title, space_id, page_type)
 
-    for _, _, _, links_list in rows:
+    for _, _, _, _, links_list in rows:
         incoming_links.update(_extract_link_ids(links_list))
 
     incoming_links_in_space = incoming_links & pids
