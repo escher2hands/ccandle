@@ -38,6 +38,10 @@ filter our rich metadata, and of course, ordinary keyword search). Nab their pag
 2. *label* pages with `ccandle labels LABEL_NAME PAGE_ID_LIST` in bulk. This updates pages 
 via REST API.
 3. insert *navboxes* into pages with `ccandle excerpts add NAV_SOURCE_PID TO_PAGE_ID_LIST` 
+4. *merge labels* that ought to be combined with `ccandle labels merge FROM_LABEL TO_LABEL`. 
+It'll automatically add the new label, remove the old label, and explain any failures 
+(usually access issues). Live no more with fragmented searches of meeting-minutes and 
+minutes-of-meeting. Merge them all, with one command.
 
 All of this could be done by hand, of course, but who wants to click four times each page 
 to apply a label to dozens of pages? Who wants to insert a navbox 'excerpt', then forget 
