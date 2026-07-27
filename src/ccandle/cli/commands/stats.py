@@ -129,22 +129,22 @@ def run(args):
                     {"key": "page_type", "label": "PAGE TYPE"},
                     {"key": "title", "label": "TITLE"},
                 ]
-                display_results = True
                 if results['total'] > 200:
                     print(f"\nThere are {results['total']} orphaned pages. Would you like to list them all?")
                     get_confirmation_to_continue()      # quit if the user doesn't want to see all orphans
-                    print(f"\nOrphaned pages ({len(orphan_rows)}):")
-                    display_rows = [
-                        {
-                            "id": row[0],
-                            "space_shid": get_space_attribute(row[2], 'id', 'short_id'),
-                            "page_type": row[3],
-                            "title": row[1],
-                        }
-                        for row in orphan_rows
-                    ]
-                    render_table(display_rows, COLUMNS)
-                    return 0
+
+                print(f"\nOrphaned pages ({len(orphan_rows)}):\n")
+                display_rows = [
+                    {
+                        "id": row[0],
+                        "space_shid": get_space_attribute(row[2], 'id', 'short_id'),
+                        "page_type": row[3],
+                        "title": row[1],
+                    }
+                    for row in orphan_rows
+                ]
+                render_table(display_rows, COLUMNS)
+                return 0
             return 0
 
         # python cli.py stats links incoming PAGE
