@@ -19,8 +19,7 @@ def register(subparsers):
     }
 
     subs["list"].add_argument("--filter", "-f", nargs="+", help="Filter spaces by key or name")
-    subs["add"].add_argument("space_id", help="Numeric Confluence space ID")
-    subs["add"].add_argument("alias", help="A local, user-friendly alias for the space")
+    subs["add"].add_argument("space_ids", nargs="+", help="Numeric Confluence space ID(s)")
     subs["remove"].add_argument("space_ids", nargs="+", help="Numeric Confluence space ID(s)")
     # "configured" needs no extra arguments
 
@@ -51,17 +50,26 @@ def run(args):
     elif args.space_cmd == "add":
         if not check_network_connection():
             return 1
-        results = add_space(args.space_id, alias=args.alias)
-        if results == 'missing_space':
-            print(f"Space ID '{args.space_id}' doesn't seem to be a valid Confluence Cloud space."
-                  f"\nDouble check there's no typo in the space id."
-                  f"\nElse, it could be you no longer have access to the space?"
-                  f"\nCopy the space id again from the space list command to ensure no errors.")
+        results = add_space(args.space_ids)
+        for res in results:
+            extra_data = f"{DIM}({res['alias']}, {res['short_id']}){RESET}" if res['short_id'] != '' else ''
+            status = f"{RED}{res['status']}{RESET}" if res['short_id'] == '' else f"{res['status']}"
+            print(f"-   {status} {BOLD}{res['space_id']}{RESET} {extra_data}")
+
+        failures = [res['space_id'] for res in results if res['short_id'] == '']
+        if len(failures) < len(results):
+            print(f"\nPlease sync now to scrape and process the new space(s).\n"
+                  f"{DIM}Run {RESET}\n"
+                  f"   {APP_HANDLE} sync\n"
+                  f"{DIM}to sync all your configured spaces.")
+        if failures:
+            print(f"\n{RED}Some of your space IDs don't seem to be valid Confluence Cloud spaces.\n"
+                  f"{failures}\n"
+                  f"{DIM}Double check there's no typo in the space ID.\n"
+                  f"Else, it could be you no longer have access to the space?\n"
+                  f"Copy the space ID again from the space list command to ensure no errors.{RESET}")
             return 1
-        else :
-            print(f"Successfully added space: '{args.alias}' ({args.space_id}) to your configured spaces list."
-                  f"\nPlease sync now to scrape and process the new space.")
-            return 0
+        return 0
     elif args.space_cmd == "remove":
         remove_spaces(args.space_ids)
         return 0
@@ -69,7 +77,7 @@ def run(args):
     elif args.space_cmd == "configured":
         results = list_configured_spaces()
         print_formatted_space_list(results)
-        print(f"\nYou have {len(results)} space(s) configured.")
+        print(f"\n{DIM}You have {RESET}{len(results)}{DIM} space(s) configured.{RESET}")
         return 0
 
     return 1
