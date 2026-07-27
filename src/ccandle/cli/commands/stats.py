@@ -180,12 +180,13 @@ def run(args):
 
             COLUMNS = [
                 {"key": "pid", "label": "PAGE ID", "width": 20},
-                {"key": "space_alias", "label": "SPACE", "width": 20},
+                {"key": "space_shid", "label": "SPACE"},
                 {"key": "incoming_links", "label": "IN-LINKS", "width": 8},
                 {"key": "title", "label": "TITLE"},
             ]
             render_table(results, COLUMNS)
-            print("\a")
+            print()
+            print_total_and_limit_info(len(results), args.limit)
             return 0
 
         if args.links_cmd == "cross-space":
