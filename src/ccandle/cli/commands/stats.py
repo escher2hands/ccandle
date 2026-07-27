@@ -15,28 +15,28 @@ from datetime import datetime, timedelta
 
 def _add_common_args(sub):
     # args shared by every stats subcommand.
-    sub.add_argument("--space", help="Limit search to only within a particular space")
+    sub.add_argument("--space",                         help="Limit search to only within a particular space")
     sub.add_argument("--limit", "-l", type=int, default=100, help="Limit to top L results")
-    sub.add_argument("--db-path", default=PATH_DB, help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
+    sub.add_argument("--db-path", default=PATH_DB,      help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
     sub.add_argument("--ids-only", action="store_true", help="Print only IDs, one line, comma-separated")
 
 
 def register(subparsers):
-    p = subparsers.add_parser("stats", help="Learn deeper statistics from your Confluence pages")
+    p = subparsers.add_parser("stats",                  help="Learn deeper statistics from your Confluence pages")
     stats_sub = p.add_subparsers(dest="stats_cmd", required=True)
 
-    sub_authors = stats_sub.add_parser("authors", help="See top authors for your corpus")
+    sub_authors = stats_sub.add_parser("authors",       help="See top authors for your corpus")
     _add_common_args(sub_authors)
 
     # ——— LINKS STUFF ——————————————————————————————
-    sub_links = stats_sub.add_parser("links", help="See info about the link distribution of your corpus")
+    sub_links = stats_sub.add_parser("links",           help="See info about the link distribution of your corpus")
     links_sub = sub_links.add_subparsers(dest="links_cmd", required=True)
 
-    sub_orphans = links_sub.add_parser("orphans", help="Find pages with no incoming links")
-    sub_popular = links_sub.add_parser("popular", help="See the most linked-to pages")
+    sub_orphans = links_sub.add_parser("orphans",       help="Find pages with no incoming links")
+    sub_popular = links_sub.add_parser("popular",       help="See the most linked-to pages")
     sub_cross_space = links_sub.add_parser("cross-space", help="See links into/out of a space")
-    sub_incoming = links_sub.add_parser("incoming", help="See what links to a specific page")
-    sub_incoming.add_argument("page_id", help="Page ID to find incoming links for")     # extra positional arg
+    sub_incoming = links_sub.add_parser("incoming",     help="See what links to a specific page")
+    sub_incoming.add_argument("page_id",                help="Page ID to find incoming links for")     # extra positional arg
 
     links_subcommands = [sub_orphans, sub_popular, sub_cross_space, sub_incoming]
     for sub in links_subcommands:
@@ -64,8 +64,8 @@ def register(subparsers):
 
     # ——— CHILD STUFF ———————————————————————————————
     sub_children = stats_sub.add_parser("children",     help="See direct children and also deep descendants of a specified page")
-    sub_children.add_argument("page_id", help="The page to find descendants of")
-    sub_children.add_argument("--max-depth", type=int, help="Show only page descendants up to a specified depth")
+    sub_children.add_argument("page_id",                help="The page to find descendants of")
+    sub_children.add_argument("--max-depth", type=int,  help="Show only page descendants up to a specified depth")
     _add_common_args(sub_children)
 
 
@@ -315,6 +315,8 @@ def run(args):
             {"key": "title", "label": "TITLE"},
         ]
         render_table(results[:args.limit], COLUMNS)
+        print()
+        print_total_and_limit_info(len(results), args.limit)
         return 0
 
     return 1
