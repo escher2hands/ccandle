@@ -43,31 +43,48 @@ def list_configured_space_ids():
     space_data = _load_config_spaces()
     return [v['id'] for v in space_data.values()]
 
-def add_space(space_id, alias):
+def add_space(space_ids):
     # load config file or start with an empty dict if file doesn't exist
     data = _load_config_spaces()
     if data is None:
         data = {}
 
-    space_data = request_one_result(ENDPOINT_SPACES + f"?ids={space_id}")[0]
-    if space_data is None:
-        return { 'status': 'missing_space' }
+    results = []
+    for space_id in space_ids:
+        space_data = request_one_result(ENDPOINT_SPACES + f"?ids={space_id}")
+        if not space_data:
+            results.append({
+                'space_id': space_id,
+                'status': 'could not find space',
+                'short_id': '',
+                'alias': '',
+            })
+            continue
 
-    shid = space_data.get('key')
+        space_data = space_data[0]
+        shid = space_data.get('key')
+        alias = (space_data.get("name") or "").replace("'", "").replace('"', "")
 
-    # create the new entry
-    key_name = f"space_{shid.upper()}"
-    data[key_name] = {
-        "id": space_id,
-        "short_id": shid,
-        "alias": alias,
-    }
+        # create the new entry
+        key_name = f"space_{shid.upper()}"
+        data[key_name] = {
+            "id": space_id,
+            "short_id": shid,
+            "alias": alias,
+        }
 
-    # write back to the file
-    with open(PATH_SPACES_CONFIG, "w") as f:
-        json.dump(data, f, indent=2)
+        # write back to the file
+        with open(PATH_SPACES_CONFIG, "w") as f:
+            json.dump(data, f, indent=2)
 
-    return { 'status': 'success' }
+        results.append({
+            'space_id': space_id,
+            'status': 'successfully added',
+            'short_id': shid,
+            'alias': alias,
+        })
+
+    return results
 
 def remove_spaces(space_ids):
     # load the config
