@@ -10,7 +10,7 @@ snapshot_frequency in days)
 - This module recomputes from find_available_snapshots() on every call
   rather than caching to a JSON file.
 """
-
+from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.confluence_auth import fetch_conf_details
 from ccandle.presentation.theme import *
 from ccandle.config.config_db import PATH_DB
@@ -48,6 +48,14 @@ def _get_latest_snapshot_date(date_strings):
 def _take_snapshot_and_report(reason):
     from ccandle.benchmark.snapshot_manager import copy_and_dehydrate_snapshot
 
-    print(f"{DIM}Auto-snapshot due {RESET}({reason}){DIM}. Taking a new snapshot...{RESET}")
+    if reason == "no snapshots found yet":
+        print(f"Since this was your first sync, {APP_HANDLE} will automatically take a snapshot\n"
+              f"of your scraped pages, so you can later track progress against it.")
+
+    print(f"{DIM}Auto-snapshot due {RESET}({reason}){DIM}. \n"
+          f"Taking a new snapshot...{RESET}")
     copy_and_dehydrate_snapshot(PATH_DB)
-    print(f"{DIM}Snapshot complete.{RESET}")
+    print(f"{DIM}Snapshot complete.\n"
+          f"Use \n"
+          f"{RESET}   {APP_HANDLE} benchmark snapshots list\n"
+          f"{DIM}to see the snapshots stored locally.{RESET}")
