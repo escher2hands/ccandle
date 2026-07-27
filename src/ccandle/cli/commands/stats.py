@@ -97,12 +97,13 @@ def run(args):
     if args.stats_cmd == "links":
         from ccandle.analysis.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
                                                           find_cross_space_links)
+        from ccandle.presentation.user_communication import get_confirmation_to_continue
         if args.links_cmd == "orphans":
             if not args.ids_only:
                 print(f"{DIM}Finding orphaned pages...{RESET}")
 
                 if space_id is not None:
-                    print(f"{DIM}Filtering by your chosen space: {RESET}{display_friendly_space_info(space_id, color=True)}")
+                    print(f"{DIM}Filtering by your chosen space: {RESET}{display_friendly_space_info(space_id, color=True, long=True)}")
                 else:
                     print("Using all configured spaces, as you didn't specify a space to search within. "
                           "\nUse the flag --space-id SPACEID to specify a space next time.")
@@ -124,20 +125,20 @@ def run(args):
 
                 COLUMNS = [
                     {"key": "id", "label": "PAGE ID", "width": 12},
+                    {"key": "space_shid", "label": "SPACE"},
+                    {"key": "page_type", "label": "PAGE TYPE"},
                     {"key": "title", "label": "TITLE"},
                 ]
                 display_results = True
                 if results['total'] > 200:
-                    print(f"\nThere are {results['total']} orphaned pages. Do you really want to list them all? "
-                          f"\nType 'yes' or 'no' to confirm.")
-                    confirm = input().strip().lower()
-                    if confirm not in ("yes", "y"):
-                        display_results = False
-                if display_results:
+                    print(f"\nThere are {results['total']} orphaned pages. Would you like to list them all?")
+                    get_confirmation_to_continue()      # quit if the user doesn't want to see all orphans
                     print(f"\nOrphaned pages ({len(orphan_rows)}):")
                     display_rows = [
                         {
                             "id": row[0],
+                            "space_shid": get_space_attribute(row[2], 'id', 'short_id'),
+                            "page_type": row[3],
                             "title": row[1],
                         }
                         for row in orphan_rows
@@ -179,12 +180,13 @@ def run(args):
 
             COLUMNS = [
                 {"key": "pid", "label": "PAGE ID", "width": 20},
-                {"key": "space_alias", "label": "SPACE", "width": 20},
+                {"key": "space_shid", "label": "SPACE"},
                 {"key": "incoming_links", "label": "IN-LINKS", "width": 8},
                 {"key": "title", "label": "TITLE"},
             ]
             render_table(results, COLUMNS)
-            print("\a")
+            print()
+            print_total_and_limit_info(len(results), args.limit)
             return 0
 
         if args.links_cmd == "cross-space":

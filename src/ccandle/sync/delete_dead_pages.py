@@ -28,7 +28,7 @@ def delete_dead_db_pages(all_cloud_ids):
     to_delete = all_local_ids - all_cloud_ids
 
     if not to_delete:
-        print("Your local db of pages does not have any deleted pages.\nNothing to delete.")
+        print("\nYour local db of pages does not have any deleted pages.\nNothing to delete.")
         return
     elif len(to_delete) > 50 and len(to_delete) > len(all_local_ids) / 10:
         print(HINT_MANY_FOR_DELETION)
