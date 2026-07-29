@@ -24,7 +24,7 @@ HEADING_ELEMENTS = {"h1", "h2"}
 LIST_ITEM_ELEMENT = "li"
 INTERNAL_LINK_FLAG_PATTERN = re.compile(r"\[\[link to:\s+(~[A-Za-z0-9]+|[A-Z0-9]+):(.*?)\]\]", re.DOTALL,)
 
-def extract_plain_texts_in_bulk(pid_list=None, *, path_to_db):
+def extract_plain_texts_in_bulk(pid_list=None, quiet=False, *, path_to_db):
     pids = pid_list or get_all_ids_in_pages(path_to_db=path_to_db)
     all_pids_to_htmls = [
         {
@@ -35,7 +35,7 @@ def extract_plain_texts_in_bulk(pid_list=None, *, path_to_db):
     pids_to_htmls = [record for record in all_pids_to_htmls if record['id'] in pids]
 
     texts = []
-    for record in tqdm(pids_to_htmls, desc="Extracting plain text from bulk", unit="page"):
+    for record in tqdm(pids_to_htmls, desc="Extracting plain text from bulk", unit="page", disable=quiet):
         text, word_count = extract_text_and_word_count_from_html(html=record['html'], space_key=record['space_key'])
         texts.append({
             'id': record['id'],
