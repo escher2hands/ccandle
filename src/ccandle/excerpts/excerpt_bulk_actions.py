@@ -68,7 +68,7 @@ def insert_excerpt_include_via_api(excerpt_source_pid, target_pid):
     results = request_put_page(target_page_data, new_html)
     if results['status'] == 'success':
         # note that we store the updated version from server, as we might not have synced recently and have stale data.
-        _increment_page_version_and_html_in_db(target_pid, results['version'], new_html)
+        increment_page_version_and_html_in_db(target_pid, results['version'], new_html)
 
     return results
 
@@ -79,7 +79,7 @@ def remove_excerpt_include_via_api(target_pid):
         results = request_put_page(target_page_data, cleaned_html)
         if results['status'] == 'success':
             # note that we store the updated version from server, as we might not have synced recently and have stale data.
-            _increment_page_version_and_html_in_db(target_pid, results['version'], cleaned_html)
+            increment_page_version_and_html_in_db(target_pid, results['version'], cleaned_html)
         return results
 
     return {
@@ -126,7 +126,7 @@ def _find_excinc_insertion_point(html):
 
     raise ValueError("Couldn't determine where to append excerpt include.")
 
-def _increment_page_version_and_html_in_db(pid, new_version, new_html):
+def increment_page_version_and_html_in_db(pid, new_version, new_html):
     update_field(pid, 'version', new_version)
     update_field(pid, 'html', new_html)
 
