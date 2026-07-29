@@ -14,11 +14,11 @@ def query_via_cli(your_query, path_to_db=PATH_DB):
             print(f"{RED}That didn't look like a valid SQL query.{RESET}\n"
                   f"{DIM}SQL error | {e}{RESET}\n"
                   f"{RED}Please try a different query.{RESET}")
-            return 1
+            return None, None
 
     if not rows:
         print(f"{RED}\nThere are no results for that query.{RESET}")
-        return 1
+        return None, None
 
     columns = [{"key": col[0], "label": col[0].upper()} for col in cur.description]
     results = [dict(zip([col["key"] for col in columns], row)) for row in rows]
