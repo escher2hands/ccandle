@@ -1,10 +1,10 @@
 import argparse
 from ccandle.presentation.theme import *
 from ccandle.cli.commands import (connection, spaces, sync, overview, labels, sql, stats, preview, cartographer, excerpts,
-                                  move_pages, benchmark, smoke_test)
+                                  move_pages, correct_links, benchmark, smoke_test)
 
 COMMANDS = [connection, spaces, sync, overview, stats, sql, labels, excerpts, move_pages, preview, cartographer,
-            benchmark, smoke_test]  # we add new modules here as ccandle grows
+            correct_links, benchmark, smoke_test]  # we add new modules here as ccandle grows
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="cli", description=f"{BLUE}Bulk knowledge management for Confluence Cloud.{RESET}")
