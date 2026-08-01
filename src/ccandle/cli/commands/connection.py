@@ -26,7 +26,7 @@ def register(subparsers):
 
 def run(args):
     from ccandle.config.confluence_auth import set_conf_details, VALID_FIELDS, fetch_conf_details
-    from ccandle.network.network_utils import check_credentials_validity
+    from ccandle.network.network_utils import validate_credentials
     from yaspin import yaspin
     key = args.conn_cmd  # "email", "url", or "token"
     if key in ("email", "url", "token", "repo-url", "snapshot-frequency"):
@@ -45,13 +45,16 @@ def run(args):
 
         print()
         with yaspin(text=f"{DIM}Validating these credentials with Confluence...{RESET}", color="cyan"):
-            valid = check_credentials_validity()
+            valid = validate_credentials()
         if valid:
             print(f"{DIM}Credentials status  : {RESET}{GREEN}VALID{RESET}  ✅ ")
         else:
             print(f"{DIM}Credentials status  : {RESET}{RED}INVALID{RESET}  ❌ \n"
                   f"{DIM}Your token may be expired, your email may have a typo, \n"
-                  f"or the url you set for Confluence may be invalid.{RESET}")
+                  f"or the url you set for Confluence may be invalid.\n\n"
+                  f"Go to:\n"
+                  f"   https://id.atlassian.com/manage/api-tokens \n"
+                  f"to manage your Confluence Cloud access tokens.{RESET}")
 
         return 0
     return 1
