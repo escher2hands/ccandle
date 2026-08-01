@@ -173,36 +173,42 @@ def run(args):
                 return 0
             return 0
 
-        # python cli.py stats links incoming PAGE
+        # ccandle stats links incoming PAGE
         if args.links_cmd == "incoming":
             results = find_incoming_links(pid=args.page_id, path_to_db=args.db_path)
             if args.ids:
                 print(", ".join(r["linking_id"] for r in results[:args.limit]))
                 return 0                    # exit immediately
 
-            print(f"Analyzing incoming links for page ID {args.page_id}:\n")
             INCOMING_LINK_COLUMNS = [
                 {"key": "linking_id", "label": "PAGE ID", "width": 12},
                 {"key": "space_alias", "label": "FROM SPACE", "width": 22},
                 {"key": "linking_title", "label": "TITLE"},
             ]
-            render_table(results[:args.limit], INCOMING_LINK_COLUMNS)
-            link_count = len(results)
-            print(f"\nTotal: {link_count} link" + ("s." if link_count > 1 else "."))
+            if args.json:   render_json(results[:args.limit], INCOMING_LINK_COLUMNS)
+            else:           render_table(results[:args.limit], INCOMING_LINK_COLUMNS)
+
+            if not machine_format:
+                print()
+                print_total_and_limit_info(len(results), args.limit)
             return 0
 
-        # python cli.py stats links popular
+        # ccandle stats links popular
         if args.links_cmd == "popular":
-            results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
+            if not machine_format:
+                print(f"{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces."
+                      f"\nThese are usually important pages, since the network of pages keep referring to them."
+                      f"\nNote: {FRIENDLY_APP_NAME} can only search for incoming links from spaces you have configured."
+                      f"\n{RESET}")
+            if not machine_format:
+                with yaspin(text=f"{DIM}Finding the most popular pages across your corpus...", color="cyan"):
+                    results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
+            else:
+                results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
             if args.ids:
                 print(", ".join(r["pid"] for r in results[:args.limit]))
                 return 0                    # exit immediately
-
-            print(f"\n{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces."
-                  f"\nThese are usually important pages, since the network of pages keep referring to them."
-                  f"\nNote: {FRIENDLY_APP_NAME} can only search for incoming links from spaces you have configured."
-                  f"\n{RESET}")
 
             COLUMNS = [
                 {"key": "pid", "label": "PAGE ID", "width": 20},
@@ -210,37 +216,46 @@ def run(args):
                 {"key": "incoming_links", "label": "IN-LINKS", "width": 8},
                 {"key": "title", "label": "TITLE"},
             ]
-            render_table(results, COLUMNS)
-            print()
-            print_total_and_limit_info(len(results), args.limit)
+            if args.json:   render_json(results, COLUMNS)
+            else:           render_table(results, COLUMNS)
+
+            if not machine_format:
+                print()
+                total = len(get_all_ids_in_pages(space_id=args.space, path_to_db=args.db_path))
+                print_total_and_limit_info(total, args.limit)
             return 0
 
+        # ccandle stats links cross-space --space SPACE
         if args.links_cmd == "cross-space":
             if space_id is None:
                 print(f"{RED}You must specify a space ID, to see which spaces it links to.{RESET}")
                 return 1                        # exit immediately
-            if not args.ids: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
+            if not machine_format: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
             self_link_count, cross_link_count, results = find_cross_space_links(input_space=space_id, path_to_db=args.db_path)
             if args.ids:
                 print(", ".join(r["space_alias"] for r in results[:args.limit]))
                 return 0                        # exit immediately
 
             total_linked_spaces = len(results) + (1 if self_link_count else 0)
-            print(f"In total {BOLD}{total_linked_spaces}{RESET} spaces are linked to from this space.\n")
 
-            if self_link_count:
-                print(f"Internal (same-space) links: {BOLD}{self_link_count}{RESET}")
-
-            print(f"Cross-space links: {BOLD}{cross_link_count}{RESET}\n")
             COLUMNS = [
                 {"key": "space_id", "label": "SPACE ID"},
-                {"key": "space_short_id", "label": "SHORT ID"},
+                {"key": "space_short_id", "label": "SHORT SPACE ID"},
                 {"key": "space_alias", "label": "ALIAS"},
                 {"key": "count", "label": "LINKS"},
             ]
-            render_table(results[:args.limit], COLUMNS)
+            if args.json:   render_json(results[:args.limit], COLUMNS)
+            else:
+                print(f"{DIM}In total {RESET}{BOLD}{total_linked_spaces}{RESET}{DIM} spaces are linked to from this space.{RESET}\n")
+                print(f"Internal (same-space) links: {BOLD}{self_link_count}{RESET}")
+                print(f"Cross-space links: {BOLD}{cross_link_count}{RESET}\n")
+
+                render_table(results[:args.limit], COLUMNS)
+                print()
+                print_total_and_limit_info(len(results), args.limit)
             return 0
 
+    # ccandle stats duplicates
     if args.stats_cmd == "duplicates":
         from ccandle.analysis.stats_duplicates import fetch_unique_duplicate_groups, scan_for_duplicates_in_corpus
         if args.fuzziness != 1.0:
@@ -257,22 +272,37 @@ def run(args):
             return 0                  # exit immediately
 
         group_num = 1
-        for dup_group in dup_groups:
-            print(f"{DIM}" + "-" * WIDTH_NICE + f"{RESET}")
-            print(f"{BOLD}Duplicate group {RED}{group_num}{RESET} {DIM}({len(dup_group)} members):{RESET}")
-            for page_id in dup_group:
-                title, space_id = query_field_multi_in_pages(page_id, "title", "space_id")
-                space_string = display_friendly_space_info(space_id, color=False)
-                print(f"{page_id:<12}  {DIM}|{RESET}  {space_string:<20}  {DIM}|{RESET}  {title}")
-            print()             # add a new line for visual break from next group
-            group_num += 1
+        if args.json:
+            output = []
+            for group_num, dup_group in enumerate(dup_groups, start=1):
+                members = []
+                for page_id in dup_group:
+                    title, space_id = query_field_multi_in_pages(page_id, "title", "space_id")
+                    members.append({
+                        "page_id": page_id,
+                        "space_id": space_id,
+                        "space": get_space_attribute(space_id, "id", "short_id"),
+                        "title": title,
+                    })
+                output.append({"group": group_num, "members": members,})
+            print(json.dumps(output[:args.limit], indent=2))
+        else:
+            for dup_group in dup_groups:
+                print(f"{DIM}" + "-" * WIDTH_NICE + f"{RESET}")
+                print(f"{BOLD}Duplicate group {RED}{group_num}{RESET} {DIM}({len(dup_group)} members):{RESET}")
+                for page_id in dup_group:
+                    title, space_id = query_field_multi_in_pages(page_id, "title", "space_id")
+                    space_string = display_friendly_space_info(space_id, color=False)
+                    print(f"{page_id:<12}  {DIM}|{RESET}  {space_string:<20}  {DIM}|{RESET}  {title}")
+                print()             # add a new line for visual break from next group
+                group_num += 1
 
-        total_pages = sum(len(group) for group in dup_groups)
-        print(f"Found {RED}{len(dup_groups)}{RESET} duplicate groups containing {BOLD}{total_pages}{RESET} pages.")
+            total_pages = sum(len(group) for group in dup_groups)
+            print(f"Found {RED}{len(dup_groups)}{RESET} duplicate groups containing {BOLD}{total_pages}{RESET} pages.")
         return 0
 
     if args.stats_cmd == "empty":
-        from ccandle.analysis.stats_empty import find_blank_pages, find_stubs, find_wordless_pages, LANDING_PAGE_TYPES
+        from ccandle.analysis.stats_empty import find_blank_pages, find_stubs, find_wordless_pages, STRUCTURAL_TYPES
         explanations = {
             "blanks": "zero content, zero words — safe to directly delete",
             "wordless": "zero words, but with image/diagram/codeblock — extract asset and roll up into another page (maybe its parent?)",
@@ -305,16 +335,19 @@ def run(args):
             if args.clickable:
                 COLUMNS.append({"key": "tiny_link", "label": "LINK"})
 
-            print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
-            print(f"{DIM}Legend of 'landing page' statuses:{RESET}")
-            for label, desc in LANDING_PAGE_TYPES.items():
-                print(f"   {label:<17}{DIM} :  {desc}{RESET}")
-            print()
+            if not machine_format:
+                print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
+                print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
+                for label, desc in STRUCTURAL_TYPES.items():
+                    print(f"   {label:<17}{DIM} :  {desc}{RESET}")
+                print()
 
-            render_table(results[:args.limit], COLUMNS)
-            space_desc = f" across space {space_id}" if space_id else ""
-            print(f"\n{DIM}There are {RESET}{BOLD}{len(results)}{RESET}{DIM} empty ({RESET}{BLUE}{args.empty_cmd.upper()}{RESET}{DIM}) pages in total{space_desc}.{RESET}")
-            print_total_and_limit_info(len(results), args.limit)
+            if args.json:   render_json(results[:args.limit], COLUMNS)
+            else:
+                render_table(results[:args.limit], COLUMNS)
+                space_desc = f" across space {space_id}" if space_id else ""
+                print(f"\n{DIM}There are {RESET}{BOLD}{len(results)}{RESET}{DIM} empty ({RESET}{BLUE}{args.empty_cmd.upper()}{RESET}{DIM}) pages in total{space_desc}.{RESET}")
+                print_total_and_limit_info(len(results), args.limit)
         return 0
 
     if args.stats_cmd == "children":
@@ -340,10 +373,12 @@ def run(args):
             {"key": "depth", "label": "DEPTH", "width": 6},
             {"key": "title", "label": "TITLE"},
         ]
-        render_table(results[:args.limit], COLUMNS)
-        print()
-        print_total_and_limit_info(len(results), args.limit)
-        return 0
+        if args.json:   render_json(results[:args.limit], COLUMNS)
+        else:
+            render_table(results[:args.limit], COLUMNS)
+            print()
+            print_total_and_limit_info(len(results), args.limit)
+            return 0
 
     return 1
 
