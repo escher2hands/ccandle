@@ -101,3 +101,15 @@ def render_results(results, columns, force_table=False):
         render_list(results, columns)
     else:
         render_table(results, columns)
+
+
+def render_json(results, columns):
+    import json
+    if not results:
+        print("[]")
+        return
+    output = [
+        {col["key"]: row.get(col["key"]) for col in columns}
+        for row in results
+    ]
+    print(json.dumps(output, indent=2, default=str))
