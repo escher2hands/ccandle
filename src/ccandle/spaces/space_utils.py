@@ -1,7 +1,6 @@
 # a helper for Confluence space configuration
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.config_network import ENDPOINT_SPACES
-from ccandle.network.network_utils import request_paginated_results, request_one_result
 from ccandle.config.config_db import PATH_SPACES_CONFIG
 from ccandle.presentation.theme import *
 import json
@@ -10,6 +9,7 @@ import os
 # allows the user to list the spaces they have access to, printing valuable
 # info like the space id, short name, and description
 def list_spaces(filter_kw=None):
+    from ccandle.network.network_utils import request_paginated_results
     results = request_paginated_results(ENDPOINT_SPACES)
     access_count = len(results)
 
@@ -44,6 +44,7 @@ def list_configured_space_ids():
     return [v['id'] for v in space_data.values()]
 
 def add_space(space_ids):
+    from ccandle.network.network_utils import request_one_result
     # load config file or start with an empty dict if file doesn't exist
     data = _load_config_spaces()
     if data is None:
