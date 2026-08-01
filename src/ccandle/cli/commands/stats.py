@@ -79,11 +79,12 @@ def register(subparsers):
 
 def run(args):
     from ccandle.presentation.page_previews import render_table, render_json
-    from collections import Counter
     from ccandle.db.db_utils import get_all_ids_in_pages
+    from ccandle.db.db_query_utils import query_field_multi_in_pages
     from ccandle.spaces.space_utils import get_space_attribute
     from ccandle.spaces.space_utils import display_friendly_space_info
     from ccandle.presentation.user_communication import clean_user_space_id_or_exit, print_total_and_limit_info
+    from collections import Counter
     from yaspin import yaspin
     import json
 
@@ -163,7 +164,7 @@ def run(args):
                     for row in orphan_rows
                 ]
 
-                if args.ids:    print([orph[0] for orph in display_rows[:args.limit]])
+                if args.ids:    print([orph['id'] for orph in display_rows[:args.limit]])
                 elif args.json:   render_json(display_rows[:args.limit], COLUMNS)
                 else:
                     render_table(display_rows[:args.limit], COLUMNS)
