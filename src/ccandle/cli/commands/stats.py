@@ -7,7 +7,7 @@
 # -   stats duplicates
 # -   stats empty
 # -   ...
-from ccandle.config.config_app import FRIENDLY_APP_NAME
+from ccandle.config.config_app import FRIENDLY_APP_NAME, APP_HANDLE
 from ccandle.config.config_db import PATH_DB
 from ccandle.presentation.theme import *
 from datetime import datetime, timedelta
@@ -18,7 +18,8 @@ def _add_common_args(sub):
     sub.add_argument("--space",                         help="Limit search to only within a particular space")
     sub.add_argument("--limit", "-l", type=int, default=100, help="Limit to top L results")
     sub.add_argument("--db-path", default=PATH_DB,      help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
-    sub.add_argument("--ids-only", action="store_true", help="Print only IDs, one line, comma-separated")
+    sub.add_argument("--ids", action="store_true", help="Print only IDs, one line, comma-separated")
+    sub.add_argument("--json", action="store_true", help="Output in machine-parseable JSON format")
 
 
 def register(subparsers):
@@ -32,7 +33,14 @@ def register(subparsers):
     sub_links = stats_sub.add_parser("links",           help="See info about the link distribution of your corpus")
     links_sub = sub_links.add_subparsers(dest="links_cmd", required=True)
 
-    sub_orphans = links_sub.add_parser("orphans",       help="Find pages with no incoming links")
+    sub_orphans = links_sub.add_parser("orphans", help="Find pages with no incoming links per space")
+    orphan_type = sub_orphans.add_subparsers(dest="orph_cmd", required=False)
+    sub_orphans.set_defaults(orph_cmd="breakdown")  # default when no sub-subcommand given
+    orphans_breakdown = orphan_type.add_parser("breakdown", help="Analyze share of orphan pages per space")
+    _add_common_args(orphans_breakdown)
+    orphans_list = orphan_type.add_parser("list", help="List out your orphan pages")
+    _add_common_args(orphans_list)
+
     sub_popular = links_sub.add_parser("popular",       help="See the most linked-to pages")
     sub_cross_space = links_sub.add_parser("cross-space", help="See links into/out of a space")
     sub_incoming = links_sub.add_parser("incoming",     help="See what links to a specific page")
@@ -70,16 +78,18 @@ def register(subparsers):
 
 
 def run(args):
-    from ccandle.presentation.page_previews import render_table
+    from ccandle.presentation.page_previews import render_table, render_json
     from collections import Counter
     from ccandle.db.db_utils import get_all_ids_in_pages
-    from ccandle.db.db_query_utils import query_field_multi_in_pages
     from ccandle.spaces.space_utils import get_space_attribute
     from ccandle.spaces.space_utils import display_friendly_space_info
     from ccandle.presentation.user_communication import clean_user_space_id_or_exit, print_total_and_limit_info
+    from yaspin import yaspin
+    import json
 
 
     space_id = clean_user_space_id_or_exit(args.space)       # clean our space identifier input, and exit if invalid
+    machine_format = args.ids or args.json
 
     if args.stats_cmd == "authors":
         from ccandle.analysis.stats_authors import find_top_authors_across_pages
@@ -89,7 +99,8 @@ def run(args):
             {"key": "name", "label": "AUTHOR", "width": 32},
         ]
         results = find_top_authors_across_pages(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
-        if args.ids_only:   print([res['name'] for res in results[:args.limit]])
+        if args.ids:   print([res['name'] for res in results[:args.limit]])
+        elif args.json:    render_json(results, COLUMNS)
         else:
             render_table(results, COLUMNS)
         return 0
@@ -97,43 +108,51 @@ def run(args):
     if args.stats_cmd == "links":
         from ccandle.analysis.stats_link_info import (find_orphaned_pages, find_max_linked_to_stats, find_incoming_links,
                                                           find_cross_space_links)
-        from ccandle.presentation.user_communication import get_confirmation_to_continue
         if args.links_cmd == "orphans":
-            if not args.ids_only:
-                print(f"{DIM}Finding orphaned pages...{RESET}")
-
-                if space_id is not None:
-                    print(f"{DIM}Filtering by your chosen space: {RESET}{display_friendly_space_info(space_id, color=True, long=True)}")
+            if args.orph_cmd == "breakdown":
+                if not machine_format:
+                    with yaspin(text=f"{DIM}Finding orphaned pages...{RESET}", color="cyan"):
+                        results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
                 else:
-                    print("Using all configured spaces, as you didn't specify a space to search within. "
-                          "\nUse the flag --space-id SPACEID to specify a space next time.")
-
-            results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
-            if not args.ids_only: print(f"\nTotal orphaned pages: {results['total']}\n")
-
-            orphan_rows = results['detailed_rows']
-
-            if args.ids_only:   print([orph[0] for orph in orphan_rows[:args.limit]])
-            else:
+                    results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
+                orphan_rows = results['detailed_rows']
                 orphans_by_space = Counter(row[2] for row in orphan_rows)
-                for space_id, orphans_in_space in sorted(orphans_by_space.items()):
-                    total_in_space = len(get_all_ids_in_pages(space_id=space_id, path_to_db=args.db_path))
-                    space_alias = get_space_attribute(space_id, "id", "alias").upper()
-                    pct = 100 * orphans_in_space / total_in_space
-                    print(f" {orphans_in_space:<5} /  {total_in_space:<5} = {pct:.0f}"
-                          f" %  orphans in space {space_alias:<25} ({space_id})")
 
+                breakdown = []
+                for sid, orphans_in_space in sorted(orphans_by_space.items()):
+                    total_in_space = len(get_all_ids_in_pages(space_id=sid, path_to_db=args.db_path))
+                    breakdown.append({
+                        "space_id": sid,
+                        "space_alias": get_space_attribute(sid, "id", "alias").upper(),
+                        "orphans": orphans_in_space,
+                        "total": total_in_space,
+                        "share": round(orphans_in_space / total_in_space, 4),
+                    })
+
+                if args.json:
+                    print(json.dumps(breakdown, indent=2))
+                else:
+                    print(f"\nTotal orphaned pages: {results['total']}\n")
+                    for b in breakdown:
+                        print(f" {b['orphans']:<5} /  {b['total']:<5} = {b['share']*100:.2f} %  "
+                              f"orphans in space {b['space_alias']:<25} ({b['space_id']})")
+                    print(
+                        f"\n{DIM}Run {RESET}\n"
+                        f"   {APP_HANDLE} stats links orphans list\n"
+                        f"{DIM}to list all {results['total']} orphaned pages\n"
+                        f"Use {BLUE}--limit L{RESET}{DIM} or {BLUE}--space SPACE{RESET}{DIM} to restrict results.{RESET}")
+                return 0
+
+            elif args.orph_cmd == "list":
+                results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
+                orphan_rows = results['detailed_rows']
                 COLUMNS = [
                     {"key": "id", "label": "PAGE ID", "width": 12},
                     {"key": "space_shid", "label": "SPACE"},
                     {"key": "page_type", "label": "PAGE TYPE"},
                     {"key": "title", "label": "TITLE"},
                 ]
-                if results['total'] > 200:
-                    print(f"\nThere are {results['total']} orphaned pages. Would you like to list them all?")
-                    get_confirmation_to_continue()      # quit if the user doesn't want to see all orphans
-
-                print(f"\nOrphaned pages ({len(orphan_rows)}):\n")
+                if not machine_format: print(f"\nOrphaned pages ({len(orphan_rows)}):\n")
                 display_rows = [
                     {
                         "id": row[0],
@@ -143,14 +162,20 @@ def run(args):
                     }
                     for row in orphan_rows
                 ]
-                render_table(display_rows, COLUMNS)
+
+                if args.ids:    print([orph[0] for orph in display_rows[:args.limit]])
+                elif args.json:   render_json(display_rows[:args.limit], COLUMNS)
+                else:
+                    render_table(display_rows[:args.limit], COLUMNS)
+                    print()
+                    print_total_and_limit_info(len(display_rows), args.limit)
                 return 0
             return 0
 
         # python cli.py stats links incoming PAGE
         if args.links_cmd == "incoming":
             results = find_incoming_links(pid=args.page_id, path_to_db=args.db_path)
-            if args.ids_only:
+            if args.ids:
                 print(", ".join(r["linking_id"] for r in results[:args.limit]))
                 return 0                    # exit immediately
 
@@ -169,7 +194,7 @@ def run(args):
         if args.links_cmd == "popular":
             results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
-            if args.ids_only:
+            if args.ids:
                 print(", ".join(r["pid"] for r in results[:args.limit]))
                 return 0                    # exit immediately
 
@@ -193,9 +218,9 @@ def run(args):
             if space_id is None:
                 print(f"{RED}You must specify a space ID, to see which spaces it links to.{RESET}")
                 return 1                        # exit immediately
-            if not args.ids_only: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
+            if not args.ids: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
             self_link_count, cross_link_count, results = find_cross_space_links(input_space=space_id, path_to_db=args.db_path)
-            if args.ids_only:
+            if args.ids:
                 print(", ".join(r["space_alias"] for r in results[:args.limit]))
                 return 0                        # exit immediately
 
@@ -218,12 +243,12 @@ def run(args):
     if args.stats_cmd == "duplicates":
         from ccandle.analysis.stats_duplicates import fetch_unique_duplicate_groups, scan_for_duplicates_in_corpus
         if args.fuzziness != 1.0:
-            if not args.ids_only: print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
+            if not args.ids: print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
                   f"This may take a while, especially if you set a high fuzziness score...")
             dup_groups = scan_for_duplicates_in_corpus(args.fuzziness, path_to_db=args.db_path)
         else:
             dup_groups = fetch_unique_duplicate_groups(space_id=space_id, path_to_db=args.db_path)
-        if args.ids_only:
+        if args.ids:
             page_ids = [page_id
                 for group in dup_groups
                 for page_id in group]
@@ -273,7 +298,7 @@ def run(args):
         if args.min_age != 0:
             results = [res for res in results if _stale_enough(res['last_modified'], args.min_age)]
 
-        if args.ids_only:
+        if args.ids:
             print([res['id'] for res in results[:args.limit]])
         else:
             if args.clickable:
@@ -304,7 +329,7 @@ def run(args):
         if args.max_depth is not None:
             results = [res for res in results if res['depth'] <= args.max_depth]
 
-        if args.ids_only:
+        if args.ids:
             results = [res['pid'] for res in results]
             print(results[:args.limit])
             return 0
