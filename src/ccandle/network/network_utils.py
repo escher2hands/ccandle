@@ -260,6 +260,7 @@ def check_network_connection():
         response = SESSION.get(url, timeout=TIMEOUT)
         return True             # Any HTTP response means we reached Atlassian.
     except OSError or requests.ConnectionError or requests.Timeout:
+        # CLI MESSAGE
         print(f"{RED}"
               "\n   (\\ "
               "\n   .'.       You are not connected to the internet."
@@ -278,6 +279,7 @@ def validate_credentials():
     return response.status_code == 200
 
 def _print_message_404(response_status_code):
+    # CLI MESSAGE
     print(f"{RED}" + "-" * WIDTH_NICE + "\n"
           f"Request error {response_status_code}\n\n"
           f"{DIM}Probably, this might have been an: \n"

@@ -48,7 +48,8 @@ def clean_user_space_id_or_exit(iffy_space_id):
     space_id = get_space_attribute_fuzzy(iffy_space_id, 'id',
                                          quiet=False) if iffy_space_id else None  # clean the input data
     if space_id == "INVALID":
-        print(f"{RED}" + "-" * 80)
+        # CLI MESSAGE
+        print(f"{RED}" + "-" * WIDTH_NICE)
         print(f"Not a valid space.\n"
               f"{DIM}Could not find a matching space for {RESET}{BLUE}{iffy_space_id}{RESET}{DIM}{RED} in your local spaces list.\n"
               f"try:\n"
@@ -58,5 +59,6 @@ def clean_user_space_id_or_exit(iffy_space_id):
     return space_id
 
 def print_total_and_limit_info(total, limit):
+    # CLI MESSAGE
     print(f"{DIM}Showing ({RESET}{BOLD}{min(limit, total)} / {total}{RESET}{DIM}) results.\n"
           f"Use {RESET}{BLUE}--limit L{RESET}{DIM} to set how many results max to display{RESET}")

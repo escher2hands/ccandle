@@ -121,6 +121,7 @@ def run(args):
         redundants = gather_likely_redundant_labels(results, min_similarity=80)
         print_redundant_label_groups(redundants)
         if redundants:
+            # CLI MESSAGE
             print(f"\n{DIM}Consider {BLUE}merging{RESET}{DIM} via: \n{RESET}"
                   f"   {APP_HANDLE} labels merge {BLUE}SOURCE TARGET{RESET}"
                   f"\n{DIM}like: "

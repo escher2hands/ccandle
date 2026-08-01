@@ -46,6 +46,7 @@ def run(args):
         results, columns = query_via_cli(args.query, path_to_db=db_path)
         if args.clickable:
             if not any(col["key"] == "id" for col in columns):
+                # CLI MESSAGE
                 print(f"{RED}" + "-" * WIDTH_NICE + "\n"
                       f"There is no id field in your sql query.\n"
                       f"{DIM}The {RESET}--clickable{RED}{DIM} flag requires you to include {RESET}'id'{RED}{DIM} in your select clause.\n"
