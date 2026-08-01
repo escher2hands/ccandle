@@ -269,7 +269,7 @@ def check_network_connection():
               f"\n{RESET}")
         return False
 
-def check_credentials_validity():
+def validate_credentials():
     url = f"{get_confluence_base_url()}{ENDPOINT_SPACES}"
     try:
         response = SESSION.get(url, timeout=TIMEOUT)
