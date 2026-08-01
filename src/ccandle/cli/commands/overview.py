@@ -1,7 +1,7 @@
 # Fast overview of Confluence space quality, connectedness, and navigability.
-import json
-
 from ccandle.presentation.user_communication import clean_user_space_id_or_exit
+from ccandle.presentation.theme import *
+import json
 
 
 def register(subparsers):
@@ -16,11 +16,13 @@ def register(subparsers):
 def run(args):
     from ccandle.overview.generate_space_overview import generate_all_space_overviews, generate_space_overview
     from ccandle.overview.present_space_overview import print_space_overview
+    from yaspin import yaspin
     space_id = clean_user_space_id_or_exit(args.space)
-    if space_id or args.corpus:
-        results = [generate_space_overview(space_id=space_id)]
-    else:
-        results = generate_all_space_overviews()
+    with yaspin(text=f"{DIM}Gathering stats for your tracked spaces...{RESET}", color="cyan"):
+        if space_id or args.corpus:
+            results = [generate_space_overview(space_id=space_id)]
+        else:
+            results = generate_all_space_overviews()
 
     if args.json:
         print(json.dumps(results, indent=2))
