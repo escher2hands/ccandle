@@ -75,6 +75,7 @@ def sync_pages_from_cloud(hard_refresh=False, space_id=None):
     from ccandle.spaces.space_utils import list_configured_space_ids, get_space_attribute
     # we tuck the module imports inside, so folks skipping scraping have a more responsive application
 
+    _exit_if_no_valid_credentials()
     create_table("pages", SCHEMA_PAGES)  # this does nothing if the table already exists
 
     sync_only_one_space_id = True if space_id else False
@@ -166,4 +167,18 @@ def _print_total_pipeline_duration(pipeline_start_time, delta_pages, space_id=No
     print(f"-" * WIDTH_NICE)
     print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} {space_descriptor} spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
     print("\a")
+
+def _exit_if_no_valid_credentials():
+    from ccandle.network.network_utils import validate_credentials
+    authenticated = validate_credentials()
+    if authenticated:
+        return True
+    else:
+        print(f"{RED}" + "-" * WIDTH_NICE + "\n"
+              f"Your credentials are INVALID.\n"
+              f"{DIM}The Confluence Cloud is not accepting your credentials.\n"
+              f"Use:\n"
+              f"{RESET}   {APP_HANDLE} connection status\n"
+              f"{RED}{DIM}to double check that there are no typos in your details.{RESET}")
+    exit(1)
 
