@@ -21,10 +21,10 @@ def register(subparsers):
     _add_common_args(sub_authors)
 
     # ——— LINKS STUFF ——————————————————————————————
-    sub_links = stats_sub.add_parser("links",           help="See info about the link distribution of your corpus")
+    sub_links = stats_sub.add_parser("links",           help="See deep info about the link distribution and connectedness of your corpus")
     links_sub = sub_links.add_subparsers(dest="links_cmd", required=True)
 
-    sub_orphans = links_sub.add_parser("orphans",       help="Find pages with no incoming links per space")
+    sub_orphans = links_sub.add_parser("orphans",       help="Find pages with no incoming links, and see their distribution by space")
     orphan_type = sub_orphans.add_subparsers(dest="orph_cmd", required=False)
     sub_orphans.set_defaults(orph_cmd="breakdown")  # default when no sub-subcommand given
     orphans_breakdown = orphan_type.add_parser("breakdown", help="Analyze share of orphan pages per space")
@@ -50,8 +50,8 @@ def register(subparsers):
     sub_empty = stats_sub.add_parser("empty",           help="Find pages in degrees of emptiness, to identify pages to delete or clean up")
     empty_sub = sub_empty.add_subparsers(dest="empty_cmd", required=True)
 
-    sub_blanks = empty_sub.add_parser("blanks",         help="See truly blank pages. No words, no macros, empty html or at most some blank paragraph tags")
-    sub_wordless = empty_sub.add_parser("wordless",     help="See pages with zero word count. Often, these have a diagram or image, but don't deserve to be their own pages")
+    sub_blanks = empty_sub.add_parser("blanks",         help="See truly blank pages: no words, no macros, empty html or at most some blank paragraph tags")
+    sub_wordless = empty_sub.add_parser("wordless",     help="See pages with zero word count: often, these have a diagram or image, but don't deserve to be their own pages")
     sub_stubs = empty_sub.add_parser("stubs",           help="See stubs: short pages with very few words that would be better off incorporated into other pages")
 
     empty_subcommands = [sub_blanks, sub_wordless, sub_stubs]
@@ -62,7 +62,7 @@ def register(subparsers):
         sub.add_argument("--clickable", action="store_true", help="Include clickable links for each result")
 
     # ——— CHILD STUFF ———————————————————————————————
-    sub_children = stats_sub.add_parser("children",     help="See direct children and also deep descendants of a specified page")
+    sub_children = stats_sub.add_parser("children",     help="See direct children and deep descendants of a specified page")
     sub_children.add_argument("page_id",                help="The page to find descendants of")
     sub_children.add_argument("--max-depth", type=int,  help="Show only page descendants up to a specified depth")
     _add_common_args(sub_children)
@@ -72,7 +72,7 @@ def _add_common_args(sub):
     sub.add_argument("--space",                         help="Limit search to only within a particular space")
     sub.add_argument("--limit", "-l", type=int, default=100, help="Limit to top L results")
     sub.add_argument("--db-path", default=PATH_DB,      help=f"Get results from your specified database, instead of {FRIENDLY_APP_NAME}'s default")
-    sub.add_argument("--ids", action="store_true", help="Print only IDs, one line, comma-separated")
+    sub.add_argument("--ids", action="store_true", help="Output only IDs, in-line, comma-separated")
     sub.add_argument("--json", action="store_true", help="Output in machine-parseable JSON format")
 
 def run(args):
@@ -112,7 +112,7 @@ def _run_authors(args, space_id, machine_format):
     from ccandle.analysis.stats_authors import find_top_authors_across_pages
 
     if not machine_format:
-        print(f"{BLUE}Note that user edits are compressed. \n"
+        print(f"{BLUE}Note that author edit history is compressed. \n"
              f"{DIM}strings of long back-to-back edits are capped at 3. \n"
              f"So {RESET}{DIM}[A A A A B B C A B B B B B]{BLUE} is compressed to {RESET}{DIM}[A A A B B C A B B B]{BLUE}\n"
              f"This unskews results from explosive edit bursts per author.{RESET}\n")
@@ -131,15 +131,12 @@ def _run_links_orphans(args, space_id, machine_format):
     from ccandle.db.db_utils import get_all_ids_in_pages
     from ccandle.spaces.space_utils import get_space_attribute
     from collections import Counter
-    from yaspin import yaspin
+
+    results = _fetch_with_spinner(find_orphaned_pages, machine_format, f"{DIM}Finding orphaned pages...{RESET}",
+                                  space_id=space_id, path_to_db=args.db_path)
+    orphan_rows = results['detailed_rows']
 
     if args.orph_cmd == "breakdown":
-        if not machine_format:
-            with yaspin(text=f"{DIM}Finding orphaned pages...{RESET}", color="cyan"):
-                results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
-        else:
-            results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
-        orphan_rows = results['detailed_rows']
         orphans_by_space = Counter(row[2] for row in orphan_rows)
 
         breakdown = []
@@ -169,23 +166,19 @@ def _run_links_orphans(args, space_id, machine_format):
 
         _emit_results(breakdown, COLUMNS, args, id_key="space_shid")
         if not machine_format:
-            print(
-                f"\n{DIM}Run {RESET}\n"
-                f"   {APP_HANDLE} stats links orphans list\n"
-                f"{DIM}to list all {results['total']} orphaned pages\n"
-                f"Use {BLUE}--limit L{RESET}{DIM} or {BLUE}--space SPACE{RESET}{DIM} to restrict results.{RESET}")
+            print(f"\n{DIM}Run {RESET}\n"
+                  f"   {APP_HANDLE} stats links orphans list\n"
+                  f"{DIM}to list all {results['total']} orphaned pages\n"
+                  f"Use {BLUE}--limit L{RESET}{DIM} or {BLUE}--space SPACE{RESET}{DIM} to restrict results.{RESET}")
         return 0
 
     elif args.orph_cmd == "list":
-        results = find_orphaned_pages(space_id=space_id, path_to_db=args.db_path)
-        orphan_rows = results['detailed_rows']
         COLUMNS = [
             {"key": "id", "label": "PAGE ID", "width": 12},
             {"key": "space_shid", "label": "SPACE"},
             {"key": "page_type", "label": "PAGE TYPE"},
             {"key": "title", "label": "TITLE"},
         ]
-        if not machine_format: print(f"\nOrphaned pages ({len(orphan_rows)}):\n")
         display_rows = [
             {
                 "id": row[0],
@@ -216,18 +209,13 @@ def _run_links_incoming(args, space_id, machine_format):
 def _run_links_popular(args, space_id, machine_format):
     from ccandle.analysis.stats_link_info import find_max_linked_to_stats
     from ccandle.db.db_utils import get_all_ids_in_pages
-    from yaspin import yaspin
 
     if not machine_format:
-        print(f"{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces."
-              f"\nThese are usually important pages, since the network of pages keep referring to them."
-              f"\nNote: {FRIENDLY_APP_NAME} can only search for incoming links from spaces you have configured."
-              f"\n{RESET}")
-    if not machine_format:
-        with yaspin(text=f"{DIM}Finding the most popular pages across your corpus...", color="cyan"):
-            results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
-    else:
-        results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
+        print(f"{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces.\n"
+              f"{DIM}These are usually important pages, since your network of pages keep referring to them.\n"
+              f"Note: {FRIENDLY_APP_NAME} can only find incoming links from spaces you have configured.\n{RESET}")
+    results = _fetch_with_spinner(find_max_linked_to_stats, machine_format, f"{DIM}Finding the most popular pages across your corpus...",
+                                  space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
     COLUMNS = [
         {"key": "pid", "label": "PAGE ID", "width": 20},
@@ -279,9 +267,11 @@ def _run_duplicates(args, space_id, machine_format):
         if not machine_format:
             print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
                   f"This may take a while, especially if you set a high fuzziness score...")
-        dup_groups = scan_for_duplicates_in_corpus(args.fuzziness, path_to_db=args.db_path)
+        dup_groups = _fetch_with_spinner(scan_for_duplicates_in_corpus, machine_format, f"{DIM}Finding duplicates across your corpus...",
+                                  fuzziness=args.fuzziness, path_to_db=args.db_path)
     else:
-        dup_groups = fetch_unique_duplicate_groups(space_id=space_id, path_to_db=args.db_path)
+        dup_groups = _fetch_with_spinner(fetch_unique_duplicate_groups, machine_format, f"{DIM}Finding duplicates across your corpus...",
+                                  space_id=space_id, path_to_db=args.db_path)
     if args.ids:
         pids = [pid for group in dup_groups[:args.limit] for pid in group]
         print(", ".join(pids))
@@ -332,13 +322,23 @@ def _run_empty(args, space_id, machine_format):
         {"key": "landing_page_status", "label": "STRUCTURAL VAL?", "width": 15},
         {"key": "title", "label": "TITLE", "width": 50},
     ]
+    if not machine_format:
+        print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
+        print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
+        for label, desc in STRUCTURAL_TYPES.items():
+            print(f"   {label:<17}{DIM} :  {desc}{RESET}")
+        print()
+
     results = []
     if args.empty_cmd == "blanks":
-        results = find_blank_pages(space_id=space_id, path_to_db=args.db_path)
+        results = _fetch_with_spinner(find_blank_pages, machine_format, f"{DIM}Finding blank pages...",
+                                  space_id=space_id, path_to_db=args.db_path)
     elif args.empty_cmd == "wordless":
-        results = find_wordless_pages(space_id=space_id, path_to_db=args.db_path)
+        results = _fetch_with_spinner(find_wordless_pages, machine_format, f"{DIM}Finding wordless pages...",
+                                  space_id=space_id, path_to_db=args.db_path)
     elif args.empty_cmd == "stubs":
-        results = find_stubs(space_id=space_id, path_to_db=args.db_path)
+        results = _fetch_with_spinner(find_stubs, machine_format, f"{DIM}Finding stub pages...",
+                                  space_id=space_id, path_to_db=args.db_path)
 
     if args.no_structural_value:
         results = [res for res in results if res['landing_page_status'] == '-']
@@ -347,13 +347,6 @@ def _run_empty(args, space_id, machine_format):
 
     if args.clickable:
         COLUMNS.append({"key": "tiny_link", "label": "LINK"})
-
-    if not machine_format:
-        print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
-        print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
-        for label, desc in STRUCTURAL_TYPES.items():
-            print(f"   {label:<17}{DIM} :  {desc}{RESET}")
-        print()
 
     _emit_results(results, COLUMNS, args, id_key="id")
     return 0
@@ -397,3 +390,10 @@ def _emit_results(results, columns, args, id_key="id", your_total=None):
         total = your_total if your_total else len(results)
         print_total_and_limit_info(total, args.limit)
     return 0
+
+def _fetch_with_spinner(fn, machine_format, text, **kwargs):
+    from yaspin import yaspin
+    if machine_format:
+        return fn(**kwargs)
+    with yaspin(text=f"{DIM}{text}{RESET}", color="cyan"):
+        return fn(**kwargs)
