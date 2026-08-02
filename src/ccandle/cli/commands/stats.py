@@ -95,15 +95,18 @@ def run(args):
     if args.stats_cmd == "authors":
         from ccandle.analysis.stats_authors import find_top_authors_across_pages
 
+        if not machine_format: print(f"{BLUE}Note that user edits are compressed. \n"
+                                     f"{DIM}strings of long back-to-back edits are capped at 3. \n"
+                                     f"So {RESET}{DIM}[A A A A B B C A B B B B B]{BLUE} is compressed to {RESET}{DIM}[A A A B B C A B B B]{BLUE}\n"
+                                     f"This unskews results from explosive edit bursts per author.{RESET}\n")
+
         COLUMNS = [
-            {"key": "edits", "label": "EDITS", "width": 8},
             {"key": "name", "label": "AUTHOR", "width": 32},
+            {"key": "edits", "label": "# EDITS"},
+            {"key": "pages", "label": "UNIQUE PAGES EDITED"},
         ]
-        results = find_top_authors_across_pages(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
-        if args.ids:   print([res['name'] for res in results[:args.limit]])
-        elif args.json:    render_json(results, COLUMNS)
-        else:
-            render_table(results, COLUMNS)
+        info = find_top_authors_across_pages(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
+        _emit_results(info['results'], COLUMNS, args, id_key="name", your_total=info['unique_authors'])
         return 0
 
     if args.stats_cmd == "links":
@@ -125,18 +128,27 @@ def run(args):
                     breakdown.append({
                         "space_id": sid,
                         "space_alias": get_space_attribute(sid, "id", "alias").upper(),
+                        "space_shid": get_space_attribute(sid, "id", "short_id").upper(),
                         "orphans": orphans_in_space,
                         "total": total_in_space,
                         "share": round(orphans_in_space / total_in_space, 4),
                     })
-
-                if args.json:
-                    print(json.dumps(breakdown, indent=2))
+                COLUMNS = [
+                    {"key": "space_id", "label": "SPACE ID", "width": 12},
+                    {"key": "space_shid", "label": "SPACE SHORT ID"},
+                    {"key": "space_alias", "label": "SPACE NAME", "width": 25},
+                    {"key": "orphans", "label": "ORPHANS"},
+                    {"key": "total", "label": "OF TOTAL"},
+                ]
+                if not machine_format:
+                    for br in breakdown:
+                        br['percent'] = f"{round(100 * br['orphans'] / br['total'], 2)} %"
+                    COLUMNS.append({"key": "percent", "label": "SHARE"})
                 else:
-                    print(f"\nTotal orphaned pages: {results['total']}\n")
-                    for b in breakdown:
-                        print(f" {b['orphans']:<5} /  {b['total']:<5} = {b['share']*100:.2f} %  "
-                              f"orphans in space {b['space_alias']:<25} ({b['space_id']})")
+                    COLUMNS.append({"key": "share", "label": "SHARE"})
+
+                _emit_results(breakdown, COLUMNS, args, id_key="space_shid")
+                if not machine_format:
                     print(
                         f"\n{DIM}Run {RESET}\n"
                         f"   {APP_HANDLE} stats links orphans list\n"
@@ -164,33 +176,21 @@ def run(args):
                     for row in orphan_rows
                 ]
 
-                if args.ids:    print([orph['id'] for orph in display_rows[:args.limit]])
-                elif args.json:   render_json(display_rows[:args.limit], COLUMNS)
-                else:
-                    render_table(display_rows[:args.limit], COLUMNS)
-                    print()
-                    print_total_and_limit_info(len(display_rows), args.limit)
-                return 0
+                _emit_results(display_rows, COLUMNS, args, id_key="id")
             return 0
 
         # ccandle stats links incoming PAGE
         if args.links_cmd == "incoming":
-            results = find_incoming_links(pid=args.page_id, path_to_db=args.db_path)
-            if args.ids:
-                print(", ".join(r["linking_id"] for r in results[:args.limit]))
-                return 0                    # exit immediately
+            results = find_incoming_links(pid=args.page_id, space_id=space_id, path_to_db=args.db_path)
 
-            INCOMING_LINK_COLUMNS = [
+            COLUMNS = [
                 {"key": "linking_id", "label": "PAGE ID", "width": 12},
-                {"key": "space_alias", "label": "FROM SPACE", "width": 22},
+                {"key": "space_shid", "label": "FROM SPACE"},
+                {"key": "count_incoming", "label": "# INC. LINKS"},
                 {"key": "linking_title", "label": "TITLE"},
             ]
-            if args.json:   render_json(results[:args.limit], INCOMING_LINK_COLUMNS)
-            else:           render_table(results[:args.limit], INCOMING_LINK_COLUMNS)
 
-            if not machine_format:
-                print()
-                print_total_and_limit_info(len(results), args.limit)
+            _emit_results(results, COLUMNS, args, id_key="linking_id")
             return 0
 
         # ccandle stats links popular
@@ -206,23 +206,15 @@ def run(args):
             else:
                 results = find_max_linked_to_stats(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
-            if args.ids:
-                print(", ".join(r["pid"] for r in results[:args.limit]))
-                return 0                    # exit immediately
-
             COLUMNS = [
                 {"key": "pid", "label": "PAGE ID", "width": 20},
                 {"key": "space_shid", "label": "SPACE"},
                 {"key": "incoming_links", "label": "IN-LINKS", "width": 8},
                 {"key": "title", "label": "TITLE"},
             ]
-            if args.json:   render_json(results, COLUMNS)
-            else:           render_table(results, COLUMNS)
 
-            if not machine_format:
-                print()
-                total = len(get_all_ids_in_pages(space_id=args.space, path_to_db=args.db_path))
-                print_total_and_limit_info(total, args.limit)
+            total = len(get_all_ids_in_pages(space_id=space_id, path_to_db=args.db_path))
+            _emit_results(results, COLUMNS, args, id_key="pid", your_total=total)
             return 0
 
         # ccandle stats links cross-space --space SPACE
@@ -232,27 +224,20 @@ def run(args):
                 return 1                        # exit immediately
             if not machine_format: print(f"{DIM}Analyzing links in space: {RESET}{display_friendly_space_info(space_id, color=True)}")
             self_link_count, cross_link_count, results = find_cross_space_links(input_space=space_id, path_to_db=args.db_path)
-            if args.ids:
-                print(", ".join(r["space_alias"] for r in results[:args.limit]))
-                return 0                        # exit immediately
-
             total_linked_spaces = len(results) + (1 if self_link_count else 0)
-
             COLUMNS = [
                 {"key": "space_id", "label": "SPACE ID"},
                 {"key": "space_short_id", "label": "SHORT SPACE ID"},
                 {"key": "space_alias", "label": "ALIAS"},
                 {"key": "count", "label": "LINKS"},
             ]
-            if args.json:   render_json(results[:args.limit], COLUMNS)
-            else:
+
+            if not machine_format:
                 print(f"{DIM}In total {RESET}{BOLD}{total_linked_spaces}{RESET}{DIM} spaces are linked to from this space.{RESET}\n")
                 print(f"Internal (same-space) links: {BOLD}{self_link_count}{RESET}")
                 print(f"Cross-space links: {BOLD}{cross_link_count}{RESET}\n")
 
-                render_table(results[:args.limit], COLUMNS)
-                print()
-                print_total_and_limit_info(len(results), args.limit)
+            _emit_results(results, COLUMNS, args, id_key="space_short_id")
             return 0
 
     # ccandle stats duplicates
@@ -329,25 +314,17 @@ def run(args):
         if args.min_age != 0:
             results = [res for res in results if _stale_enough(res['last_modified'], args.min_age)]
 
-        if args.ids:
-            print([res['id'] for res in results[:args.limit]])
-        else:
-            if args.clickable:
-                COLUMNS.append({"key": "tiny_link", "label": "LINK"})
+        if args.clickable:
+            COLUMNS.append({"key": "tiny_link", "label": "LINK"})
 
-            if not machine_format:
-                print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
-                print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
-                for label, desc in STRUCTURAL_TYPES.items():
-                    print(f"   {label:<17}{DIM} :  {desc}{RESET}")
-                print()
+        if not machine_format:
+            print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
+            print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
+            for label, desc in STRUCTURAL_TYPES.items():
+                print(f"   {label:<17}{DIM} :  {desc}{RESET}")
+            print()
 
-            if args.json:   render_json(results[:args.limit], COLUMNS)
-            else:
-                render_table(results[:args.limit], COLUMNS)
-                space_desc = f" across space {space_id}" if space_id else ""
-                print(f"\n{DIM}There are {RESET}{BOLD}{len(results)}{RESET}{DIM} empty ({RESET}{BLUE}{args.empty_cmd.upper()}{RESET}{DIM}) pages in total{space_desc}.{RESET}")
-                print_total_and_limit_info(len(results), args.limit)
+        _emit_results(results, COLUMNS, args, id_key="id")
         return 0
 
     if args.stats_cmd == "children":
@@ -378,10 +355,23 @@ def run(args):
             render_table(results[:args.limit], COLUMNS)
             print()
             print_total_and_limit_info(len(results), args.limit)
-            return 0
 
-    return 1
+    return 0
 
 def _stale_enough(date_str, min_age_in_days):
     dt = datetime.strptime(date_str, "%Y-%m-%d")
     return datetime.utcnow() - dt >= timedelta(days=min_age_in_days)
+
+def _emit_results(results, columns, args, id_key="id", your_total=None):
+    from ccandle.presentation.page_previews import render_json, render_table
+    from ccandle.presentation.user_communication import print_total_and_limit_info
+    if args.ids:
+        print(", ".join(str(r[id_key]) for r in results[:args.limit]))
+    elif args.json:
+        render_json(results[:args.limit], columns)
+    else:
+        render_table(results[:args.limit], columns)
+        print()
+        total = your_total if your_total else len(results)
+        print_total_and_limit_info(total, args.limit)
+    return 0
