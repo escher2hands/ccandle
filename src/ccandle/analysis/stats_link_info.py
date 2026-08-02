@@ -94,23 +94,39 @@ def find_orphaned_pages(pids=None, space_id=None, path_to_db=PATH_DB):
 
 # this could help for page archival / deletion flow: you can
 # immediately tell which links to repair or watch out for.
-def find_incoming_links(pid, path_to_db=PATH_DB):
+def find_incoming_links(pid, space_id=None, path_to_db=PATH_DB):
     if not id_exists_in_table(pid):
         print(f"Page {pid} not found in your scraped Confluence spaces.\n"
               f"{FRIENDLY_APP_NAME} can't find data about a page you haven't scraped.")
         return 1
+    title, page_space_id = query_field_multi_in_pages(pid, "title", "space_id")
+    space_shid = get_space_attribute(page_space_id, "id", "short_id")
+    id_target = f"{space_shid}:{pid}"
+    title_target = f"{space_shid}:{title}"
+    space_clause = f"space_id={space_id}" if space_id else "1=1"
 
-    rows = query_db_results(select_query="id, space_id, title",
-                            where_clause=f"links_list LIKE '%{pid}%'",
+    rows = query_db_results(select_query="id, space_id, title, links_list",
+                            where_clause=f"(links_list LIKE '%{id_target}%' OR links_list LIKE '%{title_target}%') "
+                                         f"AND {space_clause}",
                             path_to_db=path_to_db)
-    results = [
-        {
+
+    results = []
+    for row in rows:
+        links = json.loads(row[3]) if row[3] else []
+        incoming_count = sum(
+            link == id_target or link == title_target
+            for link in links
+        )
+
+        results.append({
             "linking_id": row[0],
+            "space_id": row[1],
+            "space_shid": get_space_attribute(row[1], "id", "short_id"),
             "space_alias": get_space_attribute(row[1], "id", "alias"),
             "linking_title": row[2],
-        }
-        for row in rows
-    ]
+            "count_incoming": incoming_count,
+        })
+
     return results
 
 def _extract_space_names(links_list: str) -> list[str]:
