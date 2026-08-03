@@ -392,8 +392,9 @@ def _emit_results(results, columns, args, id_key="id", your_total=None):
     return 0
 
 def _fetch_with_spinner(fn, machine_format, text, **kwargs):
+    import sys
+    if machine_format or not sys.stdout.isatty():
+        return fn(**kwargs)  # no spinner spawned, no frame writes, nothing to stream
     from yaspin import yaspin
-    if machine_format:
-        return fn(**kwargs)
-    with yaspin(text=f"{DIM}{text}{RESET}", color="cyan"):
+    with yaspin(text=f"{DIM}{text}{RESET}", color="cyan") as sp:
         return fn(**kwargs)
