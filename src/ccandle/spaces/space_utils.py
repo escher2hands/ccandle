@@ -162,15 +162,6 @@ def _load_config_spaces():
         print(f"Warning: {PATH_SPACES_CONFIG} is corrupted. Returning empty config.")
         return {}   # empty config
 
-def print_formatted_space_list(space_results):
-    from ccandle.presentation.page_previews import render_table
-    COLUMNS = [
-        {"key": "id", "label": "SPACE ID"},
-        {"key": "key", "label": "KEY"},
-        {"key": "name", "label": "NAME"},
-    ]
-    render_table(space_results, COLUMNS)
-
 def resolve_space_fuzzy(input_space) -> dict:
     with open(PATH_SPACES_CONFIG) as f:
         CONFIG_SPACES = json.load(f)["spaces"]
