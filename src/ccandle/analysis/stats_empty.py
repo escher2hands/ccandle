@@ -45,10 +45,10 @@ def _non_trivial_code_block(html, cutoff=3):
             return True
     return False
 
-LANDING_PAGE_TYPES = {
+STRUCTURAL_TYPES = {
     "landing page": "page serves a strong structural purpose with a populated child-macro or many links, and a decent description",
     "has child-macro": "page structurally belongs (has enough children), and is useful (has a child macro). Could use a good introductory paragraph though!",
-    "candidate": "page serves a structural purpose by having some children, but doesn't have a child macro or enough links",
+    "candidate": "page serves minor structural purpose by having some children, but doesn't have a child macro or enough links",
     "-": "page doesn't serve any structural purpose (doesn't even have sufficient children) and should not exist",
 }
 

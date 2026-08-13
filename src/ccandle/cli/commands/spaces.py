@@ -19,14 +19,21 @@ def register(subparsers):
     }
 
     subs["list"].add_argument("--filter", "-f", nargs="+", help="Filter spaces by key or name")
+    subs["list"].add_argument("--ids", action='store_true', help="Output only IDs, in-line, comma-separated")
+    subs["list"].add_argument("--json", action="store_true", help="Output in machine-parseable JSON format")
+
     subs["add"].add_argument("space_ids", nargs="+", help="Numeric Confluence space ID(s)")
     subs["remove"].add_argument("space_ids", nargs="+", help="Numeric Confluence space ID(s)")
-    # "configured" needs no extra arguments
+
+    subs["configured"].add_argument("--ids", action='store_true', help="Output only IDs, in-line, comma-separated")
+    subs["configured"].add_argument("--json", action="store_true", help="Output in machine-parseable JSON format")
 
 def run(args):
-    from ccandle.spaces.space_utils import list_spaces, add_space, remove_spaces, list_configured_spaces, print_formatted_space_list
+    from ccandle.spaces.space_utils import list_spaces, add_space, remove_spaces, list_configured_spaces
     from ccandle.network.network_utils import check_network_connection
     from ccandle.config.config_app import APP_HANDLE
+
+    machine_format = args.ids or args.json
 
     if args.space_cmd == "list":
         if not check_network_connection():
@@ -35,16 +42,17 @@ def run(args):
         results = data['results']
         access_count = data['access_count']
         # format and print results
-        print_formatted_space_list(results)
+        _print_formatted_space_list(results, args, show_page_count=False)
 
-        if args.filter is not None and args.filter != "":
-            print(f"\n{DIM}There are {RESET}{len(results)} {DIM}result(s) for your filter: {RESET}{BLUE}{args.filter}{RESET}{DIM}.{RESET}")
-        elif args.filter is None:
-            print(f"\n{DIM}Use {RESET}{BLUE}--filter KEYWORD{RESET}{DIM} to narrow down results with a fuzzy search.\n"
-                  f"You can filter for many spaces in one go, like: \n"
-                  f"   {APP_HANDLE} spaces list --filter lamp fire light \n"
-                  f"to get fuzzy matches for any from the list. Save yourself some time!{RESET}")
-        print(f"\n{DIM}You ({RESET}{fetch_conf_details('email')}{DIM}) have access to {RESET}{access_count}{DIM} Confluence spaces.{RESET}")
+        if not machine_format:
+            if args.filter is not None and args.filter != "":
+                print(f"\n{DIM}There are {RESET}{len(results)} {DIM}result(s) for your filter: {RESET}{BLUE}{args.filter}{RESET}{DIM}.{RESET}")
+            elif args.filter is None:
+                print(f"\n{DIM}Use {RESET}{BLUE}--filter KEYWORD{RESET}{DIM} to narrow down results with a fuzzy search.\n"
+                      f"You can filter for many spaces in one go, like: \n"
+                      f"   {APP_HANDLE} spaces list --filter lamp fire light \n"
+                      f"to get fuzzy matches for any from the list. Save yourself some time!{RESET}")
+            print(f"\n{DIM}You ({RESET}{fetch_conf_details('email')}{DIM}) have access to {RESET}{access_count}{DIM} Confluence spaces.{RESET}")
         return 0
 
     elif args.space_cmd == "add":
@@ -76,8 +84,29 @@ def run(args):
 
     elif args.space_cmd == "configured":
         results = list_configured_spaces()
-        print_formatted_space_list(results)
-        print(f"\n{DIM}You have {RESET}{len(results)}{DIM} space(s) configured.{RESET}")
+        _print_formatted_space_list(results, args, show_page_count=True)
+        if not machine_format:
+            print(f"\n{DIM}You have {RESET}{len(results)}{DIM} space(s) configured.{RESET}")
         return 0
 
     return 1
+
+
+def _print_formatted_space_list(space_results, args, show_page_count=False):
+    from ccandle.presentation.page_previews import render_table, render_json
+    from ccandle.db.db_query_utils import query_db_results
+    COLUMNS = [
+        {"key": "id", "label": "SPACE ID"},
+        {"key": "key", "label": "KEY"},
+        {"key": "name", "label": "NAME"},
+        {"key": "pages", "label": "# PAGES"},
+    ]
+    if show_page_count:
+        for space in space_results:
+            space['pages'] = query_db_results("count(*)", where_clause=f"space_id={space['id']}")[0][0]
+    if args.ids:
+        print(", ".join(str(r['id']) for r in space_results))
+    elif args.json:
+        render_json(space_results, COLUMNS)
+    else:
+        render_table(space_results, COLUMNS)
