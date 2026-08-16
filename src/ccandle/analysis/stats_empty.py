@@ -13,11 +13,15 @@ HTML_PREVIEW_WINDOW = 300
 
 # truly empty pages, maybe just some formatting tags in the html
 def find_blank_pages(space_id=None, path_to_db=PATH_DB):
-    space_id_query = f"space_id = {space_id}" if space_id else "1=1"
+    if space_id:
+        space_id_query = "space_id = ?"
+        params = (space_id, )
+    else:
+        space_id_query = "1=1"
+        params = None
 
     where_clause = f"word_count = 0 AND length(html) < 50 AND {space_id_query}"
-    results = query_db_results(SEL_QUERY, where_clause=where_clause, path_to_db=path_to_db)
-
+    results = query_db_results(SEL_QUERY, where_clause=where_clause, params=params, path_to_db=path_to_db)
     return _build_results_dict(results)
 
 # zero words, likely has images or diagrams.
