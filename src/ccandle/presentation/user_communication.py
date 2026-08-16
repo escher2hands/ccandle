@@ -1,7 +1,4 @@
 from ccandle.presentation.theme import *
-from ccandle.db.db_utils import ids_multi_exist_in_table
-from ccandle.config.config_app import APP_HANDLE
-from ccandle.spaces.space_utils import get_space_attribute_fuzzy
 
 
 def get_confirmation_to_continue(msg=None, acceptable_confirmations=None):
@@ -15,6 +12,9 @@ def get_confirmation_to_continue(msg=None, acceptable_confirmations=None):
 
 
 def exit_if_not_all_ids_are_in_db(target_pids, source_pid=None):
+    from ccandle.db.db_utils import ids_multi_exist_in_table
+    from ccandle.config.config_app import APP_HANDLE
+
     target_pids = target_pids + [source_pid] if source_pid else target_pids
     try:
         [int(pid) for pid in target_pids]
@@ -45,6 +45,9 @@ def exit_if_not_all_ids_are_in_db(target_pids, source_pid=None):
         exit(1)
 
 def clean_user_space_id_or_exit(iffy_space_id):
+    from ccandle.spaces.space_utils import get_space_attribute_fuzzy
+    from ccandle.config.config_app import APP_HANDLE
+
     space_id = get_space_attribute_fuzzy(iffy_space_id, 'id',
                                          quiet=False) if iffy_space_id else None  # clean the input data
     if space_id == "INVALID":
@@ -62,3 +65,26 @@ def print_total_and_limit_info(total, limit):
     # CLI MESSAGE
     print(f"{DIM}Showing ({RESET}{BOLD}{min(limit, total)} / {total}{RESET}{DIM}) results.\n"
           f"Use {RESET}{BLUE}--limit L{RESET}{DIM} to set how many results max to display{RESET}")
+
+
+def emit_results(results, columns, args, id_key="id", your_total=None):
+    from ccandle.presentation.page_previews import render_json, render_table
+    if args.ids:
+        print(", ".join(str(r[id_key]) for r in results[:args.limit]))
+    elif args.json:
+        render_json(results[:args.limit], columns)
+    else:
+        render_table(results[:args.limit], columns)
+        print()
+        total = your_total if your_total else len(results)
+        print_total_and_limit_info(total, args.limit)
+    return 0
+
+
+def fetch_with_spinner(fn, machine_format, text, **kwargs):
+    import sys
+    if machine_format or not sys.stdout.isatty():
+        return fn(**kwargs)  # no spinner spawned, no frame writes, nothing to stream
+    from yaspin import yaspin
+    with yaspin(text=f"{DIM}{text}{RESET}", color="cyan") as sp:
+        return fn(**kwargs)

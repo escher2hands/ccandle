@@ -10,6 +10,7 @@
 from ccandle.config.config_app import FRIENDLY_APP_NAME, APP_HANDLE
 from ccandle.config.config_db import PATH_DB
 from ccandle.presentation.theme import *
+from ccandle.presentation.user_communication import emit_results, fetch_with_spinner
 from datetime import datetime, timedelta
 
 
@@ -123,7 +124,7 @@ def _run_authors(args, space_id, machine_format):
         {"key": "pages", "label": "UNIQUE PAGES EDITED"},
     ]
     info = find_top_authors_across_pages(space_id=space_id, path_to_db=args.db_path, limit=args.limit)
-    _emit_results(info['results'], COLUMNS, args, id_key="name", your_total=info['unique_authors'])
+    emit_results(info['results'], COLUMNS, args, id_key="name", your_total=info['unique_authors'])
     return 0
 
 def _run_links_orphans(args, space_id, machine_format):
@@ -132,7 +133,7 @@ def _run_links_orphans(args, space_id, machine_format):
     from ccandle.spaces.space_utils import get_space_attribute
     from collections import Counter
 
-    results = _fetch_with_spinner(find_orphaned_pages, machine_format, f"{DIM}Finding orphaned pages...{RESET}",
+    results = fetch_with_spinner(find_orphaned_pages, machine_format, f"{DIM}Finding orphaned pages...{RESET}",
                                   space_id=space_id, path_to_db=args.db_path)
     orphan_rows = results['detailed_rows']
 
@@ -164,7 +165,7 @@ def _run_links_orphans(args, space_id, machine_format):
         else:
             COLUMNS.append({"key": "share", "label": "SHARE"})
 
-        _emit_results(breakdown, COLUMNS, args, id_key="space_shid")
+        emit_results(breakdown, COLUMNS, args, id_key="space_shid")
         if not machine_format:
             print(f"\n{DIM}Run {RESET}\n"
                   f"   {APP_HANDLE} stats links orphans list\n"
@@ -189,7 +190,7 @@ def _run_links_orphans(args, space_id, machine_format):
             for row in orphan_rows
         ]
 
-        _emit_results(display_rows, COLUMNS, args, id_key="id")
+        emit_results(display_rows, COLUMNS, args, id_key="id")
     return 0
 
 def _run_links_incoming(args, space_id, machine_format):
@@ -203,7 +204,7 @@ def _run_links_incoming(args, space_id, machine_format):
         {"key": "linking_title", "label": "TITLE"},
     ]
 
-    _emit_results(results, COLUMNS, args, id_key="linking_id")
+    emit_results(results, COLUMNS, args, id_key="linking_id")
     return 0
 
 def _run_links_popular(args, space_id, machine_format):
@@ -214,7 +215,7 @@ def _run_links_popular(args, space_id, machine_format):
         print(f"{BLUE}Most 'popular' (most linked-to) pages in your tracked Confluence spaces.\n"
               f"{DIM}These are usually important pages, since your network of pages keep referring to them.\n"
               f"Note: {FRIENDLY_APP_NAME} can only find incoming links from spaces you have configured.\n{RESET}")
-    results = _fetch_with_spinner(find_max_linked_to_stats, machine_format, f"{DIM}Finding the most popular pages across your corpus...",
+    results = fetch_with_spinner(find_max_linked_to_stats, machine_format, f"{DIM}Finding the most popular pages across your corpus...",
                                   space_id=space_id, path_to_db=args.db_path, limit=args.limit)
 
     COLUMNS = [
@@ -225,7 +226,7 @@ def _run_links_popular(args, space_id, machine_format):
     ]
 
     total = len(get_all_ids_in_pages(space_id=space_id, path_to_db=args.db_path))
-    _emit_results(results, COLUMNS, args, id_key="pid", your_total=total)
+    emit_results(results, COLUMNS, args, id_key="pid", your_total=total)
     return 0
 
 
@@ -253,7 +254,7 @@ def _run_links_cross_space(args, space_id, machine_format):
         print(f"Internal (same-space) links: {BOLD}{self_link_count}{RESET}")
         print(f"Cross-space links: {BOLD}{cross_link_count}{RESET}\n")
 
-    _emit_results(results, COLUMNS, args, id_key="space_short_id")
+    emit_results(results, COLUMNS, args, id_key="space_short_id")
     return 0
 
 def _run_duplicates(args, space_id, machine_format):
@@ -267,10 +268,10 @@ def _run_duplicates(args, space_id, machine_format):
         if not machine_format:
             print(f"As you set fuzziness on the fly, we must re-calculate duplicates across your corpus.\n"
                   f"This may take a while, especially if you set a high fuzziness score...")
-        dup_groups = _fetch_with_spinner(scan_for_duplicates_in_corpus, machine_format, f"{DIM}Finding duplicates across your corpus...",
+        dup_groups = fetch_with_spinner(scan_for_duplicates_in_corpus, machine_format, f"{DIM}Finding duplicates across your corpus...",
                                   fuzziness=args.fuzziness, path_to_db=args.db_path)
     else:
-        dup_groups = _fetch_with_spinner(fetch_unique_duplicate_groups, machine_format, f"{DIM}Finding duplicates across your corpus...",
+        dup_groups = fetch_with_spinner(fetch_unique_duplicate_groups, machine_format, f"{DIM}Finding duplicates across your corpus...",
                                   space_id=space_id, path_to_db=args.db_path)
     if args.ids:
         pids = [pid for group in dup_groups[:args.limit] for pid in group]
@@ -323,7 +324,7 @@ def _run_empty(args, space_id, machine_format):
         {"key": "title", "label": "TITLE", "width": 50},
     ]
     if not machine_format:
-        print(f"{BLUE}{args.empty_cmd.upper()}{RESET}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
+        print(f"{BLUE}{args.empty_cmd.upper()}{DIM} pages have {explanations[args.empty_cmd]}{RESET}\n")
         print(f"{DIM}Legend of 'structural value' statuses:{RESET}")
         for label, desc in STRUCTURAL_TYPES.items():
             print(f"   {label:<17}{DIM} :  {desc}{RESET}")
@@ -331,13 +332,13 @@ def _run_empty(args, space_id, machine_format):
 
     results = []
     if args.empty_cmd == "blanks":
-        results = _fetch_with_spinner(find_blank_pages, machine_format, f"{DIM}Finding blank pages...",
+        results = fetch_with_spinner(find_blank_pages, machine_format, f"{DIM}Finding blank pages...",
                                   space_id=space_id, path_to_db=args.db_path)
     elif args.empty_cmd == "wordless":
-        results = _fetch_with_spinner(find_wordless_pages, machine_format, f"{DIM}Finding wordless pages...",
+        results = fetch_with_spinner(find_wordless_pages, machine_format, f"{DIM}Finding wordless pages...",
                                   space_id=space_id, path_to_db=args.db_path)
     elif args.empty_cmd == "stubs":
-        results = _fetch_with_spinner(find_stubs, machine_format, f"{DIM}Finding stub pages...",
+        results = fetch_with_spinner(find_stubs, machine_format, f"{DIM}Finding stub pages...",
                                   space_id=space_id, path_to_db=args.db_path)
 
     if args.no_structural_value:
@@ -348,7 +349,7 @@ def _run_empty(args, space_id, machine_format):
     if args.clickable:
         COLUMNS.append({"key": "tiny_link", "label": "LINK"})
 
-    _emit_results(results, COLUMNS, args, id_key="id")
+    emit_results(results, COLUMNS, args, id_key="id")
     return 0
 
 def _run_children(args, space_id, machine_format):
@@ -369,32 +370,10 @@ def _run_children(args, space_id, machine_format):
         {"key": "depth", "label": "DEPTH", "width": 6},
         {"key": "title", "label": "TITLE"},
     ]
-    _emit_results(results, COLUMNS, args, id_key="pid")
+    emit_results(results, COLUMNS, args, id_key="pid")
     return 0
 
 # ------ helpers --------------------------------
 def _stale_enough(date_str, min_age_in_days):
     dt = datetime.strptime(date_str, "%Y-%m-%d")
     return datetime.utcnow() - dt >= timedelta(days=min_age_in_days)
-
-def _emit_results(results, columns, args, id_key="id", your_total=None):
-    from ccandle.presentation.page_previews import render_json, render_table
-    from ccandle.presentation.user_communication import print_total_and_limit_info
-    if args.ids:
-        print(", ".join(str(r[id_key]) for r in results[:args.limit]))
-    elif args.json:
-        render_json(results[:args.limit], columns)
-    else:
-        render_table(results[:args.limit], columns)
-        print()
-        total = your_total if your_total else len(results)
-        print_total_and_limit_info(total, args.limit)
-    return 0
-
-def _fetch_with_spinner(fn, machine_format, text, **kwargs):
-    import sys
-    if machine_format or not sys.stdout.isatty():
-        return fn(**kwargs)  # no spinner spawned, no frame writes, nothing to stream
-    from yaspin import yaspin
-    with yaspin(text=f"{DIM}{text}{RESET}", color="cyan") as sp:
-        return fn(**kwargs)
