@@ -199,7 +199,7 @@ def _run_links_incoming(args, space_id, machine_format):
     COLUMNS = [
         {"key": "linking_id", "label": "PAGE ID", "width": 12},
         {"key": "space_shid", "label": "FROM SPACE"},
-        {"key": "count_incoming", "label": "# INC. LINKS"},
+        {"key": "count_incoming", "label": "# IN LINKS"},
         {"key": "linking_title", "label": "TITLE"},
     ]
 
