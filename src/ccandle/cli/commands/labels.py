@@ -1,6 +1,16 @@
+# Manage labels across your corpus in bulk
+# -   labels list
+# -   labels redundant
+# -   labels add LABEL PAGE_ID_LIST
+# -   labels remove LABEL PAGE_ID_LIST
+# -   labels sync
+# -   labels merge LABEL_FROM LABEL_TO
+
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.config_db import TABLE_PAGES, PATH_DB
 from ccandle.presentation.theme import *
+from ccandle.presentation.user_communication import emit_results
+
 
 def register(subparsers):
     p = subparsers.add_parser("labels", help="Manage labels in bulk: add or delete labels from a list of page IDs")
@@ -11,11 +21,20 @@ def register(subparsers):
     list_sub = labels_sub.add_parser("list", help="List the labels used across your tracked Confluence spaces")
     list_sub.add_argument("--space", help="Narrow results to a specific space")
     list_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
+    list_sub.add_argument("--json", action="store_true", help="Limit to top L results")
+    list_sub.add_argument("--ids", action="store_true", help="Output only label names, in-line, comma-separated")
 
     mentions_sub = labels_sub.add_parser("mentions", help="List pages bearing the label specified")
     mentions_sub.add_argument("label", help="The label to search pages for")
     mentions_sub.add_argument("--space", help="Narrow results to a specific space")
     mentions_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
+
+    redundant_sub = labels_sub.add_parser("suggest-merges", help="Show clusters of labels that seem similar to each other, to find possibly misspelled labels and redundancies")
+    redundant_sub.add_argument("--space", help="Narrow results to a specific space")
+    redundant_sub.add_argument("--limit", "-l", type=int, default=50, help="Limit to top L results")
+    redundant_sub.add_argument("--fuzziness", type=float, default=1.0,
+                                help="Finetune the threshold for label similarity. E.g. 1.0 is default, 1.1 is less precise,...")
+
 
     for name, help_text in [
         ("add",        "Add specified label to the list of page IDs"),
@@ -90,51 +109,50 @@ def run(args):
         scrape_labels()
         return 0
     elif args.labels_cmd == "list":
-        from ccandle.db.db_query_utils import query_db_results
-        from collections import Counter
-        from ccandle.presentation.user_communication import print_total_and_limit_info
-        from ccandle.spaces.space_utils import get_space_attribute_fuzzy
-        from ccandle.labels.label_bulk_actions import gather_likely_redundant_labels
-        import json
+        from ccandle.presentation.user_communication import clean_user_space_id_or_exit, fetch_with_spinner
+        from ccandle.labels.stats_labels import get_all_labels_in_pages
 
-        counter = Counter()
-        space_id = get_space_attribute_fuzzy(args.space)
-        space_filter = f"space_id='{space_id}'" if args.space else "1=1"
-        from_pages = query_db_results(select_query='labels', where_clause=space_filter)
-        for (labels_json,) in from_pages:
-            counter.update(json.loads(labels_json)) if labels_json else 0
-
-        results = [{"label": label, "page_count": count} for label, count in counter.most_common()]
+        machine_format = args.json or args.ids
+        space_id = clean_user_space_id_or_exit(args.space)
+        results = fetch_with_spinner(get_all_labels_in_pages, machine_format, f"{DIM}Gathering labels info...",
+                                  space_id=space_id)
         COLUMNS = [
             {"key": "label", "label": "LABEL NAME"},
             {"key": "page_count", "label": "# PAGES"},
         ]
-        render_table(results[:args.limit], COLUMNS)
-        print()
-        print_total_and_limit_info(len(counter), args.limit)
 
-        print(f"\n\n{DIM}" + "-" * WIDTH_NICE + f"{RESET}"
-              f"\nWould you like to scan for redundant labels across your corpus?")
+        emit_results(results, COLUMNS, args, id_key="label", your_total=len(results))
 
-        get_confirmation_to_continue()
+        if not machine_format and len(results) > 10:
+            _print_redundancy_hint()
 
-        redundants = gather_likely_redundant_labels(results, min_similarity=80)
-        print_redundant_label_groups(redundants)
+        return 0
+
+    elif args.labels_cmd == "suggest-merges":
+        from ccandle.presentation.user_communication import clean_user_space_id_or_exit, fetch_with_spinner
+        from ccandle.labels.stats_labels import get_all_labels_in_pages, gather_likely_redundant_labels
+
+        space_id = clean_user_space_id_or_exit(args.space)
+
+        results = fetch_with_spinner(get_all_labels_in_pages, machine_format=False, text=f"{DIM}Gathering labels info...",
+                                  space_id=space_id)
+        redundants = gather_likely_redundant_labels(results, fuzziness=args.fuzziness)
+        print_redundant_label_groups(redundants, args.limit)
         if redundants:
             # CLI MESSAGE
-            print(f"\n{DIM}Consider {BLUE}merging{RESET}{DIM} via: \n{RESET}"
+            print(f"\n{DIM}{BLUE}Consider merging via: \n{RESET}"
                   f"   {APP_HANDLE} labels merge {BLUE}SOURCE TARGET{RESET}"
-                  f"\n{DIM}like: "
-                  f"\n   {APP_HANDLE} labels merge onboarding obnoarding")
+                  f"\n{DIM}{BLUE}like: {RESET}{DIM}"
+                  f"\n   {APP_HANDLE} labels merge obnoardig onboarding{RESET}")
+        else:
+            print(f"{RED}No similar / redundant seeming labels.{RESET}")
 
         return 0
 
     elif args.labels_cmd == "mentions":
-        from ccandle.db.db_query_utils import query_db_results
         from ccandle.presentation.user_communication import print_total_and_limit_info
         from ccandle.spaces.space_utils import get_space_attribute_fuzzy
         from ccandle.labels.label_bulk_actions import fuzzy_resolve_label_name, get_labels_cache
-        import json
 
         space_id = get_space_attribute_fuzzy(args.space)
         space_filter = f"space_id='{space_id}'" if args.space else "1=1"
@@ -153,6 +171,7 @@ def run(args):
         # now handle near misses (fuzzy match) with other labels in the corpus
         fuzzies = fuzzy_resolve_label_name(args.label, get_labels_cache(), top_k=5)
         if fuzzies != []:
+            # CLI MESSAGE
             print(f"\n{DIM}" + "-" * WIDTH_NICE + "\n"
                   f"{DIM}Note that there are similar labels in your corpus:\n{RESET}")
             for fuzzy in fuzzies:
@@ -201,13 +220,13 @@ def run(args):
         return 0
     return 1
 
-def print_redundant_label_groups(clusters: list[list[dict]]) -> None:
+def print_redundant_label_groups(clusters: list[list[dict]], limit) -> None:
     if not clusters:
         return
 
     total_labels_involved = sum(len(c) for c in clusters)
-    print(f"\nNote: {total_labels_involved} labels across {len(clusters)} group(s) look like they might be redundant:\n")
-    for cluster in clusters:
+    print(f"{BOLD}{total_labels_involved}{RESET} labels across {BOLD}{len(clusters)}{RESET} group(s) look like they might be redundant:\n")
+    for cluster in clusters[:limit]:
         pieces = [item["label"] for item in cluster]
         print(f"-   {DIM}" + f" {RESET}~{DIM} ".join(pieces) + f"{RESET}")
 
@@ -223,3 +242,11 @@ def get_pages_mentioning_label(label, space_filter):
 
 def _print_failures(failures: list[dict]) -> None:
     [print(f"-   {RED}{f['pid']}{RESET}{DIM} {f['status']} ({f['code']}){RESET}") for f in failures]
+
+def _print_redundancy_hint():
+    # CLI MESSAGE
+    print(f"\n\n{BLUE}" + "-" * WIDTH_NICE +
+          f"\nYou might have redundant labels across your corpus."
+          f"\n{DIM}Use: \n{RESET}"
+          f"   {APP_HANDLE} labels suggest-merges{RESET}"
+          f"\n{BLUE}{DIM}to find labels that possibly collide -- i.e. could be merged.{RESET}")
