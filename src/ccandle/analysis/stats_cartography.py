@@ -9,7 +9,8 @@ from ccandle.db.db_utils import get_field_in_pages
 def make_maps(space_id, path_to_db=PATH_DB, limit=20):
     rows = query_db_results(
         "id, child_list, links_list",
-        where_clause=f"space_id = {space_id}",
+        where_clause=f"space_id = ?",
+        params=(space_id,),
         path_to_db=path_to_db,
     )
 
@@ -163,7 +164,10 @@ def interpret_depth(depth):
     return interpretation + " " * (10-len(interpretation)) + f" ({depth})"
 
 def get_descendants(space_id, page_id, path_to_db=PATH_DB):
-    rows = query_db_results("id, child_list", where_clause=f"space_id = {space_id}", path_to_db=path_to_db)
+    rows = query_db_results("id, child_list",
+                            where_clause=f"space_id = ?",
+                            params=(space_id,),
+                            path_to_db=path_to_db)
     pid_to_info = {
         pid: {"children": json.loads(child_list_json)}
         for pid, child_list_json in rows
