@@ -13,33 +13,25 @@ HTML_PREVIEW_WINDOW = 300
 
 # truly empty pages, maybe just some formatting tags in the html
 def find_blank_pages(space_id=None, path_to_db=PATH_DB):
-    if space_id:
-        space_id_query = "space_id = ?"
-        params = (space_id, )
-    else:
-        space_id_query = "1=1"
-        params = None
-
+    space_id_query, params = _build_space_query(space_id)
     where_clause = f"word_count = 0 AND length(html) < 50 AND {space_id_query}"
     results = query_db_results(SEL_QUERY, where_clause=where_clause, params=params, path_to_db=path_to_db)
     return _build_results_dict(results)
 
 # zero words, likely has images or diagrams.
 def find_wordless_pages(space_id=None, path_to_db=PATH_DB):
-    space_id_query = f"space_id = {space_id}" if space_id else "1=1"
-
+    space_id_query, params = _build_space_query(space_id)
     where_clause = f"word_count = 0 AND {space_id_query}"
-    results = query_db_results(SEL_QUERY, where_clause=where_clause, path_to_db=path_to_db)
+    results = query_db_results(SEL_QUERY, where_clause=where_clause, params=params, path_to_db=path_to_db)
     records = _build_results_dict(results)
     # preen off records with long code blocks
     matching_records = [rec for rec in records if not _non_trivial_code_block(rec["html"])]
     return matching_records
 
 def find_stubs(space_id=None, path_to_db=PATH_DB):
-    space_id_query = f"space_id = {space_id}" if space_id else "1=1"
-
+    space_id_query, params = _build_space_query(space_id)
     where_clause = f"word_count > 0 AND word_count < {THRESH_PAGE_EMPTY} AND {space_id_query}"
-    results = query_db_results(SEL_QUERY, where_clause=where_clause, path_to_db=path_to_db)
+    results = query_db_results(SEL_QUERY, where_clause=where_clause, params=params, path_to_db=path_to_db)
 
     return _build_results_dict(results)
 
@@ -84,3 +76,12 @@ def _build_results_dict(results_blob):
         }
         for res in results_blob
     ]
+
+def _build_space_query(space_id):
+    if space_id:
+        space_id_query = "space_id = ?"
+        params = (space_id, )
+    else:
+        space_id_query = "1=1"
+        params = None
+    return space_id_query, params
