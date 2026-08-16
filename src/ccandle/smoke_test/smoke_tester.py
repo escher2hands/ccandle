@@ -34,8 +34,8 @@ def interactive_smoke_test():
         BASE_CMD + ["spaces", "list", "--filter", test_space_query],
         BASE_CMD + ["spaces", "configured"],
 
-        # BASE_CMD + ["sync"],
-        # BASE_CMD + ["sync", "--from-step", "parse_text"],
+        BASE_CMD + ["sync"],
+        BASE_CMD + ["sync", "--from-step", "parse_text"],
 
         BASE_CMD + ["labels", "add", "smoke-test-label", "2622718175", "2455404674"],
         BASE_CMD + ["labels", "remove", "smoke-test-label", "2622718175", "2455404674"],
@@ -47,16 +47,16 @@ def interactive_smoke_test():
         BASE_CMD + ["stats", "links", "orphans", "--space", f"{test_space_id}", "--limit", f"{5}"],
         BASE_CMD + ["stats", "links", "incoming", f"{test_pid}", "--limit", f"{5}"],
         BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--limit", f"{5}"],
-        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--ids-only"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--ids"],
 
         BASE_CMD + ["stats", "empty", "blanks", "--space", f"{test_space_id}", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "wordless", "--space", f"{test_space_id}", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "stubs", "--space", f"{test_space_id}", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "blanks", "--no-structural-value", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
-        BASE_CMD + ["stats", "empty", "stubs", "--ids-only", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "stubs", "--ids", "-l", f"{5}"],
 
-        BASE_CMD + ["stats", "children", f"{test_pid}", "--ids-only", "-l", f"{5}"],
+        BASE_CMD + ["stats", "children", f"{test_pid}", "--ids", "-l", f"{5}"],
 
 
         BASE_CMD + ["cartographer", "--space", f"{test_space_id}", "-l", f"{5}"],
