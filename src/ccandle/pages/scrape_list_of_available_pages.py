@@ -59,6 +59,7 @@ def _store_page_metadata_to_db(pages_data):
 def _local_pids_with_versions(space_id):
     rows = query_db_results(
         select_query="id, version",
-        where_clause=f"space_id={space_id}",
+        where_clause="space_id = ?",
+        params = (space_id,)
     )
     return dict(rows)  # {"619578591": 6, "1982801091": 8, ...}
