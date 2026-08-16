@@ -101,14 +101,22 @@ def find_incoming_links(pid, space_id=None, path_to_db=PATH_DB):
         return 1
     title, page_space_id = query_field_multi_in_pages(pid, "title", "space_id")
     space_shid = get_space_attribute(page_space_id, "id", "short_id")
+
     id_target = f"{space_shid}:{pid}"
     title_target = f"{space_shid}:{title}"
-    space_clause = f"space_id={space_id}" if space_id else "1=1"
+    where_clause = "(links_list LIKE ? OR links_list LIKE ?)"
+    params = (f"%{id_target}%", f"%{title_target}%")
 
-    rows = query_db_results(select_query="id, space_id, title, links_list",
-                            where_clause=f"(links_list LIKE '%{id_target}%' OR links_list LIKE '%{title_target}%') "
-                                         f"AND {space_clause}",
-                            path_to_db=path_to_db)
+    if space_id:
+        where_clause += " AND space_id = ?"
+        params += (space_id,)
+
+    rows = query_db_results(
+        select_query="id, space_id, title, links_list",
+        where_clause=where_clause,
+        params=params,
+        path_to_db=path_to_db,
+    )
 
     results = []
     for row in rows:
