@@ -6,8 +6,7 @@ from ccandle.db.db_utils import update_field
 from ccandle.db.db_query_utils import query_field_in_pages
 from ccandle.network.network_utils import add_label_via_rest, delete_label_via_rest
 from ccandle.presentation.theme import RED, YELLOW, RESET, BOLD, DIM
-from collections import defaultdict
-from rapidfuzz import fuzz, process
+from rapidfuzz import fuzz
 from tqdm import tqdm
 import json
 
@@ -115,45 +114,3 @@ def delete_label_from_page_entry_in_db(pid, label):
     label_set.discard(label)
     updated_labels = json.dumps(sorted(label_set))
     update_field(pid, "labels", updated_labels)
-
-def gather_likely_redundant_labels(labels_with_counts: list[dict], min_similarity: int = 75, linkage_method="complete") -> list[list[dict]]:
-    """
-    Cluster labels using hierarchical agglomerative clustering instead of
-    connected-components, so a chain of weak bridges can't merge unrelated
-    labels into one giant group. With complete linkage, every pair of labels
-    within a returned cluster is guaranteed to be >= min_similarity.
-    """
-
-    import numpy as np
-    from scipy.cluster.hierarchy import linkage, fcluster
-    from scipy.spatial.distance import squareform
-
-    labels = [item["label"] for item in labels_with_counts]
-    n = len(labels)
-    if n < 2:
-        return []
-
-    sim = process.cdist(labels, labels, scorer=fuzz.WRatio).astype(float)
-    np.fill_diagonal(sim, 100.0)
-
-    dist = 100.0 - sim
-    np.fill_diagonal(dist, 0.0)
-    dist = (dist + dist.T) / 2  # guard against float asymmetry
-
-    condensed = squareform(dist, checks=False)
-    Z = linkage(condensed, method=linkage_method)
-
-    max_distance = 100 - min_similarity
-    cluster_ids = fcluster(Z, t=max_distance, criterion="distance")
-
-    groups = defaultdict(list)
-    for idx, cid in enumerate(cluster_ids):
-        groups[cid].append(labels_with_counts[idx])
-
-    clusters = [
-        sorted(g, key=lambda x: x["page_count"], reverse=True)
-        for g in groups.values()
-        if len(g) > 1
-    ]
-    clusters.sort(key=lambda c: sum(item["page_count"] for item in c), reverse=True)
-    return clusters
