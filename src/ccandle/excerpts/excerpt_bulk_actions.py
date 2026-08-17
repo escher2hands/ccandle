@@ -135,8 +135,13 @@ def increment_page_version_and_html_in_db(pid, new_version, new_html):
 # because we have local stale data.
 # TODO: also re-calculate excerpts field for these pids.
 def _resync_page_htmls_in_case_of_drift(target_pids):
-    placeholders = ",".join(pid for pid in target_pids)
-    old_versions = {res[0]: res[1] for res in query_db_results("id, version", where_clause=f"id in ({placeholders})")}
+    placeholders = ",".join("?" for _ in target_pids)
+    params = tuple(target_pids)
+
+    old_versions = {
+        res[0]: res[1]
+        for res in query_db_results("id, version", where_clause=f"id IN ({placeholders})", params=params,)
+    }
     new_data = scrape_page_contents_from_server(target_pids)   # scrape and store html, version, etc.
     for page in new_data:
         if old_versions.get(page["id"]) != page["version"]:
