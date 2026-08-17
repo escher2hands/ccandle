@@ -92,11 +92,20 @@ def run(args):
         import json
 
         space_id = clean_user_space_id_or_exit(args.space)
-        space_query = f"space_id={space_id}" if space_id else "1=1"
+        if space_id:
+            space_query = "space_id = ?"
+            params = (space_id,)
+        else:
+            space_query = "1=1"
+            params = None
+
         excerpts_filter = "excerpts is not null"
         select_query = "id, space_id, title, excerpts"
         path_db = args.db_path if args.db_path else PATH_DB
-        results = query_db_results(select_query, where_clause=f"{space_query} AND {excerpts_filter}", path_to_db=path_db)
+        results = query_db_results(select_query,
+                                   where_clause=f"{space_query} AND {excerpts_filter}",
+                                   params = params,
+                                   path_to_db=path_db)
 
         excerpt_data = []
         for res in results:
