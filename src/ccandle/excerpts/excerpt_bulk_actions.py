@@ -133,7 +133,6 @@ def increment_page_version_and_html_in_db(pid, new_version, new_html):
 # we want to ensure we have the most accurate version before we
 # overwrite anything. Don't want to lose people's edits just
 # because we have local stale data.
-# TODO: also re-calculate excerpts field for these pids.
 def _resync_page_htmls_in_case_of_drift(target_pids):
     placeholders = ",".join("?" for _ in target_pids)
     params = tuple(target_pids)
