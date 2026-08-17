@@ -105,7 +105,7 @@ def get_link_data(link_title_or_id, space_id=None):
     else:                               # if a link title is passed in
         link_title = link_title_or_id
         space_clause = f" AND space_id={space_id}" if space_id else ""
-        results = query_db_results("id, space_id, version", where_clause=f"title='{link_title}'{space_clause}")
+        results = query_db_results("id, space_id, version", where_clause="title = ?", params=(f"'{link_title}'{space_clause}", ))
         if len(results) > 1:
             print(f"{RED}There were multiple results for {RESET}{BLUE}{link_title}:{RESET}\n"
                   f"{results}\n")
