@@ -2,7 +2,8 @@ import sqlite3
 from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from ccandle.pages.schema_table_pages import VALID_FIELDS
 
-def query_db_results(select_query, table=TABLE_PAGES, where_clause="1=1", params=None, path_to_db=PATH_DB):
+def query_db_results(select_query, table=TABLE_PAGES,
+                     where_clause="1=1", params=None, path_to_db=PATH_DB):
     with sqlite3.connect(path_to_db) as conn:
         cur = conn.cursor()
         query = f"SELECT {select_query} FROM {table} WHERE {where_clause}"
