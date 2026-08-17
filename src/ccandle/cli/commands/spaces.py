@@ -103,7 +103,7 @@ def _print_formatted_space_list(space_results, args, show_page_count=False):
     ]
     if show_page_count:
         for space in space_results:
-            space['pages'] = query_db_results("count(*)", where_clause=f"space_id={space['id']}")[0][0]
+            space['pages'] = query_db_results("count(*)", where_clause="space_id = ?", params=(space['id'], ))[0][0]
     if args.ids:
         print(", ".join(str(r['id']) for r in space_results))
     elif args.json:
