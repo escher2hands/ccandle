@@ -152,7 +152,10 @@ def find_cross_space_links(input_space, path_to_db=PATH_DB):
     space_short_id = get_space_attribute(space_id, "id", "short_id")
 
     # Query DB
-    rows = query_db_results("links_list", where_clause= f"space_id={space_id}", path_to_db=path_to_db)
+    rows = query_db_results("links_list",
+                            where_clause= "space_id = ?",
+                            params=(space_id, ),
+                            path_to_db=path_to_db)
     all_links_lists = [row[0] for row in rows]
 
     space_counter = Counter()
