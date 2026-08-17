@@ -65,4 +65,4 @@ def run(args):
     return 1 if summary["failed"] else 0
 
 def get_parent_info(pid):
-    return query_db_results(select_query="id, title", where_clause=f"child_list like '%{pid}%'")[0]
+    return query_db_results(select_query="id, title", where_clause="child_list like ?", params=(f"%{pid}%", ))[0]
