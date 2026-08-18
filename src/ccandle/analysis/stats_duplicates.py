@@ -52,10 +52,14 @@ JaccardDuplicate = namedtuple(
     ["page_id_a", "page_id_b", "jaccard_similarity", "signal_distance"],
 )
 
-def scan_for_duplicates_in_corpus(fuzziness=1.0, path_to_db=PATH_DB):
+def scan_for_duplicates_in_corpus(fuzziness=1.0, path_to_db=PATH_DB, quiet=False):
     pre_filter_sensitivity = 0.7 / fuzziness
     duplicate_threshold = 0.85 / fuzziness
-    pairs = find_duplicate_pages(epsilon=pre_filter_sensitivity, jaccard_threshold=duplicate_threshold, path_to_db=path_to_db)
+    pairs = find_duplicate_pages(epsilon=pre_filter_sensitivity,
+                                 jaccard_threshold=duplicate_threshold,
+                                 path_to_db=path_to_db,
+                                 quiet=quiet)       # pass 'quiet' to determine if progress bars should show
+
     groups = group_jaccard_duplicates(pairs)
     mapping = build_duplicate_mapping(groups)
     if fuzziness == 1.0:            # only store duplicate mapping when fuzziness is a stable score.
@@ -69,12 +73,12 @@ def scan_for_duplicates_in_corpus(fuzziness=1.0, path_to_db=PATH_DB):
 # once here and shared across both stages.
 def find_duplicate_pages(epsilon=T_SIGNALS_THRESHOLD, metric=DEFAULT_METRIC,
                          jaccard_threshold=JACCARD_SIMILARITY_THRESHOLD,
-                         k_shingle=SHINGLE_SIZE, *, path_to_db):
+                         k_shingle=SHINGLE_SIZE, *, path_to_db, quiet=False):
     ids, X, meta = _load_filtered_vectors(path_to_db)
     candidate_pairs = _find_candidate_pairs(ids, X, epsilon, metric)
     print(f"{DIM}Completed pre-filtering to find similar pages. \n"
           f"We'll compare these to find near-exact duplicates.{RESET}")
-    blob = find_jaccard_duplicates(candidate_pairs, meta, jaccard_threshold, k_shingle)
+    blob = find_jaccard_duplicates(candidate_pairs, meta, jaccard_threshold, k_shingle, quiet=quiet)
     return blob
 
 
@@ -190,20 +194,20 @@ def _jaccard_similarity(set_a, set_b):
 # signal_distance), sorted by descending similarity. signal_distance is
 # carried through from the candidate pair for later threshold tuning.
 def find_jaccard_duplicates(candidate_pairs, meta, threshold=JACCARD_SIMILARITY_THRESHOLD,
-                            k_shingle=SHINGLE_SIZE):
+                            k_shingle=SHINGLE_SIZE, quiet=False):
     if not candidate_pairs:
         return []
 
     page_ids = {pid for pair in candidate_pairs for pid in (pair.page_id_a, pair.page_id_b)}
 
     shingles_by_id = {}
-    for pid in tqdm(page_ids, desc="Shingling pages"):
+    for pid in tqdm(page_ids, desc="Shingling pages", disable=quiet):
         entry = meta.get(pid)
         if entry and entry[1]:
             shingles_by_id[pid] = _make_shingles(_normalize_text(entry[1]), k=k_shingle)
 
     results = []
-    for pair in tqdm(candidate_pairs, desc="Comparing pairs"):
+    for pair in tqdm(candidate_pairs, desc="Comparing pairs", disable=quiet):
         a, b = pair.page_id_a, pair.page_id_b
         if a not in shingles_by_id or b not in shingles_by_id:
             continue
