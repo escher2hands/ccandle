@@ -4,11 +4,12 @@
 from ccandle.sync.sync_all import VALID_STEPS, API_STEPS
 
 def register(subparsers):
-    p = subparsers.add_parser("sync", help="Sync pages from your Confluence Cloud to your local database in ccandle")
-    p.add_argument("--hard-refresh", action="store_true", help="Sync all pages from scratch, even if they have not changed since last sync")
-    p.add_argument("--from-step", dest="from_step", type=str, default=None,
-                        help="Resume processing from the given step. Valid steps: " + ", ".join(VALID_STEPS),)
-    p.add_argument("--space", default=None, help="Sync only a selected space")
+    p = subparsers.add_parser("sync",                       help="Sync pages from your Confluence Cloud to your local database in ccandle")
+    p.add_argument("--hard-refresh", action="store_true",   help="Sync all pages from scratch, even if they have not changed since last sync")
+    p.add_argument("--from-step",   dest="from_step", type=str, default=None,
+                                                            help="Resume processing from the given step. Valid steps: " + ", ".join(VALID_STEPS),)
+    p.add_argument("--space",       default=None,           help="Sync only a selected space")
+    p.add_argument("--quiet", "-q", action="store_true",    help="Suppress text hints and progress markers.")
 
 def run(args):
     from ccandle.sync.sync_all import sync
@@ -21,7 +22,7 @@ def run(args):
     if args.from_step in API_STEPS + [None]:
         if not check_network_connection():
             return 1                # force internet connection for steps that require API connection
-    sync(hard_refresh=args.hard_refresh, resume_at=args.from_step, space_id=space_id)
+    sync(hard_refresh=args.hard_refresh, resume_at=args.from_step, space_id=space_id, quiet=args.quiet)
 
     if not args.from_step and not space_id:
         maybe_take_scheduled_snapshot()
