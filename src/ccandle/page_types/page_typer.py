@@ -7,9 +7,9 @@ import sqlite3, joblib, shutil
 import numpy as np
 from pathlib import Path
 
-def type_all_pages(delta_pages=None, path_to_db=PATH_DB):
+def type_all_pages(delta_pages=None, path_to_db=PATH_DB, quiet=False):
     delta_pages = delta_pages or get_all_ids_in_pages(path_to_db=path_to_db)
-    generate_signal_vectors_in_bulk(pids=delta_pages, path_to_db=path_to_db)
+    generate_signal_vectors_in_bulk(pids=delta_pages, path_to_db=path_to_db, quiet=quiet)
     print(f"Now assigning types to your pages...")
     apply_type_labels(path_to_db=path_to_db)
     print("Done.\n")
