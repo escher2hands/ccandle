@@ -12,11 +12,11 @@ import sqlite3
 from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
-def generate_signal_vectors_in_bulk(pids=None, path_to_db=PATH_DB):
+def generate_signal_vectors_in_bulk(pids=None, path_to_db=PATH_DB, quiet=False):
     page_ids = pids or get_all_ids_in_pages(path_to_db=path_to_db)
     X = []
 
-    for page_id in tqdm(page_ids, desc="Generating type signal vectors...", unit="pages"):
+    for page_id in tqdm(page_ids, desc="Generating type signal vectors...", unit="pages", disable=quiet):
         sig_vec = get_decomposition_vector(page_id, path_to_db=path_to_db)
         X.append(sig_vec)
 
