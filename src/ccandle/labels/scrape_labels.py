@@ -6,14 +6,14 @@ from ccandle.network.network_utils import request_labels_for_space, request_page
 import datetime
 from collections import defaultdict
 
-def scrape_labels():
+def scrape_labels(quiet=False):
     from ccandle.config.config_app import FRIENDLY_APP_NAME
     print(f"Syncing labels from your Confluence spaces to {FRIENDLY_APP_NAME}...")
     all_labels = sync_label_names_from_confluence()
     print(f"Done. {FRIENDLY_APP_NAME} has synced all {len(all_labels)} labels from your Confluence spaces..")
 
     print("\nGetting page data for each label...")
-    pages_with_labels = sync_labels_to_pages()
+    pages_with_labels = sync_labels_to_pages(quiet=quiet)
     print(f"Done. Updated {len(pages_with_labels)} pages with their labels.")
 
 def sync_label_names_from_confluence():
@@ -54,11 +54,11 @@ def store_synced_labels(freshly_synced_label_records):
     conn.close()
 
 
-def sync_labels_to_pages():
+def sync_labels_to_pages(quiet=False):
     label_records = get_all_labels_with_ids()
     page_to_labels = defaultdict(set)                         # ensure no duplicates
 
-    for label_rec in tqdm(label_records, desc="Syncing pages by label...", unit="label"):
+    for label_rec in tqdm(label_records, desc="Syncing pages by label...", unit="label", disable=quiet):
         pids = request_pages_for_label(label_rec["id"])              # our expensive API call
         for pid in pids:
             page_to_labels[pid].add(label_rec["label"])
