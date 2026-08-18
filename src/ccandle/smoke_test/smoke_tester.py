@@ -28,7 +28,7 @@ def interactive_smoke_test():
         test_pid_1 = '1471579641'
         test_pid_2 = '2396061709'
         test_pid_3 = '2872869089'
-        test_space_id = '601554991'
+        test_space_id = 'bd1'
         test_space_query = 'but'
         test_nav_name = "admin portal navbox"
         test_label = "ddd"
@@ -36,55 +36,58 @@ def interactive_smoke_test():
     print(f"{RESET}")
 
     TEST_COMMANDS = [
-        # BASE_CMD + ["spaces"],                   # default input
-        # BASE_CMD + ["spaces", "list"],
-        # BASE_CMD + ["spaces", "list", "--filter", test_space_query],
-        # BASE_CMD + ["spaces", "configured"],
-        #
-        # BASE_CMD + ["sync", "--quiet"],
-        # BASE_CMD + ["sync", "--from-step", "parse_text", "--quiet"],
+        BASE_CMD + ["spaces"],                   # default input
+        BASE_CMD + ["spaces", "list"],
+        BASE_CMD + ["spaces", "list", "--filter", test_space_query],
+        BASE_CMD + ["spaces", "configured"],
 
-        # BASE_CMD + ["labels", "list", "--space", f"{test_space_id}"],
-        # BASE_CMD + ["labels", "mentions", f"{test_label}"],
-        # BASE_CMD + ["labels", "mentions", f"{test_label}", "--space", f"{test_space_id}"],
-        # BASE_CMD + ["labels", "suggest-merges", "--limit", "10"],
-        # BASE_CMD + ["labels", "add", "smoke-test-label", f"{test_pid_2}", f"{test_pid_3}"],
-        # BASE_CMD + ["labels", "remove", "smoke-test-label", f"{test_pid_2}", f"{test_pid_3}"],
+        BASE_CMD + ["sync", "--quiet"],
+        BASE_CMD + ["sync", "--from-step", "parse_text", "--quiet"],
+
+        BASE_CMD + ["labels", "list", "--space", f"{test_space_id}"],
+        BASE_CMD + ["labels", "mentions", f"{test_label}"],
+        BASE_CMD + ["labels", "mentions", f"{test_label}", "--space", f"{test_space_id}"],
+        BASE_CMD + ["labels", "suggest-merges", "--limit", "10"],
+        BASE_CMD + ["labels", "add", "smoke-test-label", f"{test_pid_2}", f"{test_pid_3}"],
+        BASE_CMD + ["labels", "remove", "smoke-test-label", f"{test_pid_2}", f"{test_pid_3}"],
+
+        BASE_CMD + ["excerpts", "list", "--limit", "10"],
+        BASE_CMD + ["excerpts", "list", "--space", f"{test_space_id}", "-l", "15"],
+        BASE_CMD + ["excerpts", "list", "--sources-only", "-l", "10"],
+        BASE_CMD + ["excerpts", "list", "--navboxes-only", "-l", "10"],
 
 
-        # BASE_CMD + ["excerpts", "list", "--limit", "10"],
-        # BASE_CMD + ["excerpts", "list", "--space", f"{test_space_id}", "-l", "15"],
-        # BASE_CMD + ["excerpts", "list", "--sources-only", "-l", "10"],
-        # BASE_CMD + ["excerpts", "list", "--navboxes-only", "-l", "10"],
+        BASE_CMD + ["stats", "authors", "--space", f"{test_space_id}", "--limit", f"{10}"],
+
+        BASE_CMD + ["stats", "links", "popular", "--space", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "orphans", "--space", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "incoming", f"{test_pid_1}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--limit", f"{5}"],
+        BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--ids"],
+
+        BASE_CMD + ["stats", "empty", "blanks", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "wordless", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "stubs", "--space", f"{test_space_id}", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "blanks", "--no-structural-value", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
+        BASE_CMD + ["stats", "empty", "stubs", "--ids", "-l", f"{5}"],
+
+        BASE_CMD + ["stats", "children", f"{test_pid_1}", "-l", f"{15}"],
+        BASE_CMD + ["stats", "children", f"{test_pid_1}", "--ids", "-l", f"{5}"],
 
 
-        # BASE_CMD + ["stats", "authors", "--space", f"{test_space_id}", "--limit", f"{10}"],
-        #
-        # BASE_CMD + ["stats", "links", "popular", "--space", f"{test_space_id}", "--limit", f"{5}"],
-        # BASE_CMD + ["stats", "links", "orphans", "--space", f"{test_space_id}", "--limit", f"{5}"],
-        # BASE_CMD + ["stats", "links", "incoming", f"{test_pid_1}", "--limit", f"{5}"],
-        # BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--limit", f"{5}"],
-        # BASE_CMD + ["stats", "links", "cross-space", "--space", f"{test_space_id}", "--ids"],
-        #
-        # BASE_CMD + ["stats", "empty", "blanks", "--space", f"{test_space_id}", "-l", f"{5}"],
-        # BASE_CMD + ["stats", "empty", "wordless", "--space", f"{test_space_id}", "-l", f"{5}"],
-        # BASE_CMD + ["stats", "empty", "stubs", "--space", f"{test_space_id}", "-l", f"{5}"],
-        # BASE_CMD + ["stats", "empty", "blanks", "--no-structural-value", "-l", f"{5}"],
-        # BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
-        # BASE_CMD + ["stats", "empty", "stubs", "--ids", "-l", f"{5}"],
-        #
-        # BASE_CMD + ["stats", "children", f"{test_pid_1}", "--ids", "-l", f"{5}"],
-        #
-        #
-        # BASE_CMD + ["cartographer", "--space", f"{test_space_id}", "-l", f"{5}"],
-        #
-        #
-        # BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 10"],
-        # BASE_CMD + ["sql", "columns"],
+        BASE_CMD + ["cartographer", "--space", f"{test_space_id}", "-l", f"{5}"],
 
-        # BASE_CMD + ["overview"],
-        # BASE_CMD + ["overview", "--space", f"{test_space_id}"],
-        # BASE_CMD + ["overview", "--corpus"],
+
+        BASE_CMD + ["sql", "query", "select id, labels, title from pages limit 10"],
+        BASE_CMD + ["sql", "columns"],
+
+        BASE_CMD + ["overview"],
+        BASE_CMD + ["overview", "--space", f"{test_space_id}"],
+        BASE_CMD + ["overview", "--corpus"],
+
+
+        BASE_CMD + ["benchmark", "snapshots", "list"],
     ]
 
     return smoke_test(test_commands=TEST_COMMANDS)
