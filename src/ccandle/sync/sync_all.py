@@ -10,7 +10,7 @@ VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "co
                "assign_type", "find_duplicates"]
 API_STEPS = ["children", "authors", "labels"]
 
-def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=None):
+def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=None, quiet=False):
     pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)
 
     if not resume_at:
@@ -28,19 +28,19 @@ def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=Non
         delta_pages = your_delta_pages if your_delta_pages else get_all_ids_in_pages(space_id=space_id) # take pages to process from our local
 
     steps = [
-        ("children", lambda: _scrape_children(delta_pages)),
-        ("authors", lambda: _scrape_authors(delta_pages)),
-        ("labels", lambda: _scrape_labels()),
-        ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages)),
-        ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages)),
-        ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)),
-        ("excerpts", lambda: _extract_excerpt_info(delta_pages)),
-        ("assign_type", lambda: _type_all_pages(delta_pages)),
+        ("children", lambda: _scrape_children(delta_pages, quiet=quiet)),
+        ("authors", lambda: _scrape_authors(delta_pages, quiet=quiet)),
+        ("labels", lambda: _scrape_labels(quiet=quiet)),
+        ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages, quiet=quiet)),
+        ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages, quiet=quiet)),
+        ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)), # finishes so fast there's no need for loading bar
+        ("excerpts", lambda: _extract_excerpt_info(delta_pages, quiet=quiet)),
+        ("assign_type", lambda: _type_all_pages(delta_pages, quiet=quiet)),
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
         #("map_links", lambda: _find_link_events_for_all_pages()),            # can only be done on all pages, no subsets
-        ("find_duplicates", lambda: _scan_for_duplicates()),                  # can only be done on all pages, no subsets
+        ("find_duplicates", lambda: _scan_for_duplicates(quiet=quiet)),                  # can only be done on all pages, no subsets
     ]
     for name, fn in steps:
         if resume_at and resume_at not in VALID_STEPS:
@@ -113,33 +113,33 @@ def sync_pages_from_cloud(hard_refresh=False, space_id=None):
 
 # - STEPS ----------------------------------------------
 # we split this out here so possibly heavy module loading can be staged
-def _scrape_children(delta_pages):
+def _scrape_children(delta_pages, quiet=False):
     from ccandle.children.scrape_children import scrape_children
-    scrape_children(delta_pages)
-def _scrape_authors(delta_pages):
+    scrape_children(delta_pages, quiet=quiet)
+def _scrape_authors(delta_pages, quiet=False):
     from ccandle.authors.scrape_authors import scrape_authors
-    scrape_authors(delta_pages)
-def _scrape_labels():
+    scrape_authors(delta_pages, quiet=quiet)
+def _scrape_labels(quiet=False):
     from ccandle.labels.scrape_labels import scrape_labels
-    scrape_labels()
-def _extract_plain_texts_in_bulk(delta_pages):
+    scrape_labels(quiet=True)
+def _extract_plain_texts_in_bulk(delta_pages, quiet=False):
     from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
-    extract_plain_texts_in_bulk(delta_pages, path_to_db=PATH_DB)
-def _add_basic_metadata_in_bulk(delta_pages):
+    extract_plain_texts_in_bulk(delta_pages, path_to_db=PATH_DB, quiet=quiet)
+def _add_basic_metadata_in_bulk(delta_pages, quiet=False):
     from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
-    add_basic_metadata_in_bulk(delta_pages, path_to_db=PATH_DB)
+    add_basic_metadata_in_bulk(delta_pages, path_to_db=PATH_DB, quiet=quiet)
 def _clean_link_formatting_and_store_link_list(delta_pages):
     from ccandle.pages.parsing.link_parser import clean_and_store_links
     clean_and_store_links(delta_pages, path_to_db=PATH_DB)
-def _extract_excerpt_info(delta_pages):
+def _extract_excerpt_info(delta_pages, quiet=False):
     from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
-    find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB)
-def _type_all_pages(delta_pages):
+    find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB, quiet=quiet)
+def _type_all_pages(delta_pages, quiet=False):
     from ccandle.page_types.page_typer import type_all_pages
-    type_all_pages(delta_pages, path_to_db=PATH_DB)
-def _scan_for_duplicates():
+    type_all_pages(delta_pages, path_to_db=PATH_DB, quiet=quiet)
+def _scan_for_duplicates(quiet=False):
     from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus
-    scan_for_duplicates_in_corpus(path_to_db=PATH_DB)
+    scan_for_duplicates_in_corpus(path_to_db=PATH_DB, quiet=quiet)
 
 def set_all_pages_as_processed(processed_list):
     from ccandle.config.config_db import TABLE_PAGES, PATH_DB
