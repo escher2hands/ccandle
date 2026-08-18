@@ -25,10 +25,10 @@ _STRIP_NON_ALPHA = re.compile(r'\W+')
 
 # fetch the author history from the Confluence Cloud.
 # Squash 'streak' edits and store in bulk
-def scrape_authors(delta_pages=None):
+def scrape_authors(delta_pages=None, quiet=False):
     pids = delta_pages or get_all_ids_in_pages()
     batches = chunked(pids, BATCH_SIZE)
-    with tqdm(total=len(pids), desc="Scraping author information", unit="page") as pbar:
+    with tqdm(total=len(pids), desc="Scraping author information", unit="page", disable=quiet) as pbar:
         for batch_pids in batches:
             page_to_authors = {}
             for pid in batch_pids:
