@@ -13,11 +13,11 @@ from ccandle.config.config_db import PATH_DB, TABLE_PAGES
 from tqdm import tqdm
 
 
-def add_basic_metadata_in_bulk(pids=None, path_to_db=PATH_DB):
+def add_basic_metadata_in_bulk(pids=None, path_to_db=PATH_DB, quiet=False):
     pids = pids or get_all_ids_in_pages(path_to_db=path_to_db)
     pages = _get_page_texts_and_htmls(pids, path_to_db=path_to_db)
     enriched_pages = []
-    for page in tqdm(pages, desc="Extracting basic metadata from each page...", unit="page"):
+    for page in tqdm(pages, desc="Extracting basic metadata from each page...", unit="page", disable=quiet):
         soup = BeautifulSoup(page['html'], 'html.parser')
         lead_para_text, eval_notes = _get_eval_notes(page['html'], soup, page['space_id'], page['word_count'])
         enriched = {
