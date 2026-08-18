@@ -10,6 +10,7 @@ snapshot_frequency in days)
 - This module recomputes from find_available_snapshots() on every call
   rather than caching to a JSON file.
 """
+from ccandle.benchmark.snapshot_namer import infer_snapshot_date
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.confluence_auth import fetch_conf_details
 from ccandle.presentation.theme import *
@@ -31,8 +32,9 @@ def maybe_take_scheduled_snapshot():
     if latest_date is None:
         _take_snapshot_and_report(reason="no snapshots found yet")
         return
-
-    days_since_last = (datetime.date.today() - latest_date).days
+    # take from whatever is now in the main db, not from today's date, as these may differ if user didn't do a full sync
+    current_scrape_date = infer_snapshot_date(PATH_DB)
+    days_since_last = (current_scrape_date - latest_date).days
     if days_since_last >= frequency_days:
         _take_snapshot_and_report(
             reason=f"last snapshot was {days_since_last} days ago (frequency: {frequency_days}d)"
