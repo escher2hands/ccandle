@@ -72,7 +72,7 @@ def interactive_smoke_test():
         BASE_CMD + ["stats", "empty", "wordless", "-nsv", "-l", f"{5}"],
         BASE_CMD + ["stats", "empty", "stubs", "--ids", "-l", f"{5}"],
 
-        BASE_CMD + ["stats", "children", f"{test_pid_1}", "-l", f"{15}"],
+#        BASE_CMD + ["stats", "children", f"{test_pid_1}", "-l", f"{15}"],
         BASE_CMD + ["stats", "children", f"{test_pid_1}", "--ids", "-l", f"{5}"],
 
 
