@@ -1,4 +1,13 @@
-# get link count, word count, image count, lead para, and check if page has link tree
+# Get basic metadata on pages, so things like page classification can go smoothly.
+# - link count
+# - word count
+# - image count
+# - lead para
+# - check if page has link tree
+# Note that page typer has a far richer (and more resource heavy) breakdown of pages.
+# However, most of those values are useless to humans, whereas these are directly
+# usable metrics without the need for scaling and interpretation.
+
 from bs4 import BeautifulSoup
 
 from ccandle.db.db_utils import get_all_ids_in_pages
