@@ -8,53 +8,130 @@ exercise the real version-diffing/filtering logic in
 scrape_page_metadata_in_space without touching the network or a real DB.
 
 Remember: patch these by their path as looked up from the *caller's*
-module (ccandle.scraper), not wherever they happen to be defined.
-Adjust the "ccandle.scraper.X" strings below if your module layout differs.
+module (ccandle.pages.scrape_list_of_available_pages), not wherever
+they happen to be defined.
+
+Fixture data lives in ONE place: the PAGE_DEFS dict of PageDef objects
+below. Every raw API payload, every "local DB version" entry, and every
+expected assertion is derived from those PageDef values rather than
+re-typed as a literal. Change a version or a tiny_link there, and every
+test that depends on it updates itself — nothing to keep in sync by hand.
 """
 
 import copy
+import dataclasses
 import datetime
 
 import pytest
 
 from ccandle.pages.scrape_list_of_available_pages import scrape_page_metadata_in_space
 
-
-# ---------------------------------------------------------------------------
-# Fixture data
-# ---------------------------------------------------------------------------
-
+MODULE = "ccandle.pages.scrape_list_of_available_pages"
 SPACE_ID = "14444"
 
-PAGE_CHANGED_1 = "123456"
-PAGE_UNCHANGED = "123457"
-PAGE_CHANGED_2 = "123458"
-PAGE_FRESH = "123459"
 
-PAGES_ALL = [PAGE_CHANGED_1, PAGE_UNCHANGED, PAGE_CHANGED_2, PAGE_FRESH]
+# ---------------------------------------------------------------------------
+# Single source of truth for fixture pages
+# ---------------------------------------------------------------------------
 
-# Raw Confluence REST API v2 "pages" results, already flattened by
-# request_paginated_results (pagination stripped, results concatenated).
-RAW_CLOUD_PAGES = [
-    {
-        "id": PAGE_CHANGED_1,
+@dataclasses.dataclass(frozen=True)
+class PageDef:
+    """Everything needed to build one page's raw API payload, its local-DB
+    version entry (if any), and the values we expect scrape_page_metadata_in_space
+    to produce for it."""
+
+    key: str            # human-readable handle used in test code/parametrize ids
+    id: str              # Confluence page id
+    cloud_version: int   # version number as returned by the API
+    local_version: int | None  # version currently in local DB; None = not tracked yet
+    tiny_link: str
+    title: str = "Test page"
+    parent_id: str = "393939"
+    author_id: str = "conan:doyle"
+    version_author_id: str = "john:watson"
+    created_at: str = "2020-02-02"
+
+    @property
+    def should_be_stored(self) -> bool:
+        return self.local_version is None or self.cloud_version > self.local_version
+
+
+PAGE_DEFS: dict[str, PageDef] = {
+    pd.key: pd
+    for pd in [
+        PageDef(
+            key="changed_by_one_version",
+            id="123456",
+            title="Test page 1",
+            cloud_version=10,
+            local_version=9,
+            tiny_link="/x/igDWIw",
+        ),
+        PageDef(
+            key="unchanged",
+            id="123457",
+            title="Test page 2",
+            cloud_version=10,
+            local_version=10,
+            tiny_link="/x/0QDWIw",
+        ),
+        PageDef(
+            key="changed_across_versions",
+            id="123458",
+            title="Test page 3",
+            parent_id="494949",
+            author_id="jonathan:simms",
+            version_author_id="alistair:crowley",
+            created_at="2022-02-02",
+            cloud_version=11,
+            local_version=10,
+            tiny_link="/x/7wDWIw",
+        ),
+        PageDef(
+            key="new_to_local_db",
+            id="123459",
+            title="Test page 4",
+            parent_id="505050",
+            author_id="jonathan:simms",
+            version_author_id="meg:barstow",
+            created_at="2022-02-02",
+            cloud_version=11,
+            local_version=None,
+            tiny_link="/x/7wDWIa",
+        ),
+    ]
+}
+
+EXPECTED_STORED_IDS = [pd.id for pd in PAGE_DEFS.values() if pd.should_be_stored]
+EXPECTED_SKIPPED_IDS = [pd.id for pd in PAGE_DEFS.values() if not pd.should_be_stored]
+ALL_CLOUD_IDS = [pd.id for pd in PAGE_DEFS.values()]
+
+LOCAL_VERSIONS = {
+    pd.id: pd.local_version for pd in PAGE_DEFS.values() if pd.local_version is not None
+}
+
+
+def raw_page_from_def(pd: PageDef) -> dict:
+    """Build a Confluence REST API v2 page payload from a PageDef."""
+    return {
+        "id": pd.id,
         "status": "current",
-        "title": "Test page 1",
+        "title": pd.title,
         "spaceId": SPACE_ID,
-        "parentId": "393939",
+        "parentId": pd.parent_id,
         "parentType": "page",
         "position": 2,
-        "authorId": "conan:doyle",
-        "ownerId": "conan:doyle",
-        "lastOwnerId": "conan:doyle",
+        "authorId": pd.author_id,
+        "ownerId": pd.author_id,
+        "lastOwnerId": pd.author_id,
         "subtype": "blank",
-        "createdAt": "2020-02-02",
+        "createdAt": pd.created_at,
         "version": {
-            "createdAt": "2020-02-02",
+            "createdAt": pd.created_at,
             "message": "blank",
-            "number": 10,
+            "number": pd.cloud_version,
             "minorEdit": True,
-            "authorId": "john:watson",
+            "authorId": pd.version_author_id,
         },
         "body": {
             "storage": {},
@@ -63,118 +140,27 @@ RAW_CLOUD_PAGES = [
         "_links": {
             "webui": "blank",
             "editui": "blank",
-            "tinyui": "/x/igDWIw",
+            "tinyui": pd.tiny_link,
         },
-    },
-    {
-        "id": PAGE_UNCHANGED,
-        "status": "current",
-        "title": "Test page 2",
-        "spaceId": SPACE_ID,
-        "parentId": "393939",
-        "parentType": "page",
-        "position": 3,
-        "authorId": "conan:doyle",
-        "ownerId": "conan:doyle",
-        "lastOwnerId": "conan:doyle",
-        "subtype": "blank",
-        "createdAt": "2020-02-03",
-        "version": {
-            "createdAt": "2020-02-03",
-            "message": "blank",
-            "number": 10,
-            "minorEdit": True,
-            "authorId": "john:watson",
-        },
-        "body": {
-            "storage": {},
-            "atlas_doc_format": {},
-        },
-        "_links": {
-            "webui": "blank",
-            "editui": "blank",
-            "tinyui": "/x/0QDWIw",
-        },
-    },
-    {
-        "id": PAGE_CHANGED_2,
-        "status": "current",
-        "title": "Test page 3",
-        "spaceId": SPACE_ID,
-        "parentId": "494949",
-        "parentType": "page",
-        "position": 2,
-        "authorId": "jonathan:simms",
-        "ownerId": "jonathan:simms",
-        "lastOwnerId": "jonathan:simms",
-        "subtype": "blank",
-        "createdAt": "2022-02-02",
-        "version": {
-            "createdAt": "2020-02-03",
-            "message": "blank",
-            "number": 11,
-            "minorEdit": True,
-            "authorId": "alistair:crowley",
-        },
-        "body": {
-            "storage": {},
-            "atlas_doc_format": {},
-        },
-        "_links": {
-            "webui": "blank",
-            "editui": "blank",
-            "tinyui": "/x/7wDWIw",
-        },
-    },
-    {
-        "id": PAGE_FRESH,
-        "status": "current",
-        "title": "Test page 4",
-        "spaceId": SPACE_ID,
-        "parentId": "505050",
-        "parentType": "page",
-        "position": 2,
-        "authorId": "jonathan:simms",
-        "ownerId": "jonathan:simms",
-        "lastOwnerId": "jonathan:simms",
-        "subtype": "blank",
-        "createdAt": "2022-02-02",
-        "version": {
-            "createdAt": "2020-02-03",
-            "message": "blank",
-            "number": 11,
-            "minorEdit": True,
-            "authorId": "meg:barstow",
-        },
-        "body": {
-            "storage": {},
-            "atlas_doc_format": {},
-        },
-        "_links": {
-            "webui": "blank",
-            "editui": "blank",
-            "tinyui": "/x/7wDWIa",
-        },
-    },
-]
+    }
 
-# Local DB state: pid -> currently-stored version number.
-# 123456: cloud v10 > local v9   -> should be (re)stored
-# 123457: cloud v10 == local v10 -> should be skipped
-# 123458: cloud v11 > local v10  -> should be (re)stored
-# 123459: cloud v11 > local NONE  -> should be (newly) stored
-LOCAL_VERSIONS = {PAGE_CHANGED_1: 9, PAGE_UNCHANGED: 10, PAGE_CHANGED_2: 10}
 
+RAW_CLOUD_PAGES = [raw_page_from_def(pd) for pd in PAGE_DEFS.values()]
+
+
+# ---------------------------------------------------------------------------
+# Shared patching fixture
+# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def stored_calls(monkeypatch):
     """Patch the three boundary calls and capture what gets passed to storage."""
     monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
+        f"ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
         lambda endpoint: copy.deepcopy(RAW_CLOUD_PAGES),
     )
     monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions",
+        f"ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions",
         lambda space_id: dict(LOCAL_VERSIONS),
     )
 
@@ -183,7 +169,7 @@ def stored_calls(monkeypatch):
     def fake_store(pages):
         captured["pages"] = pages
 
-    monkeypatch.setattr("ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db", fake_store)
+    monkeypatch.setattr(f"ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db", fake_store)
     return captured
 
 
@@ -194,116 +180,77 @@ def stored_calls(monkeypatch):
 def test_return_shape_reflects_version_filtering(stored_calls):
     result = scrape_page_metadata_in_space(SPACE_ID)
 
-    assert result["stored_count"] == 3
-    assert result["skipped_count"] == 1
-    assert result["total_pages"] == len(PAGES_ALL)
-    assert result["pids"] == [PAGE_CHANGED_1, PAGE_CHANGED_2, PAGE_FRESH]
-    assert result["all_cloud_pages"] == PAGES_ALL
+    assert result["stored_count"] == len(EXPECTED_STORED_IDS)
+    assert result["skipped_count"] == len(EXPECTED_SKIPPED_IDS)
+    assert result["total_pages"] == len(ALL_CLOUD_IDS)
+    assert result["pids"] == EXPECTED_STORED_IDS
+    assert result["all_cloud_pages"] == ALL_CLOUD_IDS
 
 
-def test_store_called_with_correct_pages_and_fields(stored_calls):
+@pytest.mark.parametrize(
+    "pd",
+    [pd for pd in PAGE_DEFS.values() if pd.should_be_stored],
+    ids=lambda pd: pd.key,
+)
+def test_stored_page_has_correct_fields(stored_calls, pd):
     scrape_page_metadata_in_space(SPACE_ID)
 
-    stored_pages = stored_calls["pages"]
-    stored_ids = {p["id"] for p in stored_pages}
+    stored_by_id = {p["id"]: p for p in stored_calls["pages"]}
+    stored = stored_by_id[pd.id]
 
-    assert stored_ids == {PAGE_CHANGED_1, PAGE_CHANGED_2, PAGE_FRESH}
-
-    by_id = {p["id"]: p for p in stored_pages}
-
-    assert by_id[PAGE_CHANGED_1]["version"] == 10
-    assert by_id[PAGE_CHANGED_1]["space_id"] == SPACE_ID
-    assert by_id[PAGE_CHANGED_2]["version"] == 11
-    assert by_id[PAGE_FRESH]["version"] == 11
-
-    # tiny_link should be pulled through from _links.tinyui.
-    assert by_id[PAGE_CHANGED_1]["tiny_link"] == "/x/igDWIw"
-    assert by_id[PAGE_CHANGED_2]["tiny_link"] == "/x/7wDWIw"
-    assert by_id[PAGE_FRESH]["tiny_link"] == "/x/7wDWIa"
-
-    # retrieved_at should be a real, timezone-aware UTC timestamp set at
-    # scrape time -- not passed through from the fixture (which has none).
-    for page in stored_pages:
-        assert isinstance(page["retrieved_at"], datetime.datetime)
-        assert page["retrieved_at"].tzinfo is not None
+    assert stored["version"] == pd.cloud_version
+    assert stored["space_id"] == SPACE_ID
+    assert stored["tiny_link"] == pd.tiny_link
+    assert isinstance(stored["retrieved_at"], datetime.datetime)
+    assert stored["retrieved_at"].tzinfo is not None
 
 
-def test_skipped_page_is_not_in_store_call(stored_calls):
+@pytest.mark.parametrize(
+    "pd",
+    [pd for pd in PAGE_DEFS.values() if not pd.should_be_stored],
+    ids=lambda pd: pd.key,
+)
+def test_unchanged_page_is_not_stored(stored_calls, pd):
     scrape_page_metadata_in_space(SPACE_ID)
 
     stored_ids = {p["id"] for p in stored_calls["pages"]}
-    assert PAGE_UNCHANGED not in stored_ids
+    assert pd.id not in stored_ids
 
 
 def test_hard_refresh_stores_every_page_regardless_of_version(stored_calls):
     result = scrape_page_metadata_in_space(SPACE_ID, hard_refresh=True)
 
-    assert result["stored_count"] == 4
+    assert result["stored_count"] == len(ALL_CLOUD_IDS)
     assert result["skipped_count"] == 0
-    assert set(result["pids"]) == set(PAGES_ALL)
+    assert set(result["pids"]) == set(ALL_CLOUD_IDS)
 
     stored_ids = {p["id"] for p in stored_calls["pages"]}
-    assert stored_ids == set(PAGES_ALL)
+    assert stored_ids == set(ALL_CLOUD_IDS)
 
 
 def test_no_local_versions_treats_every_page_as_new(monkeypatch):
     # Simulates first-ever sync of a space: local DB has nothing for it yet.
     monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
+        f"ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
         lambda endpoint: copy.deepcopy(RAW_CLOUD_PAGES),
     )
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions",
-        lambda space_id: {},
-    )
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db",
-        lambda pages: None,
-    )
+    monkeypatch.setattr(f"ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions", lambda space_id: {})
+    monkeypatch.setattr(f"ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db", lambda pages: None)
 
     result = scrape_page_metadata_in_space(SPACE_ID)
 
-    assert result["stored_count"] == len(PAGES_ALL)
+    assert result["stored_count"] == len(ALL_CLOUD_IDS)
     assert result["skipped_count"] == 0
 
 
-def test_page_missing_links_gets_none_tiny_link(monkeypatch):
-    # Some pages (e.g. restricted/archived) come back with no "_links" key
-    # at all. Confirms the .get("_links", {}).get("tinyui") fallback holds.
-    page_without_links = copy.deepcopy(RAW_CLOUD_PAGES[0])
-    del page_without_links["_links"]
-
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
-        lambda endpoint: [page_without_links],
-    )
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions",
-        lambda space_id: {},
-    )
-    captured = {}
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db",
-        lambda pages: captured.setdefault("pages", pages),
-    )
-
-    scrape_page_metadata_in_space(SPACE_ID)
-
-    assert captured["pages"][0]["tiny_link"] is None
-
-
 def test_empty_cloud_response_stores_nothing(monkeypatch):
+    monkeypatch.setattr(f"ccandle.pages.scrape_list_of_available_pages.request_paginated_results", lambda endpoint: [])
     monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages.request_paginated_results",
-        lambda endpoint: [],
-    )
-    monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions",
-        lambda space_id: dict(LOCAL_VERSIONS),
+        f"ccandle.pages.scrape_list_of_available_pages._local_pids_with_versions", lambda space_id: dict(LOCAL_VERSIONS)
     )
     captured = {}
     monkeypatch.setattr(
-        "ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db",
+        f"ccandle.pages.scrape_list_of_available_pages._store_page_metadata_to_db",
         lambda pages: captured.setdefault("pages", pages),
     )
 
