@@ -3,6 +3,9 @@
 # - headings
 # - links in line
 # - bullet points should be respected
+# - replace excerpts from other pages with a reference to which page they are excerpting
+# - derive true word count
+
 from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.db.db_utils import get_all_ids_in_pages
