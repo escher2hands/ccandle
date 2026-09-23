@@ -23,6 +23,9 @@ PAGE_PREVIEW_COLUMNS = [
 ]
 
 def delete_dead_db_pages(all_cloud_ids):
+    if not all_cloud_ids or len(all_cloud_ids) == 0:
+        return      # don't allow users to shoot themselves in the foot from a bad API call
+
     all_cloud_ids = set(all_cloud_ids)
     all_local_ids = set(get_all_ids_in_pages())
     to_delete = all_local_ids - all_cloud_ids
