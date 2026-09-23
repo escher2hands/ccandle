@@ -1,10 +1,19 @@
-# currently we only scrape pages metadata and html...
-# later we'll add more steps.
+# Sync All is where we fetch / sync our local copy of Confluence with the cloud.
+# This is not lightweight, and takes a lot of processing time, depending on how
+# large of a corpus you have configured. We:
+# - scrape from Confluence our index of pages to track, and their contents (deleting stale / deleted pages),
+# - scrape metadata on tracked pages
+# - process these pages to add value on our local side
+
 from ccandle.config.config_app import APP_HANDLE
 from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.presentation.theme import *
 import datetime
+
+# predecessor steps are sync_pages_from_cloud, which is actually just
+# [scrape_page_metadata_in_space, scrape_page_contents_from_server, delete_dead_db_pages]
+# the rest is just metadata collection and processing
 
 VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "excerpts",
                "assign_type", "find_duplicates"]
