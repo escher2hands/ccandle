@@ -22,6 +22,9 @@ PAGE_PREVIEW_COLUMNS = [
     {"key": "title", "label": "TITLE"},
 ]
 
+WARNING_MANY_THRESHOLD = 50
+WARNING_MANY_THRESHOLD_SHARE = 0.1
+
 def delete_dead_db_pages(all_cloud_ids):
     if not all_cloud_ids or len(all_cloud_ids) == 0:
         return      # don't allow users to shoot themselves in the foot from a bad API call
@@ -33,7 +36,7 @@ def delete_dead_db_pages(all_cloud_ids):
     if not to_delete:
         print(f"\n{APP_HANDLE}'s local db does not have any pages deleted in Cloud.\nNothing to delete.")
         return
-    elif len(to_delete) > 50 and len(to_delete) > len(all_local_ids) / 10:
+    elif len(to_delete) > WARNING_MANY_THRESHOLD and len(to_delete) > len(all_local_ids) * WARNING_MANY_THRESHOLD_SHARE:
         print(HINT_MANY_FOR_DELETION)
 
     placeholders = ",".join(["?"] * len(to_delete))

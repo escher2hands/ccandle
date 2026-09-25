@@ -9,13 +9,15 @@ import sqlite3, json, re
 import datetime
 
 BATCH_SIZE = 250        # max this out, so we can have fewer API calls
+
 # I want to normalize some characters because it makes lookup easier,
 # especially for users who don't use a keyboard with those special characters
+# ñ, í, ú, å
 REPLACEMENTS = {
     'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
-    'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue',
-    'é': 'e', 'è': 'e', 'ê': 'e', 'á': 'a', 'à': 'a', 'ó': 'o', 'ô': 'o', 'ç': 'c',
-    'ż': 'z', 'ź': 'z', 'ł': 'l', 'ń': 'n', 'ś': 's', 'ą': 'a', 'ę': 'e',
+    'é': 'e', 'è': 'e', 'ê': 'e', 'ę': 'e', 'ó': 'o', 'ô': 'o',
+    'ż': 'z', 'ź': 'z', 'ł': 'l', 'ń': 'n', 'ñ': 'n', 'ś': 's', 'ç': 'c',
+    'í': 'i', 'ú': 'u', 'å': 'a', 'ą': 'a', 'á': 'a', 'à': 'a',
     '{': '', '}': '', '[': '', ']': '', '(': '', ')': '',
     '/': '-', '\\': '-', ',': '', '.': '', ';': '', ':': '',
     '!': '', '?': '', '@': '', '#': '', '$': '', '%': '',
@@ -28,6 +30,8 @@ _STRIP_NON_ALPHA = re.compile(r'\W+')
 def scrape_authors(delta_pages=None, quiet=False):
     pids = delta_pages or get_all_ids_in_pages()
     batches = chunked(pids, BATCH_SIZE)
+
+    cumulative_results = []
     with tqdm(total=len(pids), desc="Scraping author information", unit="page", disable=quiet) as pbar:
         for batch_pids in batches:
             page_to_authors = {}
@@ -50,7 +54,9 @@ def scrape_authors(delta_pages=None, quiet=False):
                 for pid, authors in page_to_authors.items()
             ]
             _store_author_history_for_pages(id_to_auth_dict)
-    return id_to_auth_dict
+            cumulative_results += id_to_auth_dict   # so we can return the full processed list, not just the last batch
+
+    return cumulative_results
 
 # we choose not to respect the true author history, as editors often make
 # many micro copy-edit style edits immediately after one-another. No need
@@ -109,22 +115,22 @@ def _store_author_history_for_pages(author_history_dict, quiet=True):
         conn.commit()
     if not quiet: print(f"Finished storing author history for all {len(author_history_dict)} pages")
 
-def get_unique_authors(recent_authors=None):
-    if not recent_authors:
-        with sqlite3.connect(PATH_DB) as conn:
-            cur = conn.cursor()
-            cur.execute(f"SELECT authors FROM {TABLE_PAGES}")
-
-            unique_authors = {
-                author
-                for (authors_json,) in cur
-                for author in json.loads(authors_json)
-            }
-    else:
-        unique_authors = set()
+def get_unique_authors(recent_authors=None, mode="id"):
+    if recent_authors is not None:
+        unique = set()
         for authors in recent_authors:
-            unique_authors.update(authors)
-    return list(unique_authors)
+            unique.update(authors)
+        return list(unique)
+
+    with sqlite3.connect(PATH_DB) as conn:
+        cur = conn.cursor()
+        if mode == "id":
+            cur.execute(f"SELECT DISTINCT author_id FROM {TABLE_AUTHORS}")
+            return [row[0] for row in cur]
+        elif mode == "name":
+            cur.execute(f"SELECT authors FROM {TABLE_PAGES}")
+            return list({a for (blob,) in cur for a in json.loads(blob)})
+        raise ValueError(f"Unknown mode: {mode!r}")
 
 
 # keeping names in a standardized format to manage user name searches.
@@ -133,21 +139,21 @@ def get_unique_authors(recent_authors=None):
 def normalize_author_name(raw_name, debug=False):
     if not raw_name: return ""
 
-    raw_name = raw_name.strip()
+    raw_name = raw_name.strip().lower()
     if ',' in raw_name:
         surname, given = map(str.strip, raw_name.split(',', 1))
     else:
         parts = raw_name.split(' ', 1)
         given, surname = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], "")
 
-    given = _STRIP_NON_ALPHA.sub('', _normalize_weird_chars(given)).lower()
-    surname = _STRIP_NON_ALPHA.sub('', _normalize_weird_chars(surname)).lower()
+    given = _STRIP_NON_ALPHA.sub('', _normalize_weird_chars(given))
+    surname = _STRIP_NON_ALPHA.sub('', _normalize_weird_chars(surname))
     return f"{given}:{surname}" if surname else given
+
 def _normalize_weird_chars(name: str) -> str:
-    return ''.join(
-        c for c in (REPLACEMENTS.get(c, c) for c in name)
-        if c in ALLOWED_CHARS
-    )
+    replaced = ''.join(REPLACEMENTS.get(c, c) for c in name)
+    return ''.join(c for c in replaced if c in ALLOWED_CHARS)
+
 
 def get_name_from_author_id(author_id):
     with sqlite3.connect(PATH_DB) as conn:
