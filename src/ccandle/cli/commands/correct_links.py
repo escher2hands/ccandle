@@ -15,7 +15,7 @@ def run(args):
     from ccandle.correct_links.link_corrector import bulk_correct_links, get_affected_pids, get_link_data
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.page_previews import render_table
-    from ccandle.presentation.user_communication import get_confirmation_to_continue, clean_user_space_id_or_exit
+    from ccandle.presentation.user_communication import user_confirmation_or_exit, clean_user_space_id_or_exit
 
     if not check_network_connection():
         return 1
@@ -45,7 +45,7 @@ def run(args):
           f"across the following {BOLD}{len(results)}{RESET} pages?\n")
 
     render_table(results, COLUMNS)
-    get_confirmation_to_continue()
+    user_confirmation_or_exit()
     update_results = bulk_correct_links(affected_pids, old_link_data, new_link_data, dry_run=False)
     failures = [res for res in update_results if res["status"] != "success"]
     if update_results:
