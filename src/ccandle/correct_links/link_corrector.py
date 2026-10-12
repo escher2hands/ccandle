@@ -1,10 +1,16 @@
+# "ccandle correct-links BAD_LINK GOOD_LINK", so a CLI exposed bulk action.
 # Corrects page links in Confluence that point to an outdated/deprecated page
+# Sometimes a page is linked to a number of places, but later it's decided to
+# deprecate that page. Correct Links is a workflow to enable doc maintainers
+# to do this in a single bulk step, across their entire tracked corpus, instead
+# of needing to hunt and find each link, then update from the tedious Confluence
+# UI.
 from ccandle.pages.parsing.link_parser import clean_and_store_links
 from ccandle.db.db_query_utils import query_db_results, query_field_multi_in_pages
 from ccandle.excerpts.excerpt_bulk_actions import increment_page_version_and_html_in_db
 from ccandle.config.config_db import TABLE_PAGES, PATH_DB
 from ccandle.network.network_utils import request_put_page
-from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
+from ccandle.pages.parsing.parse_to_plain_text import extract_plain_texts_in_bulk
 from ccandle.spaces.space_utils import get_space_attribute
 from ccandle.presentation.theme import *
 import sqlite3, re
