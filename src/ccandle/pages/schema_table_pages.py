@@ -34,7 +34,7 @@ SCHEMA_PAGES = """
     mentions_list TEXT,
     duplicate_list TEXT,
     excerpts TEXT,
-    labels TEXT,
+    labels TEXT NOT NULL DEFAULT '[]',
 
     llama_summary TEXT,
     vector_embedding BLOB,
