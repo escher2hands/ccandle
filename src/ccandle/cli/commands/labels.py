@@ -16,7 +16,7 @@ def register(subparsers):
     p = subparsers.add_parser("labels", help="Manage labels in bulk: add or delete labels from a list of page IDs")
     labels_sub = p.add_subparsers(dest="labels_cmd")
     # Default to "status" if no subcommand is given.
-    p.set_defaults(labels_cmd="list", space=None, limit=50,)
+    p.set_defaults(labels_cmd="list", space=None, limit=50, json=False, ids=False)
 
     list_sub = labels_sub.add_parser("list", help="List the labels used across your tracked Confluence spaces")
     list_sub.add_argument("--space", help="Narrow results to a specific space")
@@ -43,6 +43,7 @@ def register(subparsers):
         sub = labels_sub.add_parser(name, help=help_text)
         sub.add_argument("label", help="Your chosen label")
         sub.add_argument("page_ids", nargs="+", help="List of pages by id to apply the label change to")
+        sub.add_argument("--force", action="store_true", help="Skip label validation / misspelling check to skip interactive step")
 
     sync_sub = labels_sub.add_parser("sync", help="Sync labels with Confluence")
 
@@ -50,15 +51,16 @@ def register(subparsers):
     merge_sub.add_argument("label_from", help="The label to kill in the merging process")
     merge_sub.add_argument("label_to", help="The label to leave pages with after merging")
     merge_sub.add_argument("--space", help="Narrow page actions to a specific space")
+    merge_sub.add_argument("--force", action="store_true", help="Skip label validation / misspelling check to skip interactive step")
 
 
 def run(args):
-    from ccandle.labels.label_bulk_actions import (add_label_to_pages, delete_label_from_pages, check_and_clean_label)
+    from ccandle.labels.label_bulk_actions import add_label_to_pages, delete_label_from_pages
     from ccandle.labels.scrape_labels import scrape_labels
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.formatting_utils import parse_pids_from_terminal
     from ccandle.presentation.page_previews import get_pages_preview, render_table
-    from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db, get_confirmation_to_continue
+    from ccandle.presentation.user_communication import exit_if_not_all_ids_are_in_db, user_confirmation_or_exit
 
     COLUMNS = [
         {"key": "id", "label": "PAGE ID", "width": 11},
@@ -84,15 +86,16 @@ def run(args):
 
         pids = parse_pids_from_terminal(args.page_ids)
         exit_if_not_all_ids_are_in_db(pids)
-        label = check_and_clean_label(args.label)
+        label = legalize_label(label_to_clean=args.label, force_original=args.force)
         if label is None:
-            return 0        # need to exit if there is no valid label to add
-        results = get_pages_preview(pids, "labels", "space_id", "title")
-        print(
-            f"Are you sure you'd like to {operation} the label {BLUE}{label}{RESET} {preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
-        render_table(results, COLUMNS)
+            return 0    # will exit if no label available
 
-        get_confirmation_to_continue()
+        if not args.force:
+            results = get_pages_preview(pids, "labels", "space_id", "title")
+            print(f"Are you sure you'd like to {operation} the label {BLUE}{label}{RESET} "
+                  f"{preposition} the following {BOLD}{len(results)}{RESET} pages?\n")
+            render_table(results, COLUMNS)
+            user_confirmation_or_exit()
 
         failures = fn(pids, label)
         if failures:
@@ -152,7 +155,8 @@ def run(args):
     elif args.labels_cmd == "mentions":
         from ccandle.presentation.user_communication import print_total_and_limit_info
         from ccandle.spaces.space_utils import get_space_attribute_fuzzy
-        from ccandle.labels.label_bulk_actions import fuzzy_resolve_label_name, get_labels_cache
+        from ccandle.labels.label_bulk_actions import get_fuzzy_candidates
+        from ccandle.labels.schema_table_labels import get_labels_cache
 
         space_id = get_space_attribute_fuzzy(args.space)
         space_filter = f"space_id='{space_id}'" if args.space else "1=1"
@@ -169,7 +173,7 @@ def run(args):
         print_total_and_limit_info(len(results), args.limit)
 
         # now handle near misses (fuzzy match) with other labels in the corpus
-        fuzzies = fuzzy_resolve_label_name(args.label, get_labels_cache(), top_k=5)
+        fuzzies = get_fuzzy_candidates(args.label, get_labels_cache(), top_k=5)
         if fuzzies != []:
             # CLI MESSAGE
             print(f"\n{DIM}" + "-" * WIDTH_NICE + "\n"
@@ -182,22 +186,34 @@ def run(args):
     elif args.labels_cmd == "merge":
         from ccandle.spaces.space_utils import get_space_attribute_fuzzy
 
-        clean_label_to = check_and_clean_label(args.label_to)
+        clean_label_to = legalize_label(label_to_clean=args.label_to, force_original=args.force) # will exit if no label available
+        if clean_label_to is None:
+            print("Aborting.")
+            return 0    # will exit if no label_to available
+
         space_id = get_space_attribute_fuzzy(args.space)
         space_filter = f"space_id='{space_id}'" if args.space else "1=1"
 
-        COLUMNS = [
-            {"key": "id", "label": "PAGE ID", "width": 12},
-            {"key": "space_alias", "label": "SPACE", "width": 16},
-            {"key": "labels", "label": "LABELS", "width": 40},
-            {"key": "title", "label": "TITLE"},
-        ]
         results = get_pages_mentioning_label(args.label_from, space_filter)
+        if len(results) < 1:
+            print(f"{DIM}{RED}None of your pages have the label '{RESET}{RED}{args.label_from}{DIM}'. There is nothing to merge.{RESET}\n"
+                  f"Aborting.")
+            return 0
+
         pids = [res['id'] for res in results]
-        print(f"\nAre you sure you'd like to remove the label {BLUE}{args.label_from}{RESET} from the following {BOLD}{len(pids)}{RESET} pages,\n"
-              f"and replace that with the label {BLUE}{clean_label_to}{RESET}?\n")
-        render_table(results, COLUMNS)
-        get_confirmation_to_continue()
+
+        if not args.force:
+            COLUMNS = [
+                {"key": "id", "label": "PAGE ID", "width": 12},
+                {"key": "space_alias", "label": "SPACE", "width": 16},
+                {"key": "labels", "label": "LABELS", "width": 40},
+                {"key": "title", "label": "TITLE"},
+            ]
+            print(f"\nAre you sure you'd like to remove the label {BLUE}{args.label_from}{RESET} from the following {BOLD}{len(pids)}{RESET} pages,\n"
+                  f"and replace that with the label {BLUE}{clean_label_to}{RESET}?\n")
+            render_table(results, COLUMNS)
+            user_confirmation_or_exit()
+
         failures_add = add_label_to_pages(pids, clean_label_to)
         failed_pids = [f['pid'] for f in failures_add]
         successful_add_pids = [res['id'] for res in results if res['id'] not in failed_pids]
@@ -229,6 +245,51 @@ def print_redundant_label_groups(clusters: list[list[dict]], limit) -> None:
     for cluster in clusters[:limit]:
         pieces = [item["label"] for item in cluster]
         print(f"-   {DIM}" + f" {RESET}~{DIM} ".join(pieces) + f"{RESET}")
+
+# returns a legal Confluence label, prompting for confirmation in case of
+# typo or near-miss with existing label (obnoardng vs onboarding).
+# User can force their own, but the API will of course deny it.
+# Aborts (exits) if user declines a legal version of the label without force_original
+# Returns None if
+def legalize_label(label_to_clean, force_original=False):
+    from ccandle.labels.label_bulk_actions import compute_legal_label, get_fuzzy_candidates
+    from ccandle.labels.schema_table_labels import get_labels_cache
+    from ccandle.presentation.user_communication import user_confirmation_or_exit
+
+    if force_original:
+        return label_to_clean
+
+    legal_label, needed_cleaning = compute_legal_label(label_to_clean)
+    if needed_cleaning:
+        print(f"{DIM}Your label {RESET}{RED}{label_to_clean}{RESET}{DIM} doesn't match Confluence's style guide for labels.")
+        user_confirmation_or_exit(msg=f"Use {RESET}{BOLD}{legal_label}{RESET}{DIM} instead? Y/n{RESET}\n")
+
+    label = legal_label
+    fuzzies = get_fuzzy_candidates(legal_label, get_labels_cache())
+    if fuzzies and label not in fuzzies:
+        print(f"\n{DIM}Your cleaned label {RESET}{BOLD}{label}{RESET}{DIM} seems similar to a few existing labels:{RESET}")
+        index = 1
+        print(f"{BOLD}[{0}]{RESET} -   {label}{RESET}{DIM} (your label){RESET}")
+        for fuzzy_label in fuzzies:
+            print(f"{BOLD}[{index}]{RESET} -   {YELLOW}{fuzzy_label}{RESET}")
+            index += 1
+        print(f"{DIM}Press the number of the label you want to use. \n"
+              f"Or, press {RESET}{BOLD}0{RESET}{DIM} to create a new label with your input.{RESET}")
+        while True:
+            response = input().strip().lower()
+            if response in ["exit", "n", "no"]:
+                return None
+
+            response_int = int(response) if response.isdigit() else 999
+            if response == "0":
+                return label
+            elif 0 <= response_int <= len(fuzzies):
+                return fuzzies[response_int-1]
+            else:
+                print(f"{DIM}Please enter a number from {RESET}0-{len(fuzzies)}")
+
+    return legal_label
+
 
 def get_pages_mentioning_label(label, space_filter):
     from ccandle.spaces.space_utils import get_space_attribute
