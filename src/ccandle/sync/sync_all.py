@@ -15,8 +15,8 @@ import datetime
 # [scrape_page_metadata_in_space, scrape_page_contents_from_server, delete_dead_db_pages]
 # the rest is just metadata collection and processing
 
-VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "convert_links", "excerpts",
-               "assign_type", "find_duplicates"]
+VALID_STEPS = ["children", "authors", "labels", "parse_text", "basic_stats", "excerpts", "assign_type",
+               "find_duplicates"]
 API_STEPS = ["children", "authors", "labels"]
 
 def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=None, quiet=False):
@@ -42,7 +42,6 @@ def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=Non
         ("labels", lambda: _scrape_labels(quiet=quiet)),
         ("parse_text", lambda: _extract_plain_texts_in_bulk(delta_pages, quiet=quiet)),
         ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages, quiet=quiet)),
-        ("convert_links", lambda: _clean_link_formatting_and_store_link_list(delta_pages)), # finishes so fast there's no need for loading bar
         ("excerpts", lambda: _extract_excerpt_info(delta_pages, quiet=quiet)),
         ("assign_type", lambda: _type_all_pages(delta_pages, quiet=quiet)),
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
@@ -132,14 +131,11 @@ def _scrape_labels(quiet=False):
     from ccandle.labels.scrape_labels import scrape_labels
     scrape_labels(quiet=True)
 def _extract_plain_texts_in_bulk(delta_pages, quiet=False):
-    from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
+    from ccandle.pages.parsing.parse_to_plain_text import extract_plain_texts_in_bulk
     extract_plain_texts_in_bulk(delta_pages, path_to_db=PATH_DB, quiet=quiet)
 def _add_basic_metadata_in_bulk(delta_pages, quiet=False):
     from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
     add_basic_metadata_in_bulk(delta_pages, path_to_db=PATH_DB, quiet=quiet)
-def _clean_link_formatting_and_store_link_list(delta_pages):
-    from ccandle.pages.parsing.link_parser import clean_and_store_links
-    clean_and_store_links(delta_pages, path_to_db=PATH_DB)
 def _extract_excerpt_info(delta_pages, quiet=False):
     from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
     find_and_store_excerpt_info(delta_pages, path_to_db=PATH_DB, quiet=quiet)
