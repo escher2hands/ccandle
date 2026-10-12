@@ -11,7 +11,7 @@ def register(subparsers):
 def run(args):
     from ccandle.analysis.stats_cartography import make_maps
     from ccandle.analysis.cartography_visualizer import render_pages_map_in_browser
-    from ccandle.presentation.user_communication import clean_user_space_id_or_exit, get_confirmation_to_continue
+    from ccandle.presentation.user_communication import clean_user_space_id_or_exit, user_confirmation_or_exit
     from ccandle.config.config_app import APP_HANDLE
     from ccandle.presentation.page_previews import render_table
     from ccandle.spaces.space_utils import display_friendly_space_info
@@ -41,7 +41,7 @@ def run(args):
 
     print("\n" + "-" * WIDTH_NICE + "\n"
           "Would you like to see this visualized in a web graph?")
-    get_confirmation_to_continue()
+    user_confirmation_or_exit()
     for m in cartography_results:
         m['subtree_quality'] = 1
         m['quality'] = 1
