@@ -3,6 +3,11 @@
 # a fresh 'normalized' artifact with every derived field populated. This
 # can be re-run any number of times as the pipeline changes, always
 # starting from the same untouched dehydrated base.
+#
+# The motivation is simply that those algorithms for parsing text,
+# counting words, etc. all could be sharpened with time. Rehydrating
+# manually from the base data keeps comparisons and benchmarks truly apples
+# to apples.
 
 from ccandle.config.config_db import TABLE_PAGES, TABLE_VECTORS
 from ccandle.db.table_utils import create_table
@@ -40,9 +45,8 @@ def _seed_hydrated_table(dehydrated_path: Path, tmp_path: Path) -> int:
 
 
 def rehydrate_snapshot(dehydrated_input) -> Path:
-    from ccandle.pages.parsing.plain_text_extractor import extract_plain_texts_in_bulk
+    from ccandle.pages.parsing.parse_to_plain_text import extract_plain_texts_in_bulk
     from ccandle.pages.parsing.basic_metadata_extractor import add_basic_metadata_in_bulk
-    from ccandle.pages.parsing.link_parser import clean_and_store_links
     from ccandle.analysis.stats_excerpts import find_and_store_excerpt_info
     from ccandle.page_types.page_typer import type_all_pages
     from ccandle.analysis.stats_duplicates import scan_for_duplicates_in_corpus
@@ -60,22 +64,19 @@ def rehydrate_snapshot(dehydrated_input) -> Path:
         f"Reprocessing with the current algorithms, (6) steps.\n"
     )
 
-    print("(1/6) Extracting plain texts from html sources...")
+    print("(1/5) Extracting plain texts from html sources...")
     extract_plain_texts_in_bulk(path_to_db=tmp_path)
 
-    print("(2/6) Computing basic metadata on your pages...")
+    print("(2/5) Computing basic metadata on your pages...")
     add_basic_metadata_in_bulk(path_to_db=tmp_path)
 
-    print("(3/6) Formatting links between your pages...")
-    clean_and_store_links(path_to_db=tmp_path)
-
-    print("(4/6) Calculating excerpt and navbox usages...")
+    print("(3/5) Calculating excerpt and navbox usages...")
     find_and_store_excerpt_info(path_to_db=tmp_path)
 
-    print("(5/6) Assigning page types...")
+    print("(4/5) Assigning page types...")
     type_all_pages(path_to_db=tmp_path)
 
-    print("(6/6) Computing duplicates in your corpus...")
+    print("(5/5) Computing duplicates in your corpus...")
     scan_for_duplicates_in_corpus(path_to_db=tmp_path)
 
     hydrated_path = finalize_snapshot_name(tmp_path, HYDRATED_SUFFIX)
