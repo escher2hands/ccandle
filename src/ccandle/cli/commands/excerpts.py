@@ -35,7 +35,7 @@ def run(args):
     from ccandle.network.network_utils import check_network_connection
     from ccandle.presentation.formatting_utils import parse_pids_from_terminal
     from ccandle.presentation.page_previews import render_table
-    from ccandle.presentation.user_communication import (get_confirmation_to_continue, exit_if_not_all_ids_are_in_db,
+    from ccandle.presentation.user_communication import (user_confirmation_or_exit, exit_if_not_all_ids_are_in_db,
                                                          print_total_and_limit_info)
 
     if not check_network_connection():
@@ -64,7 +64,7 @@ def run(args):
 
         results = _get_preview_of_pages(pids)
         render_table(results, COLUMNS)
-        get_confirmation_to_continue()
+        user_confirmation_or_exit()
         failures = []
         if args.excerpts_cmd == "add":
             failures = insert_excerpts_to_pages_in_bulk(args.excerpt_source_id, pids)
