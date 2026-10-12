@@ -1,14 +1,22 @@
 from ccandle.presentation.theme import *
+STANDARD_CONFIRMATIONS = ["y", "yes"]
 
+# A CLI interaction primitive. Get explicit confirmation from the user,
+# or abort the running process here and now.
+# Many CLI processes need explicit confirmation, and if they don't get
+# this, they should immediately stop.
+def user_confirmation_or_exit(msg=None, acceptable_confirmations=None, exit_msg="Aborting."):
+    import sys
 
-def get_confirmation_to_continue(msg=None, acceptable_confirmations=None):
     msg = msg or "Type yes or no. Y/n"
-    acceptable_confirmations = acceptable_confirmations or ["y", "yes"]
+    acceptable_confirmations = acceptable_confirmations or STANDARD_CONFIRMATIONS
     print(f"\n{DIM}{msg}{RESET}")
+
     response = input().lower().strip()
     if response not in acceptable_confirmations:
-        print("Aborting.")
-        exit(0)
+        if exit_msg:
+            print(exit_msg)
+            sys.exit(0)     # end the process immediately
 
 
 def exit_if_not_all_ids_are_in_db(target_pids, source_pid=None):
