@@ -22,14 +22,14 @@ API_STEPS = ["children", "authors", "labels"]
 def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=None, quiet=False):
     pipeline_start_time = datetime.datetime.now(datetime.timezone.utc)
 
-    if not resume_at:
+    if resume_at and resume_at not in VALID_STEPS:
+        _print_invalid_step_message(resume_at)
+        exit(1)
+
+    elif not resume_at:
         delta_pages = sync_pages_from_cloud(hard_refresh=hard_refresh, space_id=space_id)               # run our first page scraping from the CC
         if delta_pages is None or delta_pages == []:
-            print(f"\n" + "-" * WIDTH_NICE + "\n"
-                  f"{BOLD}No changed pages found. There's nothing to process!\n"
-                  f"{RESET}{DIM}You can still choose to process from any step using:\n"
-                  f"   {RESET}{APP_HANDLE} sync --from-step STEP\n"
-                  f"{DIM}and process your entire corpus, even though nothing has changed since the last scrape.{RESET}")
+            _print_no_changed_pages_message()
             return 0
     else:
         print(f"{DIM}Skipping step {RESET}scrape{DIM} pages from Confluence\n"
@@ -44,6 +44,7 @@ def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=Non
         ("basic_stats", lambda: _add_basic_metadata_in_bulk(delta_pages, quiet=quiet)),
         ("excerpts", lambda: _extract_excerpt_info(delta_pages, quiet=quiet)),
         ("assign_type", lambda: _type_all_pages(delta_pages, quiet=quiet)),
+        # TODO: implement the following four steps, so we can then add them to valid steps and uncomment these calls
         #("mentions", lambda: _scrape_and_store_all_mentions(delta_pages)),   # must go after assign type, as we don't care about mentions on useless page types
         #("vectorize", lambda: _embed_pages_as_vectors(delta_pages)),
         #("keyword", lambda: _run_fingerprinting(delta_pages)),
@@ -51,13 +52,6 @@ def sync(hard_refresh=False, resume_at=None, space_id=None, your_delta_pages=Non
         ("find_duplicates", lambda: _scan_for_duplicates(quiet=quiet)),                  # can only be done on all pages, no subsets
     ]
     for name, fn in steps:
-        if resume_at and resume_at not in VALID_STEPS:
-            print(f"{RED}Invalid step: {RESET}{resume_at}{RESET}\n"
-                  f"{RED}{DIM}That's not a valid step in the processing pipeline.\n"
-                  f"Please specify a step in:\n"
-                  f"   {RESET}{DIM}{VALID_STEPS}.\n"
-                  f"{RED}{DIM}instead.\n{RESET}")
-            exit(1)
         if resume_at and name != resume_at:
             print(f"{DIM}Skipping step {RESET}{name}")
             continue
@@ -158,6 +152,27 @@ def set_all_pages_as_processed(processed_list):
             ((pid,) for pid in processed_list)
         )
 
+
+# ---------------------------------------------------
+# Prints and prints with exit conditions
+# ---------------------------------------------------
+
+def _print_no_changed_pages_message():
+    # CLI MESSAGE
+    print(f"\n" + "-" * WIDTH_NICE + "\n"
+          f"{BOLD}No changed pages found. There's nothing to process!\n"
+          f"{RESET}{DIM}You can still choose to process from any step using:\n"
+          f"   {RESET}{APP_HANDLE} sync --from-step STEP\n"
+          f"{DIM}and process your entire corpus, even though nothing has changed since the last scrape.{RESET}")
+
+def _print_invalid_step_message(resume_at):
+    # CLI MESSAGE
+    print(f"{RED}Invalid step: {RESET}{resume_at}{RESET}\n"
+          f"{RED}{DIM}That's not a valid step in the processing pipeline.\n"
+          f"Please specify a step in:\n"
+          f"   {RESET}{DIM}{VALID_STEPS}.\n"
+          f"{RED}{DIM}instead.\n{RESET}")
+
 def _print_step_duration(step_start_time, name):
     step_duration = datetime.datetime.now(datetime.timezone.utc) - step_start_time
     duration_str = str(step_duration).split('.')[0]                 # Format duration as H:MM:SS
@@ -173,12 +188,14 @@ def _print_total_pipeline_duration(pipeline_start_time, delta_pages, space_id=No
     print(f"\n{BLUE}Finished processing your {RESET}{BOLD}{len(delta_pages)}{RESET}{BLUE} pages across your {RESET}{BOLD}{count_spaces}{RESET}{BLUE} {space_descriptor} spaces in {duration_str} {BOLD}(H:MM:SS){RESET}.\n")
     print("\a")
 
+
 def _exit_if_no_valid_credentials():
     from ccandle.network.network_utils import validate_credentials
     authenticated = validate_credentials()
     if authenticated:
         return True
     else:
+        # CLI MESSAGE
         print(f"{RED}" + "-" * WIDTH_NICE + "\n"
               f"Your credentials are INVALID.\n"
               f"{DIM}The Confluence Cloud is not accepting your credentials.\n"
