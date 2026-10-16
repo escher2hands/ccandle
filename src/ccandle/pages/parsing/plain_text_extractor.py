@@ -6,7 +6,6 @@
 # - replace excerpts from other pages with a reference to which page they are excerpting
 # - derive true word count
 
-from ccandle.config.config_db import PATH_DB
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.db.db_utils import get_all_ids_in_pages
 from ccandle.spaces.space_utils import get_space_attribute
@@ -27,7 +26,10 @@ HEADING_ELEMENTS = {"h1", "h2"}
 LIST_ITEM_ELEMENT = "li"
 INTERNAL_LINK_FLAG_PATTERN = re.compile(r"\[\[link to:\s+(~[A-Za-z0-9]+|[A-Z0-9]+):(.*?)\]\]", re.DOTALL,)
 
-def extract_plain_texts_in_bulk(pid_list=None, quiet=False, *, path_to_db):
+# the main entry point for our sync_all() to process our scraped pages.
+# Does not hit any API endpoint, all is handled locally.
+# In comes pids, we store plain text and word count as output.
+def extract_plain_texts_in_bulk_old(pid_list=None, quiet=False, *, path_to_db):
     pids = pid_list or get_all_ids_in_pages(path_to_db=path_to_db)
     all_pids_to_htmls = [
         {
@@ -46,13 +48,13 @@ def extract_plain_texts_in_bulk(pid_list=None, quiet=False, *, path_to_db):
             'word_count': word_count,
         })
 
-    _store_plain_texts_in_bulk(texts, path_to_db=path_to_db)
+    #_store_plain_texts_in_bulk(texts, path_to_db=path_to_db)
     return texts
 
 # Walks block-level elements in document order and converts them to plain text:
-#   - Headings become [[Heading: ...]]
-#   - List items get a dash prefix
-#   - All other blocks are extracted as-is
+# - Headings become [[Heading: ...]]
+# - List items get a dash prefix
+# - All other blocks are extracted as-is
 # Skips nested blocks to avoid double-processing, and deduplicates across the doc.
 def extract_text_and_word_count_from_html(html: str, space_key: str) -> tuple[str, int]:
     if not html:
