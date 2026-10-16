@@ -22,7 +22,7 @@ from tqdm import tqdm
 from ccandle.config.config_db import TABLE_PAGES
 from ccandle.db.db_query_utils import query_db_results
 from ccandle.db.db_utils import get_all_ids_in_pages
-from ccandle.spaces.space_utils import list_configured_spaces
+from ccandle.spaces.space_utils import dict_space_keys_by_id
 from ccandle.pages.parsing.link_marker_defs import iter_markers, render_marker, strip_markers
 
 # --- Confluence-specific HTML element identifiers ---
@@ -61,8 +61,7 @@ def extract_plain_texts_in_bulk(pid_list=None, quiet=False, *, path_to_db):
     pids = pid_list or get_all_ids_in_pages(path_to_db=path_to_db)  # get all pages if none specified
     pids = [str(pid) for pid in pids]  # force all PIDs to be strings
 
-    space_keys = _space_keys_by_id()
-    title_index = build_title_index(path_to_db, space_keys)
+    title_index, space_keys = build_title_index(path_to_db)
 
     rows = query_db_results(select_query="id, html, space_id", path_to_db=path_to_db)
     records = [
@@ -148,21 +147,19 @@ def _normalized_title(title) -> str:
 def _normalized_space(space_key) -> str:
     return str(space_key).strip().casefold()
 
-# {space_id: space_key} for every configured space. Ids are stringified so str/int mismatches don't matter.
-def _space_keys_by_id() -> dict:
-    return {str(space["id"]): space["key"] for space in list_configured_spaces()}
+# Returns {(normalized space key, normalized title): pid_str} for every page in the DB, AND
+# {space_id: space_key} for every tracked space.
+# Pages whose space key can't be determined are left out (nothing could link to them by key).
+def build_title_index(path_to_db):
+    space_keys = dict_space_keys_by_id()        # fetch a dict with all space short_ids, indexed by space ID
 
-
-def build_title_index(path_to_db, space_keys: dict) -> dict:
-    """Returns {(normalized space key, normalized title): pid_str} for every page in the DB.
-    Pages whose space key can't be determined are left out (nothing could link to them by key)."""
     index = {}
     for pid, title, space_id in query_db_results(select_query="id, title, space_id", path_to_db=path_to_db):
         space_key = space_keys.get(str(space_id))
         if title is None or not space_key:
             continue
         index[(_normalized_space(space_key), _normalized_title(title))] = str(pid)
-    return index
+    return index, space_keys
 
 
 # Text of an element with whitespace normalized to single spaces. Text nodes are joined
