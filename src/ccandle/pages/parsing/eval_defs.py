@@ -9,3 +9,7 @@ NOTES_LEAD_PARA_GOOD = "lead-para-good"
 NOTES_PAGE_TOO_LONG = "page-too-long"
 NOTES_HEADERS_TOO_FEW = "headers-too-few"
 NOTES_TOC_MISSING = "toc-missing"
+
+# to guard against the unfortunate AI slop
+WORDS_PER_BULLET_MIN = 15
+NOTES_BULLETS_TOO_DENSE = "bullets-too-many"
