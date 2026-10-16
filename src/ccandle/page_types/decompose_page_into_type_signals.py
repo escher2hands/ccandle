@@ -107,7 +107,7 @@ def base_content_signals(word_count, image_count, soup, html, plain_text):
         'mentions_count': mention_count,
         'mention_density': mention_count / word_count_div,
         'diagram_count': diagram_count_from_html(html),
-        'bullet_count': bullet_count_from_html(html),
+        'bullet_count': bullet_count_from_plain_text(plain_text),
         'header_count': header_count_from_soup(soup),
         'digit_to_letter_ratio': digit_to_letter_ratio_from_text(plain_text),
     }
