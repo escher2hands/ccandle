@@ -138,9 +138,11 @@ def paragraph_length_signals_from_soup(soup):
         "average": sum(p for p in paragraphs) / para_count,
     }
 
-# bullet list count — high in canon/arch pages, low in minutes
-def bullet_count_from_html(html):
-    return len(re.findall(r"<ul>", html))
+# our parsed html to plain text represents bullets as newline hyphen space,
+# so counting these gives us bullet count. Usually, high bullets indicates
+# arch pages
+def bullet_count_from_plain_text(plain_text):
+    return plain_text.count('\n- ')
 
 # ——— LINK SIGNALS ——————————————————————————————————————————
 # raw confluence link count
