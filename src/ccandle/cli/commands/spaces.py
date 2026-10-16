@@ -8,13 +8,16 @@ def register(subparsers):
     space_sub = p.add_subparsers(dest="space_cmd")
     p.set_defaults(space_cmd="list", filter="")
 
+    # TODO: change the names from list and configured to search and list.
+    # Remove --filter as a requirement. Just take bare positional kw args.
+    # Add aliases for ls and rm for user comfort.
     subs = {
         name: space_sub.add_parser(name, help=help_text)
         for name, help_text in [
             ("list",       "List all Confluence spaces you have access to"),
             ("add",        "Add a space to local config for scraping"),
             ("remove",     "Remove a space and delete its pages from the local DB"),
-            ("configured", "List your currently configured spaces"),
+            ("configured", "List your currently tracked spaces"),
         ]
     }
 
