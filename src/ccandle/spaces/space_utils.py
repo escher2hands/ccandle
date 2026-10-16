@@ -39,6 +39,11 @@ def list_configured_spaces():
         for v in space_data.values()
     ]
 
+# {space_id: space_key} for every configured space. Ids are stringified so str/int mismatches don't matter.
+# TODO: can't this interfere with our rehydration steps?
+def dict_space_keys_by_id() -> dict:
+    return {str(space["id"]): space["key"] for space in list_configured_spaces()}
+
 def list_configured_space_ids():
     space_data = _load_config_spaces()
     return [v['id'] for v in space_data.values()]
@@ -178,6 +183,8 @@ def resolve_space_fuzzy(input_space) -> dict:
         return SHORT_TO_SPACE[input_str]
     if input_str in ALIAS_TO_SPACE:
         return ALIAS_TO_SPACE[input_str]
+
+    # CLI MESSAGE
     raise ValueError(f"\n"
                      f"{RED}" + "-" * WIDTH_NICE +
                      f"\n{BOLD}Unknown space identifier: {input_space}{RESET}{RED}\n"
